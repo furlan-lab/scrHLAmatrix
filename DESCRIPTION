@@ -8,7 +8,7 @@ Maintainer: Sami B. Kanaan
 Description: This package includes the function "HLA_Matrix" which takes as input: 
   1) the scrHLAtag count file including columns for CB, UMI, and HLA alleles (https://github.com/furlan-lab/scrHLAtag); and 
   2) the Seurat object associated with the scrHLAtag count file (https://satijalab.org/seurat/index.html). 
-  scrHLAtag must be run on the BMA file(s) from the "corrected" (not the "dedup") step that has been processed using the single cell IsoSeq3 pipeline (https://github.com/PacificBiosciences/IsoSeq). "HLA_Matrix" will then: 
+  scrHLAtag must be run on the BAM file(s) from the "corrected" (not the "dedup") step that has been processed using the single cell IsoSeq3 pipeline (https://github.com/PacificBiosciences/IsoSeq). "HLA_Matrix" will then: 
   1) Estimate the PCR duplication rate within UMIs; 
   2) Estimate molecular swap per UMI with the assumption that a particular UMI could only carry a single mapped molecule (HLA allele), and if more than one molecule are present these are PCR artifacts; 
   3) Correct Molecular Swap by keeping the copies per UMI with the highest occuring HLA allele; 
