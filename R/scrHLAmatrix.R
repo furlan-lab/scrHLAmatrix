@@ -18,6 +18,7 @@
 #' @return an Assay type matrix
 #' @examples
 #' HLA_Matrix(cts = your_counts_df, seu = your_Seurat_obj, rp = c("A*24:02:01", "DRB1*04:01:01", "DRB4*01:03:02"), dn = c("A*33:03:01", "B*42:01:01"))
+#' @export
 
 
 HLA_Matrix <- function(cts, seu, rp = character(), dn = character(), Ct = 0) {
