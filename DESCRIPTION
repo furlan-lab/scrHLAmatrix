@@ -16,4 +16,6 @@ Description: This package includes the function "HLA_Matrix" which takes as inpu
   then, correct this conflict by assuming a cell cannot have both recipient and donor-origin HLA allele, keeping only the most occuring; 
   6) Create the HLA Count Matrix compatible with associated the Seurat object. 
 License: MIT
+Encoding: UTF-8
 Imports: utils, stringr, stats, pbmcapply, parallel, Matrix, magrittr, htmltools, ggplot2, Seurat, dplyr
+RoxygenNote: 7.2.3

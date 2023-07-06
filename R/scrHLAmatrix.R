@@ -1,3 +1,25 @@
+#' Deduping and Correcting scrHLAtag counts and Creating Seurat-compatible Matrices
+#' 
+#' @param cts is the scrHLAtag count file including columns for CB, UMI, and HLA alleles (https://github.com/furlan-lab/scrHLAtag)
+#' @param seu is the Seurat object associated with the scrHLAtag count file (https://satijalab.org/seurat/index.html)
+#' @param rp is a character list of recipient-specific HLA alleles if known 
+#' @param dn is a character list of donor-specific HLA alleles if known 
+#' @param Ct is the count threshold for the PCR copies of UMIs to retain, default at 0
+#' @import utils
+#' @import stringr
+#' @import pbmcapply
+#' @import parallel
+#' @import Matrix
+#' @import magrittr
+#' @import htmltools
+#' @import ggplot2
+#' @import Seurat
+#' @import dplyr
+#' @return an Assay type matrix
+#' @examples
+#' HLA_Matrix(cts = your_counts_df, seu = your_Seurat_obj, rp = c("A*24:02:01", "DRB1*04:01:01", "DRB4*01:03:02"), dn = c("A*33:03:01", "B*42:01:01"))
+
+
 HLA_Matrix <- function(cts, seu, rp = character(), dn = character(), Ct = 0) {
   ## check Seurat object
   if (class(seu) != "Seurat") {
