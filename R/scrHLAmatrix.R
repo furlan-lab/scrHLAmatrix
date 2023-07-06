@@ -5,7 +5,6 @@
 #' @param rp is a character list of recipient-specific HLA alleles if known 
 #' @param dn is a character list of donor-specific HLA alleles if known 
 #' @param Ct is the count threshold for the PCR copies of UMIs to retain, default at 0
-#' @import utils
 #' @import stringr
 #' @import pbmcapply
 #' @import parallel
