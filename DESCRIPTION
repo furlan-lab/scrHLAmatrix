@@ -4,6 +4,7 @@ Title: Operating on scrHLAtag output for Molecular Swap Cleanup, Dedup, Allele C
 Version: 0.0.1.0
 Date: 2023-07-04
 Author: Sami B. Kanaan
+Maintainer: Sami B. Kanaan <kanaan.sb@outlook.com>
 Description: This package includes the function "HLA_Matrix" which takes as input: 
   1) the scrHLAtag count file including columns for CB, UMI, and HLA alleles (https://github.com/furlan-lab/scrHLAtag); and 
   2) the Seurat object associated with the scrHLAtag count file (https://satijalab.org/seurat/index.html). 
@@ -17,5 +18,5 @@ Description: This package includes the function "HLA_Matrix" which takes as inpu
   6) Create the HLA Count Matrix compatible with associated the Seurat object. 
 License: MIT
 Encoding: UTF-8
-Imports: utils, stringr, stats, pbmcapply, parallel, Matrix, magrittr, htmltools, ggplot2, Seurat, dplyr
+Imports: stringr, stats, pbmcapply, parallel, Matrix, magrittr, htmltools, ggplot2, Seurat, dplyr
 RoxygenNote: 7.2.3
