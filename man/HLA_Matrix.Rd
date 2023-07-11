@@ -4,18 +4,36 @@
 \alias{HLA_Matrix}
 \title{Deduping and Correcting scrHLAtag counts and Creating Seurat-compatible Matrices}
 \usage{
-HLA_Matrix(cts, seu, rp = character(), dn = character(), Ct = 0)
+HLA_Matrix(
+  cts,
+  seu,
+  hla_recip = character(),
+  hla_donor = character(),
+  s1_belowmax = 0.75,
+  AS_belowmax = 0.85,
+  NM_thresh = 15,
+  de_thresh = 0.015,
+  Ct = 0
+)
 }
 \arguments{
-\item{cts}{is the scrHLAtag count file including columns for CB, UMI, and HLA alleles (https://github.com/furlan-lab/scrHLAtag)}
+\item{cts}{is the scrHLAtag count file including columns for CB, UMI, and HLA alleles (https://github.com/furlan-lab/scrHLAtag).}
 
-\item{seu}{is the Seurat object associated with the scrHLAtag count file (https://satijalab.org/seurat/index.html)}
+\item{seu}{is the Seurat object associated with the scrHLAtag count file (https://satijalab.org/seurat/index.html).}
 
-\item{rp}{is a character list of recipient-specific HLA alleles if known}
+\item{hla_recip}{is a character list of recipient-specific HLA alleles if known; default is an empty character vector.}
 
-\item{dn}{is a character list of donor-specific HLA alleles if known}
+\item{hla_donor}{is a character list of donor-specific HLA alleles if known; default is an empty character vector.}
 
-\item{Ct}{is the count threshold for the PCR copies of UMIs to retain, default at 0}
+\item{s1_belowmax}{is a proportion (0 to 1) of the maximum value (best quality) of the minimap2 's1' tag above which the quality of the read is acceptable; default at 0.75 of the max s1 score.}
+
+\item{AS_belowmax}{is a proportion (0 to 1) of the maximum value (best quality) of the minimap2 'AS' tag above which the quality of the read is acceptable; default at 0.85 of the max AS score.}
+
+\item{NM_thresh}{is the number of mismatches and gaps in the minimap2 alignment at or below which the quality of the read is acceptable; default is 15.}
+
+\item{de_thresh}{is the gap-compressed per-base sequence divergence in the minimap2 alignment at or below which the quality of the read is acceptable; the number is between 0 and 1, and default is 0.015.}
+
+\item{Ct}{is the count threshold for the PCR copies of UMIs to retain; default is 0.}
 }
 \value{
 an Assay type matrix
@@ -24,5 +42,5 @@ an Assay type matrix
 Deduping and Correcting scrHLAtag counts and Creating Seurat-compatible Matrices
 }
 \examples{
-HLA_Matrix(cts = your_counts_df, seu = your_Seurat_obj, rp = c("A*24:02:01", "DRB1*04:01:01", "DRB4*01:03:02"), dn = c("A*33:03:01", "B*42:01:01"))
+HLA_Matrix(cts = your_counts_df, seu = your_Seurat_obj, hla_recip = c("A*24:02:01", "DRB1*04:01:01", "DRB4*01:03:02"), hla_donor = c("A*33:03:01", "B*42:01:01"))
 }

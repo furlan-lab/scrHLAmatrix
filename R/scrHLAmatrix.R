@@ -1,10 +1,14 @@
 #' Deduping and Correcting scrHLAtag counts and Creating Seurat-compatible Matrices
 #' 
-#' @param cts is the scrHLAtag count file including columns for CB, UMI, and HLA alleles (https://github.com/furlan-lab/scrHLAtag)
-#' @param seu is the Seurat object associated with the scrHLAtag count file (https://satijalab.org/seurat/index.html)
-#' @param rp is a character list of recipient-specific HLA alleles if known 
-#' @param dn is a character list of donor-specific HLA alleles if known 
-#' @param Ct is the count threshold for the PCR copies of UMIs to retain, default at 0
+#' @param cts  is the scrHLAtag count file including columns for CB, UMI, and HLA alleles (https://github.com/furlan-lab/scrHLAtag).
+#' @param seu  is the Seurat object associated with the scrHLAtag count file (https://satijalab.org/seurat/index.html).
+#' @param hla_recip  is a character list of recipient-specific HLA alleles if known; default is an empty character vector.
+#' @param hla_donor  is a character list of donor-specific HLA alleles if known; default is an empty character vector.
+#' @param s1_belowmax  is a proportion (0 to 1) of the maximum value (best quality) of the minimap2 's1' tag above which the quality of the read is acceptable; default at 0.75 of the max s1 score.
+#' @param AS_belowmax  is a proportion (0 to 1) of the maximum value (best quality) of the minimap2 'AS' tag above which the quality of the read is acceptable; default at 0.85 of the max AS score.
+#' @param NM_thresh  is the number of mismatches and gaps in the minimap2 alignment at or below which the quality of the read is acceptable; default is 15.
+#' @param de_thresh  is the gap-compressed per-base sequence divergence in the minimap2 alignment at or below which the quality of the read is acceptable; the number is between 0 and 1, and default is 0.015.
+#' @param Ct  is the count threshold for the PCR copies of UMIs to retain; default is 0.
 #' @import stringr
 #' @import pbmcapply
 #' @import parallel
@@ -16,11 +20,11 @@
 #' @import dplyr
 #' @return an Assay type matrix
 #' @examples
-#' HLA_Matrix(cts = your_counts_df, seu = your_Seurat_obj, rp = c("A*24:02:01", "DRB1*04:01:01", "DRB4*01:03:02"), dn = c("A*33:03:01", "B*42:01:01"))
+#' HLA_Matrix(cts = your_counts_df, seu = your_Seurat_obj, hla_recip = c("A*24:02:01", "DRB1*04:01:01", "DRB4*01:03:02"), hla_donor = c("A*33:03:01", "B*42:01:01"))
 #' @export
 
 
-HLA_Matrix <- function(cts, seu, rp = character(), dn = character(), Ct = 0) {
+HLA_Matrix <- function(cts, seu, hla_recip = character(), hla_donor = character(), s1_belowmax = 0.75, AS_belowmax = 0.85, NM_thresh = 15, de_thresh = 0.015, Ct = 0) {
   ## check Seurat object
   if (class(seu) != "Seurat") {
     stop("Single-cell dataset container must be of class 'Seurat'")
@@ -43,18 +47,18 @@ HLA_Matrix <- function(cts, seu, rp = character(), dn = character(), Ct = 0) {
     stop("The HLA allele column is unrecognizable or has incorrect format. \nMake sure gene and allele are separated by standard nomenclature asterisk (or other special character).")
   }
   cts$cbumi <- paste0(cts$CB, ":", cts$UMI)
-  ## check format of 'rp' and 'dn'
-  if (any(grepl(special, rp))) {
-    rp <- gsub(special, "-", rp)
-  } else if (all(grepl("-", rp))) {
-    rp <- rp
+  ## check format of 'hla_recip' and 'hla_donor'
+  if (any(grepl(special, hla_recip))) {
+    hla_recip <- gsub(special, "-", hla_recip)
+  } else if (all(grepl("-", hla_recip))) {
+    hla_recip <- hla_recip
   } else {
     stop("Incorrect format for recipient-defined and/or donor-defined HLA alleles. \nMake sure gene and allele are separated by standard nomenclature asterisk (or other special character).")
   }
-  if (any(grepl(special, dn))) {
-    dn <- gsub(special, "-", dn)
-  } else if (all(grepl("-", dn))) {
-    dn <- dn
+  if (any(grepl(special, hla_donor))) {
+    hla_donor <- gsub(special, "-", hla_donor)
+  } else if (all(grepl("-", hla_donor))) {
+    hla_donor <- hla_donor
   } else {
     stop("Incorrect format for recipient-defined and/or donor-defined HLA alleles. \nMake sure gene and allele are separated by standard nomenclature asterisk (or other special character).")
   }
@@ -64,11 +68,28 @@ HLA_Matrix <- function(cts, seu, rp = character(), dn = character(), Ct = 0) {
       stop("Count threshold 'Ct' must be numeric or integer")
     }
   }
+  ## check class of 'NM_thresh'
+  if (class(NM_thresh) != "integer"){
+    if (class(NM_thresh) != "numeric"){
+      stop("NM tag threshold 'NM_thresh' must be numeric or integer")
+    }
+  }
+  ## check 's1_belowmax', 'AS_belowmax', and 'de_thresh' thresholds are between 0 and 1
+  if (!all(between(c(s1_belowmax, AS_belowmax, de_thresh), 0, 1))){
+    stop("'s1_belowmax', 'AS_belowmax', and 'de_thresh' should be numerics between 0 and 1")
+  }
   ## check relevant col names exist
   if (!all(c("CB", "UMI", "gene", "samp") %in% colnames(cts))){
     stop("scrHLAtag output 'cts' dataframe must at least contain the columns 'CB', 'UMI', 'gene' (with HLA alleles), and 'samp' (matching the sample names in the corresponding Seurat object)")
   }
-  
+  ## Remove low quality reads based on minimap2 tags
+  print("1/6 - Removing low quality reads based on minimap2 tags", quote=F)
+  cts.split <- with(cts, split(cts, list(gene0=gene0)))
+  cts.split <- pbmclapply(cts.split, function(df){df[df$s1 > s1_belowmax*max(df$s1) & df$AS > AS_belowmax*max(df$AS) & df$NM <= NM_thresh & df$de <= de_thresh,]}, mc.cores = parallel::detectCores())
+  cts <-  do.call("rbind", cts.split)
+  row.names(cts)<-NULL
+  rm(cts.split)
+
   ## see if more than 1 allele are present per umi at a time
   # count all the problematic CB:UMIs for which a molecular swap is suspected
   cts$mol_swap <- NA
@@ -77,19 +98,19 @@ HLA_Matrix <- function(cts, seu, rp = character(), dn = character(), Ct = 0) {
   cts$class_swap <- as.factor(cts$class_swap)
   # split,   this is computationally heavy (about 10min for 10M rows)
   cts.split <- with(cts, split(cts, list(cbumi=cbumi))) 
-  print("1/6 - Estimating UMI duplication rate", quote=F)
-  n_umi<-pbmclapply(cts.split, nrow, mc.cores = parallel::detectCores()) %>% unlist()
-  umi_counts<- data.frame(n_umi)
-  umi_counts$dummy <- 1
-  umi_counts <- umi_counts[order(umi_counts$n_umi),]
-  row.names(umi_counts)<- NULL
-  g <- ggplot(umi_counts, aes(x= as.numeric(row.names(umi_counts)), y=n_umi, group= dummy))+
-    #geom_smooth(size=2, method = "gam")+
-    geom_line()+
-    scale_y_log10(name = "PCR copies per UMI")+
-    scale_x_continuous(name = "Rank", n.breaks = 8) +
-    theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))
-  print(g)
+  # print("1/6 - Estimating UMI duplication rate", quote=F)
+  # n_umi<-pbmclapply(cts.split, nrow, mc.cores = parallel::detectCores()) %>% unlist()
+  # umi_counts<- data.frame(n_umi)
+  # umi_counts$dummy <- 1
+  # umi_counts <- umi_counts[order(umi_counts$n_umi),]
+  # row.names(umi_counts)<- NULL
+  # g <- ggplot(umi_counts, aes(x= as.numeric(row.names(umi_counts)), y=n_umi, group= dummy))+
+  #   #geom_smooth(size=2, method = "gam")+
+  #   geom_line()+
+  #   scale_y_log10(name = "PCR copies per UMI")+
+  #   scale_x_continuous(name = "Rank", n.breaks = 8) +
+  #   theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))
+  # print(g)
   print("2/6 - Estimating molecular swap", quote=F)
   pb <- txtProgressBar(min = 0, max = length(cts.split), style = 3, char = "=")
   for(j in 1:length(cts.split)){
@@ -173,7 +194,7 @@ HLA_Matrix <- function(cts, seu, rp = character(), dn = character(), Ct = 0) {
   # detect HLA conflicts (i.e. donor-spec and recipient-spec HLA in the same barcode)
   pb <- txtProgressBar(min = 0, max = length(cts.dedup.cb), style = 3, char = "=")
   for(j in 1:length(cts.dedup.cb)){
-    cts.dedup.cb[[j]]$hla_conflict <- ifelse(any(cts.dedup.cb[[j]]$gene0 %in% rp) & any(cts.dedup.cb[[j]]$gene0 %in% dn),
+    cts.dedup.cb[[j]]$hla_conflict <- ifelse(any(cts.dedup.cb[[j]]$gene0 %in% hla_recip) & any(cts.dedup.cb[[j]]$gene0 %in% hla_donor),
                                              cts.dedup.cb[[j]]$hla_conflict <- "yes",
                                              cts.dedup.cb[[j]]$hla_conflict <- "no")
     setTxtProgressBar(pb, j)
@@ -204,7 +225,7 @@ HLA_Matrix <- function(cts, seu, rp = character(), dn = character(), Ct = 0) {
   }
   # keep two alleles per HLA gene!
   print("5/6 - Conflict Correction: assuming a cell cannot have both recipient and donor-origin HLA allele, keeping only the most occuring", quote = F)
-  cts.dedup.cb <- pbmclapply(cts.dedup.cb, keep_two, recip = rp, donor = dn, mc.cores = parallel::detectCores())
+  cts.dedup.cb <- pbmclapply(cts.dedup.cb, keep_two, recip = hla_recip, donor = hla_donor, mc.cores = parallel::detectCores())
   
   ## Matrix formation
   # matrix
