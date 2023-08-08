@@ -545,12 +545,21 @@ Top_HLA_plot <- function(cts_1, cts_2 = NULL, top_hla = 10, min_reads_per_gene =
     t$twofield <- paste0(str_pad(row.names(t), 2, pad = "0"), "_",t$twofield)
     g <- ggplot(t, aes(x= twofield, y= N, fill= fscore))+
       geom_bar(stat = 'identity')+
-      scale_fill_gradientn(limits = c(0,1), colours = rev(color_pal), na.value = "grey70")+
+      scale_fill_gradientn(limits = c(0,1), colours = rev(color_pal), na.value = "grey35")+
       xlab("Reads (n)")+ 
       ylab("Top 10 alleles")+
       theme(text = element_text(size = 9),legend.position = "none",axis.title.x=element_blank(),axis.title.y=element_blank(),axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))
     plots<- c(plots,list(g))
   }
   pl <- do.call("plot_grid", c(plots, align = "hv", ncol=floor(sqrt(length(plots)))))
-  return(pl)
+  leg <- get_legend(ggplot(tab, aes(x= twofield, y= N, fill= fscore, color=""))+
+                      geom_bar(stat = 'identity')+
+                      scale_fill_gradientn(limits = c(0,1), colours = rev(pal2), breaks=c(0,0.25,0.5,0.75,1),labels=c(0.00,0.25,0.50,0.75,1.00), na.value = "grey35")+
+                      scale_color_manual(values=NA, na.value = NA)+
+                      labs(fill="Population\nFreq", color = "No data")+
+                      #guides(colour=guide_legend(override.aes=list(colour="grey70")))+
+                      theme(text = element_text(size = 8), legend.key.size = unit(4, 'mm'), legend.title = element_text(size=6))
+  )
+   pl2 <- plot_grid(pl, grid.arrange(leg), rel_widths = c(10,1)) 
+  return(pl2)
 }
