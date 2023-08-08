@@ -545,7 +545,7 @@ Top_HLA_plot <- function(cts_1, cts_2 = NULL, top_hla = 10, min_reads_per_gene =
     t$twofield <- paste0(str_pad(row.names(t), 2, pad = "0"), "_",t$twofield)
     g <- ggplot(t, aes(x= twofield, y= N, fill= fscore))+
       geom_bar(stat = 'identity')+
-      scale_fill_gradientn(colours = rev(color_pal), na.value = "grey70")+
+      scale_fill_gradientn(limits = c(0,1), colours = rev(color_pal), na.value = "grey70")+
       xlab("Reads (n)")+ 
       ylab("Top 10 alleles")+
       theme(text = element_text(size = 9),legend.position = "none",axis.title.x=element_blank(),axis.title.y=element_blank(),axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))
