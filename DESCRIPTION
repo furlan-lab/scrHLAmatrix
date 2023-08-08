@@ -20,3 +20,6 @@ License: MIT
 Encoding: UTF-8
 Imports: stringr, stats, pbmcapply, parallel, Matrix, magrittr, htmltools, ggplot2, Seurat, dplyr
 RoxygenNote: 7.2.3
+Depends: 
+    R (>= 2.10)
+LazyData: true

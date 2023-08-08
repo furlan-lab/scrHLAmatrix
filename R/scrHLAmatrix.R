@@ -253,3 +253,225 @@ HLA_Matrix <- function(cts, seu, hla_recip = character(), hla_donor = character(
   HLA <- CreateAssayObject(counts = HLA.matrix)
   return(HLA)
 }
+
+
+#' Extracting the top HLA alleles from the scrHLAtag count files
+#' 
+#' @param cts_list  is a list of 2 scrHLAtag count files including columns for CB, UMI, and HLA alleles. The first contains genomic molecular info (gene) and the second contains mRNA molecular info (https://github.com/furlan-lab/scrHLAtag).
+#' @param frac  is the fraction (0 to 1) of total reads for a particular HLA gene, which incorporates the highest ranking alleles of that gene in terms of number of reads; default at 0.65 .
+#' @param min_alleles_keep  is a numeric representing the minimum number of highest ranking alleles to keep despite filtering by fraction 'frac'; default is 5.
+#' @param min_reads_per_gene  is a numeric representing minimum number of total reads per HLA gene (including all its alleles) below which the gene is filtered out; default is 200. 
+#' @param insert_pop_most_freq  is a logical, whether to to include the HLA allele with the highest frequency in the human population despite low reads in the count files; default is TRUE.
+#' @param use_gene_align_ABC  is a logical, whether to use the count file from the genomic alignment (rather than the mRNA alignment) to count reads for the HLA-A, -B, and -C genes, as it was observed in some cases that this has better accuracy in predicting genotype versus mRNA alignments (not the case for Class-II and other HLA genes); default is FALSE.
+#' @import stringr
+#' @import stringdist
+#' @import cowplot
+#' @import magrittr
+#' @import htmltools
+#' @import ggplot2
+#' @import dplyr
+#' @return a Vector of the top HLA alleles in the count files (in terms of reads).
+#' @examples
+#' Top_HLA_list(cts_list = cts, frac = 0.8, min_alleles_keep = 2, use_gene_align_ABC = TRUE)
+#' @export
+
+Top_HLA_list <- function(cts_list, frac = 0.65, min_alleles_keep = 5, min_reads_per_gene = 200, insert_pop_most_freq = TRUE, use_gene_align_ABC = FALSE){
+  ## the cts_list should include both outputs of molecular_info from scrHLAtag: the gene molecular info and the mRNA molecular info files
+  cts_abc <- unique(cts_list[[names(cts_list)[which.min(stringdist::stringdist("gene", names(cts_list), method = "lv"))]]]$hla)[order(unique(cts_list[[names(cts_list)[which.min(stringdist::stringdist("gene", names(cts_list), method = "lv"))]]]$hla))]
+  if (use_gene_align_ABC) {
+    if (length(cts_abc[which(cts_abc %in% c("A", "B", "C"))]) != 3) {
+      stop("the molecule_info_gene.txt.gz file does not contain alleles belonging to all of HLA-A, -B, and -C")
+    }
+  }
+  cts_notabc <- unique(cts_list[[names(cts_list)[which.min(stringdist::stringdist("mRNA", names(cts_list), method = "lv"))]]]$hla)[order(unique(cts_list[[names(cts_list)[which.min(stringdist::stringdist("mRNA", names(cts_list), method = "lv"))]]]$hla))]
+  for (j in 1:length(cts_notabc)){
+    if (!use_gene_align_ABC) {
+      t<-as.data.table(table(cts_list[[names(cts_list)[which.min(stringdist::stringdist("mRNA", names(cts_list), method = "lv"))]]][cts_list[[names(cts_list)[which.min(stringdist::stringdist("mRNA", names(cts_list), method = "lv"))]]]$hla == cts_notabc[j],]$gene))
+    } else {
+      if (cts_notabc[j] %in% c("A", "B", "C")) {
+        t<-as.data.table(table(cts_list[[names(cts_list)[which.min(stringdist::stringdist("gene", names(cts_list), method = "lv"))]]][cts_list[[names(cts_list)[which.min(stringdist::stringdist("gene", names(cts_list), method = "lv"))]]]$hla == cts_notabc[j],]$gene))
+      } else {
+        t<-as.data.table(table(cts_list[[names(cts_list)[which.min(stringdist::stringdist("mRNA", names(cts_list), method = "lv"))]]][cts_list[[names(cts_list)[which.min(stringdist::stringdist("mRNA", names(cts_list), method = "lv"))]]]$hla == cts_notabc[j],]$gene))
+      }
+    }
+    # t$twofield <- sapply(t$V1, function(x) strsplit(x, ":")[[1]][1:2] %>% paste0(collapse=":"))
+    t$twofield <- t$V1
+    t <- aggregate(N ~ twofield, data = t, FUN = sum)
+    t<- t[order(-t$N, t$twofield),]
+    row.names(t)<- NULL
+    # the 3-field level resolution of HLA mRNA is actually 2-field for MICA and MICB. must fix this glitch:
+    if (strsplit(t$twofield, "\\*")[[1]][1] %in% c("MICA", "MICB")) {
+      t$a <- sapply(t$twofield, function(x) strsplit(x, ":")[[1]][1])
+      t$c <- sapply(t$twofield, function(x) strsplit(x, ":")[[1]][2])
+      t$a <- ifelse(is.na(t$c), t$a, paste0(t$a, ":", t$c))
+      t$b <- sapply(t$twofield, function(x) strsplit(x, ":")[[1]][3])
+      y <- aggregate(b ~ a, data = t, function(x) x[order(x)][1])
+      t <- aggregate(N ~ a, data = t, FUN = sum)
+      t$a <- ifelse(is.na(y$b[match(t$a, y$a)]), t$a, paste0(t$a, ":", y$b[match(t$a, y$a)]) )
+      colnames(t)[1] <- "twofield"
+      rm(y)
+      t<- t[order(-t$N, t$twofield),]
+      row.names(t)<- NULL
+    }
+    freq<-scrHLAmatrix::freq 
+    freq<- freq[complete.cases(freq$allele_freq),]
+    sapply(freq, class)
+    freq$sample_size <- gsub(",", "", freq$sample_size)
+    freq$sample_size <- as.numeric(freq$sample_size)
+    freq$allele_pop <- freq$allele_freq*freq$sample_size*2
+    freq$allele_pop <- round(freq$allele_pop, digits = 0)
+    t$fscore <- NA
+    t$hlagene <- cts_notabc[j]
+    for (i in 1:nrow(t)) {
+      if (nrow(freq[freq$allele == t[i,]$twofield,]) != 0) {
+        agg<-cbind(
+          aggregate(sample_size ~ allele, data = freq[freq$allele == t[i,]$twofield,], FUN = mean),
+          aggregate(allele_pop ~ allele, data = freq[freq$allele == t[i,]$twofield,], FUN = mean)[,2]
+        )
+        agg$mean_freq<-agg[,3]/(agg[,2]*2)
+        t[i,3] <- agg$mean_freq
+      }
+    }
+    t$onefield <- sapply(t$twofield, function(x) strsplit(x, ":")[[1]][1])
+    # drop out the genes with fewer than x amount of reads
+    if (sum(t$N) < min_reads_per_gene) {
+      t <- t[0,]
+    }
+    # order by N
+    t<- t[order(t$N),]
+    t$csum <- cumsum(t$N)
+    # ----------------------------------------------------------------
+    # include alleles covering a specific fraction 'frac' of all reads
+    if (length(unique(t$twofield)) <= min_alleles_keep) {
+      top <- t$twofield
+    } else {
+      top <- t$twofield[t$csum/sum(t$N) > (1-frac)]
+    }
+    # include the most common allele in the population even if not in the top alleles by fraction of all reads (from previous step)
+    if (insert_pop_most_freq) {
+      u <- unique(t$onefield[t$csum/sum(t$N) > (1-frac)])
+      spl <- with(t, split(t, list(onefield=onefield)))
+      spl <- spl[names(spl) %in% u]
+      if (length(spl) > 0) {
+        for (i in 1:length(spl)) {
+          top <- c(top, spl[[i]]$twofield[spl[[i]]$fscore == max(spl[[i]]$fscore[!is.na(spl[[i]]$fscore)])])
+        }
+      }
+    }
+    top <- top[!is.na(top)] #remove NAs that were introduced in previous step
+    top <- unique(top) #remove any duplicates
+    if (exists("top_alleles")) {top_alleles <- c(top_alleles, top)} else {top_alleles <- top}
+  }
+  top_alleles<-top_alleles[order(top_alleles)]
+  return(top_alleles)
+}
+
+#' Plotting the top HLA alleles from the scrHLAtag count files
+#' 
+#' @param cts_list  is a list of 2 scrHLAtag count files including columns for CB, UMI, and HLA alleles. The first contains genomic molecular info (gene) and the second contains mRNA molecular info (https://github.com/furlan-lab/scrHLAtag).
+#' @param top_hla  is a numeric, representing the number of top HLA alleles (i.e. with the highest number of reads) per HLA gene to display in the plot; default is 10.
+#' @param min_reads_per_gene  is a numeric representing minimum number of total reads per HLA gene (including all its alleles) below which the gene is filtered out; default is 200. 
+#' @param use_gene_align_ABC  is a logical, whether to use the count file from the genomic alignment (rather than the mRNA alignment) to count reads for the HLA-A, -B, and -C genes, as it was observed in some cases that this has better accuracy in predicting genotype versus mRNA alignments (not the case for Class-II and other HLA genes); default is FALSE.
+#' @import stringr
+#' @import stringdist
+#' @import cowplot
+#' @import magrittr
+#' @import htmltools
+#' @import ggplot2
+#' @import dplyr
+#' @return a Vector of the top HLA alleles in the count files (in terms of reads).
+#' @examples
+#' Top_HLA_plot(cts_list = cts, use_gene_align_ABC = TRUE)
+#' @export
+
+Top_HLA_plot <- function(cts_list, top_hla = 10, min_reads_per_gene = 200, use_gene_align_ABC = FALSE){
+  cts_abc <- unique(cts_list[[names(cts_list)[which.min(stringdist::stringdist("gene", names(cts_list), method = "lv"))]]]$hla)[order(unique(cts_list[[names(cts_list)[which.min(stringdist::stringdist("gene", names(cts_list), method = "lv"))]]]$hla))]
+  if (use_gene_align_ABC) {
+    if (length(cts_abc[which(cts_abc %in% c("A", "B", "C"))]) != 3) {
+      stop("the molecule_info_gene.txt.gz file does not contain alleles belonging to all of HLA-A, -B, and -C")
+    }
+  }
+  cts_notabc <- unique(cts_list[[names(cts_list)[which.min(stringdist::stringdist("mRNA", names(cts_list), method = "lv"))]]]$hla)[order(unique(cts_list[[names(cts_list)[which.min(stringdist::stringdist("mRNA", names(cts_list), method = "lv"))]]]$hla))]
+  for (j in 1:length(cts_notabc)){
+    if (!use_gene_align_ABC) {
+      t<-as.data.table(table(cts_list[[names(cts_list)[which.min(stringdist::stringdist("mRNA", names(cts_list), method = "lv"))]]][cts_list[[names(cts_list)[which.min(stringdist::stringdist("mRNA", names(cts_list), method = "lv"))]]]$hla == cts_notabc[j],]$gene))
+    } else {
+      if (cts_notabc[j] %in% c("A", "B", "C")) {
+        t<-as.data.table(table(cts_list[[names(cts_list)[which.min(stringdist::stringdist("gene", names(cts_list), method = "lv"))]]][cts_list[[names(cts_list)[which.min(stringdist::stringdist("gene", names(cts_list), method = "lv"))]]]$hla == cts_notabc[j],]$gene))
+      } else {
+        t<-as.data.table(table(cts_list[[names(cts_list)[which.min(stringdist::stringdist("mRNA", names(cts_list), method = "lv"))]]][cts_list[[names(cts_list)[which.min(stringdist::stringdist("mRNA", names(cts_list), method = "lv"))]]]$hla == cts_notabc[j],]$gene))
+      }
+    }
+    # t$twofield <- sapply(t$V1, function(x) strsplit(x, ":")[[1]][1:2] %>% paste0(collapse=":"))
+    t$twofield <- t$V1
+    t <- aggregate(N ~ twofield, data = t, FUN = sum)
+    t<- t[order(-t$N, t$twofield),]
+    row.names(t)<- NULL
+    # the 3-field level resolution of HLA mRNA is actually 2-field for MICA and MICB. must fix this glitch:
+    if (strsplit(t$twofield, "\\*")[[1]][1] %in% c("MICA", "MICB")) {
+      t$a <- sapply(t$twofield, function(x) strsplit(x, ":")[[1]][1])
+      t$c <- sapply(t$twofield, function(x) strsplit(x, ":")[[1]][2])
+      t$a <- ifelse(is.na(t$c), t$a, paste0(t$a, ":", t$c))
+      t$b <- sapply(t$twofield, function(x) strsplit(x, ":")[[1]][3])
+      y <- aggregate(b ~ a, data = t, function(x) x[order(x)][1])
+      t <- aggregate(N ~ a, data = t, FUN = sum)
+      t$a <- ifelse(is.na(y$b[match(t$a, y$a)]), t$a, paste0(t$a, ":", y$b[match(t$a, y$a)]) )
+      colnames(t)[1] <- "twofield"
+      rm(y)
+      t<- t[order(-t$N, t$twofield),]
+      row.names(t)<- NULL
+    }
+    freq<-scrHLAmatrix::freq 
+    freq<- freq[complete.cases(freq$allele_freq),]
+    sapply(freq, class)
+    freq$sample_size <- gsub(",", "", freq$sample_size)
+    freq$sample_size <- as.numeric(freq$sample_size)
+    freq$allele_pop <- freq$allele_freq*freq$sample_size*2
+    freq$allele_pop <- round(freq$allele_pop, digits = 0)
+    t$fscore <- NA
+    t$hlagene <- cts_notabc[j]
+    for (i in 1:nrow(t)) {
+      if (nrow(freq[freq$allele == t[i,]$twofield,]) != 0) {
+        agg<-cbind(
+          aggregate(sample_size ~ allele, data = freq[freq$allele == t[i,]$twofield,], FUN = mean),
+          aggregate(allele_pop ~ allele, data = freq[freq$allele == t[i,]$twofield,], FUN = mean)[,2]
+        )
+        agg$mean_freq<-agg[,3]/(agg[,2]*2)
+        t[i,3] <- agg$mean_freq
+      }
+    }
+    t$onefield <- sapply(t$twofield, function(x) strsplit(x, ":")[[1]][1])
+    # drop out the genes with fewer than x amount of reads
+    if (sum(t$N) < min_reads_per_gene) {
+      t <- t[0,]
+    }
+    # order by N
+    t<- t[order(t$N),]
+    t$csum <- cumsum(t$N)
+    #---------------------------------------------------------------------
+    # prepare table for plots, just get the top 10 alleles with most reads
+    t<- t[order(-t$N, -t$fscore, t$twofield),]
+    if (nrow(t)>top_hla){
+      t<- t[1:top_hla,]
+    }
+    if (exists("tab")) {tab <- rbind(tab, t)} else {tab <- t}
+    tab <- tab[order(tab$hlagene),]
+    row.names(tab) <- NULL
+  }
+  plots <- c()
+  for (j in 1:length(unique(tab$hlagene))) {
+    t <- tab[tab$hlagene == unique(tab$hlagene)[j],]
+    t <- t[order(-t$N),]
+    row.names(t)<- NULL
+    t$twofield <- paste0(str_pad(row.names(t), 2, pad = "0"), "_",t$twofield)
+    g <- ggplot(t, aes(x= twofield, y= N, fill= fscore))+
+      geom_bar(stat = 'identity')+
+      scale_fill_gradientn(colours = rev(pal2), na.value = "grey70")+
+      xlab("Reads (n)")+ 
+      ylab("Top 10 alleles")+
+      theme(text = element_text(size = 9),legend.position = "none",axis.title.x=element_blank(),axis.title.y=element_blank(),axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))
+    plots<- c(plots,list(g))
+  }
+  pl <- do.call("plot_grid", c(plots, align = "hv", ncol=floor(sqrt(length(plots)))))
+  return(pl)
+}
