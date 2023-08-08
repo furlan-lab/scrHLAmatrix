@@ -42,5 +42,21 @@ an Assay type matrix
 Deduping and Correcting scrHLAtag counts and Creating Seurat-compatible Matrices
 }
 \examples{
-HLA_Matrix(cts = your_counts_df, seu = your_Seurat_obj, hla_recip = c("A*24:02:01", "DRB1*04:01:01", "DRB4*01:03:02"), hla_donor = c("A*33:03:01", "B*42:01:01"))
+samples <- c("AML_101_BM", "AML_101_34")
+mol_info <- c("molecule_info_gene.txt.gz", "molecule_info_mRNA.txt.gz")
+for (i in 1:length(mol_info)){
+  dl<-lapply(samples, function(sample){
+    d<-read.table(file.path("path/to/scrHLAtag/out/files", sample,
+                            mol_info[i]), header = F, sep=" ", fill = T) 
+    d$V1<-paste0(sample, "_", d$V1, "-1")
+    colnames(d)<-c("name","CB", "nb", "UMI", "gene", "query_len","start", "mapq", "cigar", "NM", "AS", "s1", "de", "seq")
+    d$samp <- sample
+    d
+  })
+  ctsu<-do.call(rbind,dl)
+  rm(dl)
+  cts[[str_sub(strsplit(mol_info[i], "\\\\.")[[1]][1], start= -4)]] <- ctsu
+  rm(ctsu)
+}
+HLA_Matrix(cts = cts[["mRNA"]], seu = your_Seurat_obj, hla_recip = c("A*24:02:01", "DRB1*04:01:01", "DRB4*01:03:02"), hla_donor = c("A*33:03:01", "B*42:01:01"))
 }

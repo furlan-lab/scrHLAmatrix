@@ -20,7 +20,23 @@
 #' @import dplyr
 #' @return an Assay type matrix
 #' @examples
-#' HLA_Matrix(cts = your_counts_df, seu = your_Seurat_obj, hla_recip = c("A*24:02:01", "DRB1*04:01:01", "DRB4*01:03:02"), hla_donor = c("A*33:03:01", "B*42:01:01"))
+#' samples <- c("AML_101_BM", "AML_101_34")
+#' mol_info <- c("molecule_info_gene.txt.gz", "molecule_info_mRNA.txt.gz")
+#' for (i in 1:length(mol_info)){
+#'   dl<-lapply(samples, function(sample){
+#'     d<-read.table(file.path("path/to/scrHLAtag/out/files", sample,
+#'                             mol_info[i]), header = F, sep=" ", fill = T) 
+#'     d$V1<-paste0(sample, "_", d$V1, "-1")
+#'     colnames(d)<-c("name","CB", "nb", "UMI", "gene", "query_len","start", "mapq", "cigar", "NM", "AS", "s1", "de", "seq")
+#'     d$samp <- sample
+#'     d
+#'   })
+#'   ctsu<-do.call(rbind,dl)
+#'   rm(dl)
+#'   cts[[str_sub(strsplit(mol_info[i], "\\.")[[1]][1], start= -4)]] <- ctsu
+#'   rm(ctsu)
+#' }
+#' HLA_Matrix(cts = cts[["mRNA"]], seu = your_Seurat_obj, hla_recip = c("A*24:02:01", "DRB1*04:01:01", "DRB4*01:03:02"), hla_donor = c("A*33:03:01", "B*42:01:01"))
 #' @export
 
 
@@ -257,12 +273,13 @@ HLA_Matrix <- function(cts, seu, hla_recip = character(), hla_donor = character(
 
 #' Extracting the top HLA alleles from the scrHLAtag count files
 #' 
-#' @param cts_list  is a list of 2 scrHLAtag count files including columns for CB, UMI, and HLA alleles. The first contains genomic molecular info (gene) and the second contains mRNA molecular info (https://github.com/furlan-lab/scrHLAtag).
+#' @param cts_1  is the primary scrHLAtag count file (1 of 2 files containing either the mRNA molecular info or the genomic (gene) molecular info). It includes columns for CB, UMI, and HLA alleles (https://github.com/furlan-lab/scrHLAtag).
+#' @param cts_2  is the secondary scrHLAtag count file (the alternative file vs. the one designated in 'cts_1' argument). It includes columns for CB, UMI, and HLA alleles (https://github.com/furlan-lab/scrHLAtag). Default is NULL, in which case it will not be able to count alternative aligment and argument 'use_alt_align_ABC' will become irrelevant.
 #' @param frac  is the fraction (0 to 1) of total reads for a particular HLA gene, which incorporates the highest ranking alleles of that gene in terms of number of reads; default at 0.65 .
 #' @param min_alleles_keep  is a numeric representing the minimum number of highest ranking alleles to keep despite filtering by fraction 'frac'; default is 5.
 #' @param min_reads_per_gene  is a numeric representing minimum number of total reads per HLA gene (including all its alleles) below which the gene is filtered out; default is 200. 
 #' @param insert_pop_most_freq  is a logical, whether to to include the HLA allele with the highest frequency in the human population despite low reads in the count files; default is TRUE.
-#' @param use_gene_align_ABC  is a logical, whether to use the count file from the genomic alignment (rather than the mRNA alignment) to count reads for the HLA-A, -B, and -C genes, as it was observed in some cases that this has better accuracy in predicting genotype versus mRNA alignments (not the case for Class-II and other HLA genes); default is FALSE.
+#' @param use_alt_align_ABC  is a logical, whether to use the count file from the alternative alignment (rather than the primary alignment) to count reads for the HLA-A, -B, and -C genes. It was observed in some cases that using genomic alignments has better accuracy in predicting genotype versus mRNA alignments (not the case for Class-II and other HLA genes); default is FALSE.
 #' @import stringr
 #' @import cowplot
 #' @import magrittr
@@ -271,26 +288,54 @@ HLA_Matrix <- function(cts, seu, hla_recip = character(), hla_donor = character(
 #' @import dplyr
 #' @return a Vector of the top HLA alleles in the count files (in terms of reads).
 #' @examples
-#' Top_HLA_list(cts_list = cts, frac = 0.8, min_alleles_keep = 2, use_gene_align_ABC = TRUE)
+#' samples <- c("AML_101_BM", "AML_101_34")
+#' mol_info <- c("molecule_info_gene.txt.gz", "molecule_info_mRNA.txt.gz")
+#' for (i in 1:length(mol_info)){
+#'   dl<-lapply(samples, function(sample){
+#'     d<-read.table(file.path("path/to/scrHLAtag/out/files", sample,
+#'                             mol_info[i]), header = F, sep=" ", fill = T) 
+#'     d$V1<-paste0(sample, "_", d$V1, "-1")
+#'     colnames(d)<-c("name","CB", "nb", "UMI", "gene", "query_len","start", "mapq", "cigar", "NM", "AS", "s1", "de", "seq")
+#'     d$samp <- sample
+#'     d
+#'   })
+#'   ctsu<-do.call(rbind,dl)
+#'   rm(dl)
+#'   cts[[str_sub(strsplit(mol_info[i], "\\.")[[1]][1], start= -4)]] <- ctsu
+#'   rm(ctsu)
+#' }
+#' Top_HLA_list(cts_1 = cts[["mRNA"]], cts_2 = cts[["gene"]], frac = 0.8, min_alleles_keep = 2, use_alt_align_ABC = TRUE)
 #' @export
 
-Top_HLA_list <- function(cts_list, frac = 0.65, min_alleles_keep = 5, min_reads_per_gene = 200, insert_pop_most_freq = TRUE, use_gene_align_ABC = FALSE){
-  ## the cts_list should include both outputs of molecular_info from scrHLAtag: the gene molecular info and the mRNA molecular info files
-  cts_abc <- unique(cts_list[[names(cts_list)[which.min(stringdist::stringdist("gene", names(cts_list), method = "lv"))]]]$hla)[order(unique(cts_list[[names(cts_list)[which.min(stringdist::stringdist("gene", names(cts_list), method = "lv"))]]]$hla))]
-  if (use_gene_align_ABC) {
+Top_HLA_list <- function(cts_1, cts_2 = NULL, frac = 0.65, min_alleles_keep = 5, min_reads_per_gene = 200, insert_pop_most_freq = TRUE, use_alt_align_ABC = FALSE){
+  if (is.null(cts_2)) {
+    cts_2 <- cts_1
+    warning("The molecule_info_gene.txt.gz count file does not seem to be included. The function will run but the argument 'use_alt_align_ABC' will be irrelevant.")
+  }
+  # extract the HLA genes that appear in the reads
+  special <- "[_*|?.+$^]"
+  cts_2$gene0 <- gsub(special, "-", cts_2$gene)
+  cts_2[c("hla", "leftover")] <- str_split_fixed(cts_2$gene, special, 2)
+  cts_2$leftover <- NULL
+  cts_1$gene0 <- gsub(special, "-", cts_1$gene)
+  cts_1[c("hla", "leftover")] <- str_split_fixed(cts_1$gene, special, 2)
+  cts_1$leftover <- NULL
+  # get the HLA genes in a list
+  cts_abc <- unique(cts_2$hla)[order(unique(cts_2$hla))]
+  if (use_alt_align_ABC) {
     if (length(cts_abc[which(cts_abc %in% c("A", "B", "C"))]) != 3) {
       stop("the molecule_info_gene.txt.gz file does not contain alleles belonging to all of HLA-A, -B, and -C")
     }
   }
-  cts_notabc <- unique(cts_list[[names(cts_list)[which.min(stringdist::stringdist("mRNA", names(cts_list), method = "lv"))]]]$hla)[order(unique(cts_list[[names(cts_list)[which.min(stringdist::stringdist("mRNA", names(cts_list), method = "lv"))]]]$hla))]
+  cts_notabc <- unique(cts_1$hla)[order(unique(cts_1$hla))]
   for (j in 1:length(cts_notabc)){
-    if (!use_gene_align_ABC) {
-      t<-as.data.table(table(cts_list[[names(cts_list)[which.min(stringdist::stringdist("mRNA", names(cts_list), method = "lv"))]]][cts_list[[names(cts_list)[which.min(stringdist::stringdist("mRNA", names(cts_list), method = "lv"))]]]$hla == cts_notabc[j],]$gene))
+    if (!use_alt_align_ABC) {
+      t<-as.data.table(table(cts_1[cts_1$hla == cts_notabc[j],]$gene))
     } else {
       if (cts_notabc[j] %in% c("A", "B", "C")) {
-        t<-as.data.table(table(cts_list[[names(cts_list)[which.min(stringdist::stringdist("gene", names(cts_list), method = "lv"))]]][cts_list[[names(cts_list)[which.min(stringdist::stringdist("gene", names(cts_list), method = "lv"))]]]$hla == cts_notabc[j],]$gene))
+        t<-as.data.table(table(cts_2[cts_2$hla == cts_notabc[j],]$gene))
       } else {
-        t<-as.data.table(table(cts_list[[names(cts_list)[which.min(stringdist::stringdist("mRNA", names(cts_list), method = "lv"))]]][cts_list[[names(cts_list)[which.min(stringdist::stringdist("mRNA", names(cts_list), method = "lv"))]]]$hla == cts_notabc[j],]$gene))
+        t<-as.data.table(table(cts_1[cts_1$hla == cts_notabc[j],]$gene))
       }
     }
     # t$twofield <- sapply(t$V1, function(x) strsplit(x, ":")[[1]][1:2] %>% paste0(collapse=":"))
@@ -367,10 +412,11 @@ Top_HLA_list <- function(cts_list, frac = 0.65, min_alleles_keep = 5, min_reads_
 
 #' Plotting the top HLA alleles from the scrHLAtag count files
 #' 
-#' @param cts_list  is a list of 2 scrHLAtag count files including columns for CB, UMI, and HLA alleles. The first contains genomic molecular info (gene) and the second contains mRNA molecular info (https://github.com/furlan-lab/scrHLAtag).
+#' @param cts_1  is the primary scrHLAtag count file (1 of 2 files containing either the mRNA molecular info or the genomic (gene) molecular info). It includes columns for CB, UMI, and HLA alleles (https://github.com/furlan-lab/scrHLAtag).
+#' @param cts_2  is the secondary scrHLAtag count file (the alternative file vs. the one designated in 'cts_1' argument). It includes columns for CB, UMI, and HLA alleles (https://github.com/furlan-lab/scrHLAtag). Default is NULL, in which case it will not be able to count alternative aligment and argument 'use_alt_align_ABC' will become irrelevant.
 #' @param top_hla  is a numeric, representing the number of top HLA alleles (i.e. with the highest number of reads) per HLA gene to display in the plot; default is 10.
 #' @param min_reads_per_gene  is a numeric representing minimum number of total reads per HLA gene (including all its alleles) below which the gene is filtered out; default is 200. 
-#' @param use_gene_align_ABC  is a logical, whether to use the count file from the genomic alignment (rather than the mRNA alignment) to count reads for the HLA-A, -B, and -C genes, as it was observed in some cases that this has better accuracy in predicting genotype versus mRNA alignments (not the case for Class-II and other HLA genes); default is FALSE.
+#' @param use_alt_align_ABC  is a logical, whether to use the count file from the alternative alignment (rather than the primary alignment) to count reads for the HLA-A, -B, and -C genes. It was observed in some cases that using genomic alignments has better accuracy in predicting genotype versus mRNA alignments (not the case for Class-II and other HLA genes); default is FALSE.
 #' @import stringr
 #' @import cowplot
 #' @import magrittr
@@ -379,25 +425,54 @@ Top_HLA_list <- function(cts_list, frac = 0.65, min_alleles_keep = 5, min_reads_
 #' @import dplyr
 #' @return a Vector of the top HLA alleles in the count files (in terms of reads).
 #' @examples
-#' Top_HLA_plot(cts_list = cts, use_gene_align_ABC = TRUE)
+#' samples <- c("AML_101_BM", "AML_101_34")
+#' mol_info <- c("molecule_info_gene.txt.gz", "molecule_info_mRNA.txt.gz")
+#' for (i in 1:length(mol_info)){
+#'   dl<-lapply(samples, function(sample){
+#'     d<-read.table(file.path("path/to/scrHLAtag/out/files", sample,
+#'                             mol_info[i]), header = F, sep=" ", fill = T) 
+#'     d$V1<-paste0(sample, "_", d$V1, "-1")
+#'     colnames(d)<-c("name","CB", "nb", "UMI", "gene", "query_len","start", "mapq", "cigar", "NM", "AS", "s1", "de", "seq")
+#'     d$samp <- sample
+#'     d
+#'   })
+#'   ctsu<-do.call(rbind,dl)
+#'   rm(dl)
+#'   cts[[str_sub(strsplit(mol_info[i], "\\.")[[1]][1], start= -4)]] <- ctsu
+#'   rm(ctsu)
+#' }
+#' Top_HLA_plot(cts_1 = cts[["mRNA"]], cts_2 = cts[["gene"]], use_alt_align_ABC = TRUE)
 #' @export
 
-Top_HLA_plot <- function(cts_list, top_hla = 10, min_reads_per_gene = 200, use_gene_align_ABC = FALSE){
-  cts_abc <- unique(cts_list[[names(cts_list)[which.min(stringdist::stringdist("gene", names(cts_list), method = "lv"))]]]$hla)[order(unique(cts_list[[names(cts_list)[which.min(stringdist::stringdist("gene", names(cts_list), method = "lv"))]]]$hla))]
-  if (use_gene_align_ABC) {
+Top_HLA_plot <- function(cts_1, cts_2 = NULL, top_hla = 10, min_reads_per_gene = 200, use_alt_align_ABC = FALSE){
+  if (is.null(cts_2)) {
+    cts_2 <- cts_1
+    warning("The molecule_info_gene.txt.gz count file does not seem to be included. The function will run but the argument 'use_alt_align_ABC' will be irrelevant.")
+  }  
+  # extract the HLA genes that appear in the reads
+  special <- "[_*|?.+$^]"
+  cts_2$gene0 <- gsub(special, "-", cts_2$gene)
+  cts_2[c("hla", "leftover")] <- str_split_fixed(cts_2$gene, special, 2)
+  cts_2$leftover <- NULL
+  cts_1$gene0 <- gsub(special, "-", cts_1$gene)
+  cts_1[c("hla", "leftover")] <- str_split_fixed(cts_1$gene, special, 2)
+  cts_1$leftover <- NULL
+  # get the HLA genes in a list
+  cts_abc <- unique(cts_2$hla)[order(unique(cts_2$hla))]
+  if (use_alt_align_ABC) {
     if (length(cts_abc[which(cts_abc %in% c("A", "B", "C"))]) != 3) {
       stop("the molecule_info_gene.txt.gz file does not contain alleles belonging to all of HLA-A, -B, and -C")
     }
   }
-  cts_notabc <- unique(cts_list[[names(cts_list)[which.min(stringdist::stringdist("mRNA", names(cts_list), method = "lv"))]]]$hla)[order(unique(cts_list[[names(cts_list)[which.min(stringdist::stringdist("mRNA", names(cts_list), method = "lv"))]]]$hla))]
+  cts_notabc <- unique(cts_1$hla)[order(unique(cts_1$hla))]
   for (j in 1:length(cts_notabc)){
-    if (!use_gene_align_ABC) {
-      t<-as.data.table(table(cts_list[[names(cts_list)[which.min(stringdist::stringdist("mRNA", names(cts_list), method = "lv"))]]][cts_list[[names(cts_list)[which.min(stringdist::stringdist("mRNA", names(cts_list), method = "lv"))]]]$hla == cts_notabc[j],]$gene))
+    if (!use_alt_align_ABC) {
+      t<-as.data.table(table(cts_1[cts_1$hla == cts_notabc[j],]$gene))
     } else {
       if (cts_notabc[j] %in% c("A", "B", "C")) {
-        t<-as.data.table(table(cts_list[[names(cts_list)[which.min(stringdist::stringdist("gene", names(cts_list), method = "lv"))]]][cts_list[[names(cts_list)[which.min(stringdist::stringdist("gene", names(cts_list), method = "lv"))]]]$hla == cts_notabc[j],]$gene))
+        t<-as.data.table(table(cts_2[cts_2$hla == cts_notabc[j],]$gene))
       } else {
-        t<-as.data.table(table(cts_list[[names(cts_list)[which.min(stringdist::stringdist("mRNA", names(cts_list), method = "lv"))]]][cts_list[[names(cts_list)[which.min(stringdist::stringdist("mRNA", names(cts_list), method = "lv"))]]]$hla == cts_notabc[j],]$gene))
+        t<-as.data.table(table(cts_1[cts_1$hla == cts_notabc[j],]$gene))
       }
     }
     # t$twofield <- sapply(t$V1, function(x) strsplit(x, ":")[[1]][1:2] %>% paste0(collapse=":"))

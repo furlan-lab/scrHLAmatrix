@@ -5,16 +5,19 @@
 \title{Extracting the top HLA alleles from the scrHLAtag count files}
 \usage{
 Top_HLA_list(
-  cts_list,
+  cts_1,
+  cts_2 = NULL,
   frac = 0.65,
   min_alleles_keep = 5,
   min_reads_per_gene = 200,
   insert_pop_most_freq = TRUE,
-  use_gene_align_ABC = FALSE
+  use_alt_align_ABC = FALSE
 )
 }
 \arguments{
-\item{cts_list}{is a list of 2 scrHLAtag count files including columns for CB, UMI, and HLA alleles. The first contains genomic molecular info (gene) and the second contains mRNA molecular info (https://github.com/furlan-lab/scrHLAtag).}
+\item{cts_1}{is the primary scrHLAtag count file (1 of 2 files containing either the mRNA molecular info or the genomic (gene) molecular info). It includes columns for CB, UMI, and HLA alleles (https://github.com/furlan-lab/scrHLAtag).}
+
+\item{cts_2}{is the secondary scrHLAtag count file (the alternative file vs. the one designated in 'cts_1' argument). It includes columns for CB, UMI, and HLA alleles (https://github.com/furlan-lab/scrHLAtag). Default is NULL, in which case it will not be able to count alternative aligment and argument 'use_alt_align_ABC' will become irrelevant.}
 
 \item{frac}{is the fraction (0 to 1) of total reads for a particular HLA gene, which incorporates the highest ranking alleles of that gene in terms of number of reads; default at 0.65 .}
 
@@ -24,7 +27,7 @@ Top_HLA_list(
 
 \item{insert_pop_most_freq}{is a logical, whether to to include the HLA allele with the highest frequency in the human population despite low reads in the count files; default is TRUE.}
 
-\item{use_gene_align_ABC}{is a logical, whether to use the count file from the genomic alignment (rather than the mRNA alignment) to count reads for the HLA-A, -B, and -C genes, as it was observed in some cases that this has better accuracy in predicting genotype versus mRNA alignments (not the case for Class-II and other HLA genes); default is FALSE.}
+\item{use_alt_align_ABC}{is a logical, whether to use the count file from the alternative alignment (rather than the primary alignment) to count reads for the HLA-A, -B, and -C genes. It was observed in some cases that using genomic alignments has better accuracy in predicting genotype versus mRNA alignments (not the case for Class-II and other HLA genes); default is FALSE.}
 }
 \value{
 a Vector of the top HLA alleles in the count files (in terms of reads).
@@ -33,5 +36,21 @@ a Vector of the top HLA alleles in the count files (in terms of reads).
 Extracting the top HLA alleles from the scrHLAtag count files
 }
 \examples{
-Top_HLA_list(cts_list = cts, frac = 0.8, min_alleles_keep = 2, use_gene_align_ABC = TRUE)
+samples <- c("AML_101_BM", "AML_101_34")
+mol_info <- c("molecule_info_gene.txt.gz", "molecule_info_mRNA.txt.gz")
+for (i in 1:length(mol_info)){
+  dl<-lapply(samples, function(sample){
+    d<-read.table(file.path("path/to/scrHLAtag/out/files", sample,
+                            mol_info[i]), header = F, sep=" ", fill = T) 
+    d$V1<-paste0(sample, "_", d$V1, "-1")
+    colnames(d)<-c("name","CB", "nb", "UMI", "gene", "query_len","start", "mapq", "cigar", "NM", "AS", "s1", "de", "seq")
+    d$samp <- sample
+    d
+  })
+  ctsu<-do.call(rbind,dl)
+  rm(dl)
+  cts[[str_sub(strsplit(mol_info[i], "\\\\.")[[1]][1], start= -4)]] <- ctsu
+  rm(ctsu)
+}
+Top_HLA_list(cts_1 = cts[["mRNA"]], cts_2 = cts[["gene"]], frac = 0.8, min_alleles_keep = 2, use_alt_align_ABC = TRUE)
 }
