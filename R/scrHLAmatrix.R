@@ -264,7 +264,6 @@ HLA_Matrix <- function(cts, seu, hla_recip = character(), hla_donor = character(
 #' @param insert_pop_most_freq  is a logical, whether to to include the HLA allele with the highest frequency in the human population despite low reads in the count files; default is TRUE.
 #' @param use_gene_align_ABC  is a logical, whether to use the count file from the genomic alignment (rather than the mRNA alignment) to count reads for the HLA-A, -B, and -C genes, as it was observed in some cases that this has better accuracy in predicting genotype versus mRNA alignments (not the case for Class-II and other HLA genes); default is FALSE.
 #' @import stringr
-#' @import stringdist
 #' @import cowplot
 #' @import magrittr
 #' @import htmltools
@@ -373,7 +372,6 @@ Top_HLA_list <- function(cts_list, frac = 0.65, min_alleles_keep = 5, min_reads_
 #' @param min_reads_per_gene  is a numeric representing minimum number of total reads per HLA gene (including all its alleles) below which the gene is filtered out; default is 200. 
 #' @param use_gene_align_ABC  is a logical, whether to use the count file from the genomic alignment (rather than the mRNA alignment) to count reads for the HLA-A, -B, and -C genes, as it was observed in some cases that this has better accuracy in predicting genotype versus mRNA alignments (not the case for Class-II and other HLA genes); default is FALSE.
 #' @import stringr
-#' @import stringdist
 #' @import cowplot
 #' @import magrittr
 #' @import htmltools
