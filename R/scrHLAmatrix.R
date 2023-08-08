@@ -328,6 +328,7 @@ Top_HLA_list <- function(cts_1, cts_2 = NULL, frac = 0.65, min_alleles_keep = 5,
     }
   }
   cts_notabc <- unique(cts_1$hla)[order(unique(cts_1$hla))]
+  if (exists("top_alleles")) {rm(top_alleles)}
   for (j in 1:length(cts_notabc)){
     if (!use_alt_align_ABC) {
       t<-as.data.table(table(cts_1[cts_1$hla == cts_notabc[j],]$gene))
@@ -417,6 +418,7 @@ Top_HLA_list <- function(cts_1, cts_2 = NULL, frac = 0.65, min_alleles_keep = 5,
 #' @param top_hla  is a numeric, representing the number of top HLA alleles (i.e. with the highest number of reads) per HLA gene to display in the plot; default is 10.
 #' @param min_reads_per_gene  is a numeric representing minimum number of total reads per HLA gene (including all its alleles) below which the gene is filtered out; default is 200. 
 #' @param use_alt_align_ABC  is a logical, whether to use the count file from the alternative alignment (rather than the primary alignment) to count reads for the HLA-A, -B, and -C genes. It was observed in some cases that using genomic alignments has better accuracy in predicting genotype versus mRNA alignments (not the case for Class-II and other HLA genes); default is FALSE.
+#' @param color_pal  is a character list of colors to visualize HLA polulation frequencies when available. When 'color_pal' is not provided (NULL), it defaults to viridis::viridis(n = 10, option = "C").
 #' @import stringr
 #' @import cowplot
 #' @import magrittr
@@ -444,7 +446,7 @@ Top_HLA_list <- function(cts_1, cts_2 = NULL, frac = 0.65, min_alleles_keep = 5,
 #' Top_HLA_plot(cts_1 = cts[["mRNA"]], cts_2 = cts[["gene"]], use_alt_align_ABC = TRUE)
 #' @export
 
-Top_HLA_plot <- function(cts_1, cts_2 = NULL, top_hla = 10, min_reads_per_gene = 200, use_alt_align_ABC = FALSE){
+Top_HLA_plot <- function(cts_1, cts_2 = NULL, top_hla = 10, min_reads_per_gene = 200, use_alt_align_ABC = FALSE, color_pal = NULL){
   if (is.null(cts_2)) {
     cts_2 <- cts_1
     warning("The molecule_info_gene.txt.gz count file does not seem to be included. The function will run but the argument 'use_alt_align_ABC' will be irrelevant.")
@@ -465,6 +467,7 @@ Top_HLA_plot <- function(cts_1, cts_2 = NULL, top_hla = 10, min_reads_per_gene =
     }
   }
   cts_notabc <- unique(cts_1$hla)[order(unique(cts_1$hla))]
+  if (exists("tab")) {rm(tab)}
   for (j in 1:length(cts_notabc)){
     if (!use_alt_align_ABC) {
       t<-as.data.table(table(cts_1[cts_1$hla == cts_notabc[j],]$gene))
@@ -531,6 +534,9 @@ Top_HLA_plot <- function(cts_1, cts_2 = NULL, top_hla = 10, min_reads_per_gene =
     tab <- tab[order(tab$hlagene),]
     row.names(tab) <- NULL
   }
+  if (is.null(color_pal)){
+    color_pal <- viridis::viridis(n = 10, option = "C")
+  }
   plots <- c()
   for (j in 1:length(unique(tab$hlagene))) {
     t <- tab[tab$hlagene == unique(tab$hlagene)[j],]
@@ -539,7 +545,7 @@ Top_HLA_plot <- function(cts_1, cts_2 = NULL, top_hla = 10, min_reads_per_gene =
     t$twofield <- paste0(str_pad(row.names(t), 2, pad = "0"), "_",t$twofield)
     g <- ggplot(t, aes(x= twofield, y= N, fill= fscore))+
       geom_bar(stat = 'identity')+
-      scale_fill_gradientn(colours = rev(pal2), na.value = "grey70")+
+      scale_fill_gradientn(colours = rev(color_pal), na.value = "grey70")+
       xlab("Reads (n)")+ 
       ylab("Top 10 alleles")+
       theme(text = element_text(size = 9),legend.position = "none",axis.title.x=element_blank(),axis.title.y=element_blank(),axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))

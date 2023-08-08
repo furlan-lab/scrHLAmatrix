@@ -9,7 +9,8 @@ Top_HLA_plot(
   cts_2 = NULL,
   top_hla = 10,
   min_reads_per_gene = 200,
-  use_alt_align_ABC = FALSE
+  use_alt_align_ABC = FALSE,
+  color_pal = NULL
 )
 }
 \arguments{
@@ -22,6 +23,8 @@ Top_HLA_plot(
 \item{min_reads_per_gene}{is a numeric representing minimum number of total reads per HLA gene (including all its alleles) below which the gene is filtered out; default is 200.}
 
 \item{use_alt_align_ABC}{is a logical, whether to use the count file from the alternative alignment (rather than the primary alignment) to count reads for the HLA-A, -B, and -C genes. It was observed in some cases that using genomic alignments has better accuracy in predicting genotype versus mRNA alignments (not the case for Class-II and other HLA genes); default is FALSE.}
+
+\item{color_pal}{is a character list of colors to visualize HLA polulation frequencies when available. When 'color_pal' is not provided (NULL), it defaults to viridis::viridis(n = 10, option = "C").}
 }
 \value{
 a Vector of the top HLA alleles in the count files (in terms of reads).
