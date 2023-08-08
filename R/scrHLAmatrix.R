@@ -328,7 +328,7 @@ Top_HLA_list <- function(cts_1, cts_2 = NULL, frac = 0.65, min_alleles_keep = 5,
     }
   }
   cts_notabc <- unique(cts_1$hla)[order(unique(cts_1$hla))]
-  if (exists("top_alleles")) {rm(top_alleles)}
+  top_alleles <- c()
   for (j in 1:length(cts_notabc)){
     if (!use_alt_align_ABC) {
       t<-as.data.table(table(cts_1[cts_1$hla == cts_notabc[j],]$gene))
@@ -405,7 +405,7 @@ Top_HLA_list <- function(cts_1, cts_2 = NULL, frac = 0.65, min_alleles_keep = 5,
     }
     top <- top[!is.na(top)] #remove NAs that were introduced in previous step
     top <- unique(top) #remove any duplicates
-    if (exists("top_alleles")) {top_alleles <- c(top_alleles, top)} else {top_alleles <- top}
+    top_alleles <- c(top_alleles, top)
   }
   top_alleles<-top_alleles[order(top_alleles)]
   return(top_alleles)
@@ -467,7 +467,7 @@ Top_HLA_plot <- function(cts_1, cts_2 = NULL, top_hla = 10, min_reads_per_gene =
     }
   }
   cts_notabc <- unique(cts_1$hla)[order(unique(cts_1$hla))]
-  if (exists("tab")) {rm(tab)}
+  tab <- data.frame("twofield"=character(0), "N"=integer(0), "fscore"=numeric(0), "hlagene"=character(0), "onefield"=character(0), "csum"=integer(0))
   for (j in 1:length(cts_notabc)){
     if (!use_alt_align_ABC) {
       t<-as.data.table(table(cts_1[cts_1$hla == cts_notabc[j],]$gene))
@@ -530,7 +530,7 @@ Top_HLA_plot <- function(cts_1, cts_2 = NULL, top_hla = 10, min_reads_per_gene =
     if (nrow(t)>top_hla){
       t<- t[1:top_hla,]
     }
-    if (exists("tab")) {tab <- rbind(tab, t)} else {tab <- t}
+    tab <- rbind(tab, t)
     tab <- tab[order(tab$hlagene),]
     row.names(tab) <- NULL
   }
