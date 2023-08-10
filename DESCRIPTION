@@ -1,7 +1,7 @@
 Package: scrHLAmatrix
 Type: Package
 Title: Operating on scrHLAtag output for Molecular Swap Cleanup, Dedup, Allele Conflict Correction, and Seurat-compatible Matrix
-Version: 0.0.2
+Version: 0.0.4
 Date: 2023-07-04
 Author: Sami B. Kanaan
 Maintainer: Sami B. Kanaan <kanaan.sb@outlook.com>
