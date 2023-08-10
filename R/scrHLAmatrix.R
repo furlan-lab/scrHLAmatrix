@@ -387,10 +387,14 @@ Top_HLA_list <- function(cts_1, cts_2 = NULL, frac = 0.65, min_alleles_keep = 5,
     t$csum <- cumsum(t$N)
     # ----------------------------------------------------------------
     # include alleles covering a specific fraction 'frac' of all reads
-    if (length(unique(t$twofield)) <= min_alleles_keep) {
+    if (length(t$twofield) <= min_alleles_keep) {
       top <- t$twofield
     } else {
-      top <- t$twofield[t$csum/sum(t$N) > (1-frac)]
+      if (length(t$twofield[t$csum/sum(t$N) > (1-frac)]) <= min_alleles_keep) {
+        top <- t[order(-t$N),][1:min_alleles_keep,]$twofield
+      } else {
+        top <- t$twofield[t$csum/sum(t$N) > (1-frac)]
+      }
     }
     # include the most common allele in the population even if not in the top alleles by fraction of all reads (from previous step)
     if (insert_pop_most_freq) {
