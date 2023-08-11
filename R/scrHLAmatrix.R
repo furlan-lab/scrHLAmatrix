@@ -552,6 +552,7 @@ Top_HLA_plot <- function(cts_1, cts_2 = NULL, top_hla = 10, min_reads_per_gene =
       scale_fill_gradientn(limits = c(0,1), colours = rev(color_pal), na.value = "grey35")+
       xlab("Reads (n)")+ 
       ylab("Top 10 alleles")+
+      scale_x_discrete(label=function(x) sub('...', '', x))+
       theme(text = element_text(size = 9),legend.position = "none",axis.title.x=element_blank(),axis.title.y=element_blank(),axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))
     plots<- c(plots,list(g))
   }
