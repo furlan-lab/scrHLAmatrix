@@ -559,7 +559,7 @@ Top_HLA_plot <- function(cts_1, cts_2 = NULL, top_hla = 10, min_reads_per_gene =
   pl <- do.call("plot_grid", c(plots, align = "hv", ncol=floor(sqrt(length(plots)))))
   leg <- get_legend(ggplot(tab, aes(x= twofield, y= N, fill= fscore, color=""))+
                       geom_bar(stat = 'identity')+
-                      scale_fill_gradientn(limits = c(0,1), colours = rev(pal2), breaks=c(0,0.25,0.5,0.75,1),labels=c(0.00,0.25,0.50,0.75,1.00), na.value = "grey35")+
+                      scale_fill_gradientn(limits = c(0,1), colours = rev(color_pal), breaks=c(0,0.25,0.5,0.75,1),labels=c(0.00,0.25,0.50,0.75,1.00), na.value = "grey35")+
                       scale_color_manual(values=NA, na.value = NA)+
                       labs(fill="Population\nFreq", color = "No data")+
                       #guides(colour=guide_legend(override.aes=list(colour="grey70")))+
