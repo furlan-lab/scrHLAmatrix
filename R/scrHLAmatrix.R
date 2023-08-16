@@ -8,6 +8,7 @@
 #' @param AS_belowmax  is a proportion (0 to 1) of the maximum value (best quality) of the minimap2 'AS' tag above which the quality of the read is acceptable; default at 0.85 of the max AS score.
 #' @param NM_thresh  is the number of mismatches and gaps in the minimap2 alignment at or below which the quality of the read is acceptable; default is 15.
 #' @param de_thresh  is the gap-compressed per-base sequence divergence in the minimap2 alignment at or below which the quality of the read is acceptable; the number is between 0 and 1, and default is 0.015.
+#' @param parallelize  is a logical, called if using parallelizing processing (multi-threading) is desired; default is TRUE.
 #' @param Ct  is the count threshold for the PCR copies of UMIs to retain; default is 0.
 #' @import stringr
 #' @import pbmcapply
@@ -40,10 +41,17 @@
 #' @export
 
 
-HLA_Matrix <- function(cts, seu, hla_recip = character(), hla_donor = character(), s1_belowmax = 0.75, AS_belowmax = 0.85, NM_thresh = 15, de_thresh = 0.015, Ct = 0) {
+HLA_Matrix <- function(cts, seu, hla_recip = character(), hla_donor = character(), s1_belowmax = 0.75, AS_belowmax = 0.85, NM_thresh = 15, de_thresh = 0.015, parallelize = TRUE, Ct = 0) {
   ## check Seurat object
   if (class(seu) != "Seurat") {
     stop("Single-cell dataset container must be of class 'Seurat'")
+  }
+  ## parallelize
+  if (parallelize) {
+    multi_thread <- parallel::detectCores()
+    print(cat("\nAvailable cores to multi-thread: ", parallel::detectCores(), "!\n"), quote = F)
+  } else {
+    multi_thread <- 1
   }
   ## add the dash into the HLA allele as it is the one accepted in the names of the Seurat assay features
   special <- "[_*|?.+$^]"
@@ -101,7 +109,7 @@ HLA_Matrix <- function(cts, seu, hla_recip = character(), hla_donor = character(
   ## Remove low quality reads based on minimap2 tags
   print("1/6 - Removing low quality reads based on minimap2 tags", quote=F)
   cts.split <- with(cts, split(cts, list(gene0=gene0)))
-  cts.split <- pbmclapply(cts.split, function(df){df[df$s1 > s1_belowmax*max(df$s1) & df$AS > AS_belowmax*max(df$AS) & df$NM <= NM_thresh & df$de <= de_thresh,]}, mc.cores = parallel::detectCores())
+  cts.split <- pbmclapply(cts.split, function(df){df[df$s1 > s1_belowmax*max(df$s1) & df$AS > AS_belowmax*max(df$AS) & df$NM <= NM_thresh & df$de <= de_thresh,]}, mc.cores = multi_thread)
   cts <-  do.call("rbind", cts.split)
   row.names(cts)<-NULL
   rm(cts.split)
@@ -115,7 +123,7 @@ HLA_Matrix <- function(cts, seu, hla_recip = character(), hla_donor = character(
   # split,   this is computationally heavy (about 10min for 10M rows)
   cts.split <- with(cts, split(cts, list(cbumi=cbumi))) 
   # print("1/6 - Estimating UMI duplication rate", quote=F)
-  # n_umi<-pbmclapply(cts.split, nrow, mc.cores = parallel::detectCores()) %>% unlist()
+  # n_umi<-pbmclapply(cts.split, nrow, mc.cores = multi_thread) %>% unlist()
   # umi_counts<- data.frame(n_umi)
   # umi_counts$dummy <- 1
   # umi_counts <- umi_counts[order(umi_counts$n_umi),]
@@ -188,11 +196,11 @@ HLA_Matrix <- function(cts, seu, hla_recip = character(), hla_donor = character(
   }
   # Applying the function
   print("3/6 - Correcting Molecular Swap: keeping the reads per UMI with the HLA allele occuring the most", quote = F)
-  cts.split.ct <- pbmclapply(cts.split.ct, keep_one, mc.cores = parallel::detectCores())
+  cts.split.ct <- pbmclapply(cts.split.ct, keep_one, mc.cores = multi_thread)
   
   ## Performing Dedup
   print("4/6 - Performing Dedup on UMIs: removing PCR duplicates", quote = F)
-  cts.fltr.dedup <- pbmclapply(cts.split.ct, function(df){df[1,]}, mc.cores = parallel::detectCores())
+  cts.fltr.dedup <- pbmclapply(cts.split.ct, function(df){df[1,]}, mc.cores = multi_thread)
   cts.fltr.dedup <-  do.call("rbind", cts.fltr.dedup)
   row.names(cts.fltr.dedup)<-NULL
   rm(cts.split.ct)
@@ -241,7 +249,7 @@ HLA_Matrix <- function(cts, seu, hla_recip = character(), hla_donor = character(
   }
   # keep two alleles per HLA gene!
   print("5/6 - Conflict Correction: assuming a cell cannot have both recipient and donor-origin HLA allele, keeping only the most occuring", quote = F)
-  cts.dedup.cb <- pbmclapply(cts.dedup.cb, keep_two, recip = hla_recip, donor = hla_donor, mc.cores = parallel::detectCores())
+  cts.dedup.cb <- pbmclapply(cts.dedup.cb, keep_two, recip = hla_recip, donor = hla_donor, mc.cores = multi_thread)
   
   ## Matrix formation
   # matrix

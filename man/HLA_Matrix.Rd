@@ -13,6 +13,7 @@ HLA_Matrix(
   AS_belowmax = 0.85,
   NM_thresh = 15,
   de_thresh = 0.015,
+  parallelize = TRUE,
   Ct = 0
 )
 }
@@ -32,6 +33,8 @@ HLA_Matrix(
 \item{NM_thresh}{is the number of mismatches and gaps in the minimap2 alignment at or below which the quality of the read is acceptable; default is 15.}
 
 \item{de_thresh}{is the gap-compressed per-base sequence divergence in the minimap2 alignment at or below which the quality of the read is acceptable; the number is between 0 and 1, and default is 0.015.}
+
+\item{parallelize}{is a logical, called if using parallelizing processing (multi-threading) is desired; default is TRUE.}
 
 \item{Ct}{is the count threshold for the PCR copies of UMIs to retain; default is 0.}
 }
