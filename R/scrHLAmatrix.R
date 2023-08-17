@@ -166,7 +166,7 @@ HLA_Matrix <- function(cts, seu, hla_recip = character(), hla_donor = character(
             format(round(100*intraclass_swap_rate, 3), nsmall = 1),
             "% of Cells\ninter-class molecular swap rate per UMI ",
             format(round(100*class_swap_rate_per_read, 3), nsmall = 1),
-            "% of Cells\n"))
+            "% of Cells"))
   alleles <- unique(cts$gene0)
   
   ## Count Threshold 'Ct' above which the count of UMI copies becomes acceptable  
