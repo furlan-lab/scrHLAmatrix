@@ -59,7 +59,7 @@ HLA_Matrix <- function(cts, seu, hla_recip = character(), hla_donor = character(
     cts$gene0 <- gsub(special, "-", cts$gene)
     cts[c("hla", "leftover")] <- str_split_fixed(cts$gene, special, 2)
     cts$leftover <- NULL
-    print("Available reads per gene", quote=F)
+    message(cat("\nAvailable reads per gene"))
     print(table(cts$hla, useNA = "ifany"))
   } else if (all(grepl("-", cts$gene))){
     cts$gene0 <- cts$gene
