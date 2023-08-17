@@ -49,7 +49,7 @@ HLA_Matrix <- function(cts, seu, hla_recip = character(), hla_donor = character(
   ## parallelize
   if (parallelize) {
     multi_thread <- parallel::detectCores()
-    message(cat("\nMulti-threading! Available cores: ", parallel::detectCores(), "\n"))
+    message(cat("\n  Multi-threading! Available cores: ", parallel::detectCores(), "\n"))
   } else {
     multi_thread <- 1
   }
@@ -59,13 +59,13 @@ HLA_Matrix <- function(cts, seu, hla_recip = character(), hla_donor = character(
     cts$gene0 <- gsub(special, "-", cts$gene)
     cts[c("hla", "leftover")] <- str_split_fixed(cts$gene, special, 2)
     cts$leftover <- NULL
-    message(cat("\nAvailable reads per gene"))
+    message(cat("\n  Available reads per gene"))
     print(table(cts$hla, useNA = "ifany"))
   } else if (all(grepl("-", cts$gene))){
     cts$gene0 <- cts$gene
     cts[c("hla", "leftover")] <- str_split_fixed(cts$gene, "-", 2)
     cts$leftover <- NULL
-    message(cat("\nAvailable reads per gene"))
+    message(cat("\n  Available reads per gene"))
     print(table(cts$hla, useNA = "ifany"))
   } else {
     stop("The HLA allele column is unrecognizable or has incorrect format. \nMake sure gene and allele are separated by standard nomenclature asterisk (or other special character).")
@@ -107,7 +107,7 @@ HLA_Matrix <- function(cts, seu, hla_recip = character(), hla_donor = character(
     stop("scrHLAtag output 'cts' dataframe must at least contain the columns 'CB', 'UMI', 'gene' (with HLA alleles), and 'samp' (matching the sample names in the corresponding Seurat object)")
   }
   ## Remove low quality reads based on minimap2 tags
-  message(cat("\n1/6 - Removing low quality reads based on minimap2 tags"))
+  message(cat("\n1/7 - Removing low quality reads based on minimap2 tags"))
   cts.split <- with(cts, split(cts, list(gene0=gene0)))
   cts.split <- pbmclapply(cts.split, function(df){df[df$s1 > s1_belowmax*max(df$s1) & df$AS > AS_belowmax*max(df$AS) & df$NM <= NM_thresh & df$de <= de_thresh,]}, mc.cores = multi_thread)
   cts <-  do.call("rbind", cts.split)
@@ -135,7 +135,7 @@ HLA_Matrix <- function(cts, seu, hla_recip = character(), hla_donor = character(
   #   scale_x_continuous(name = "Rank", n.breaks = 8) +
   #   theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))
   # print(g)
-  message(cat("\n2/6 - Estimating molecular swap"))
+  message(cat("\n2/7 - Estimating molecular swap"))
   pb <- txtProgressBar(min = 0, max = length(cts.split), style = 3, char = "=")
   for(j in 1:length(cts.split)){
     cts.split[[j]]$mol_swap <- ifelse(length(unique(cts.split[[j]]$gene)) > 1, 
@@ -162,9 +162,9 @@ HLA_Matrix <- function(cts, seu, hla_recip = character(), hla_donor = character(
   class_swap_rate_per_read
   intraclass_swap_rate<- mol_swap_rate_per_read - class_swap_rate_per_read
   intraclass_swap_rate
-  message(cat("\nintra-class molecular swap rate per UMI ", 
+  message(cat("\n  intra-class molecular swap rate per UMI ", 
             format(round(100*intraclass_swap_rate, 3), nsmall = 1),
-            "% of Cells\ninter-class molecular swap rate per UMI ",
+            "% of Cells\n  inter-class molecular swap rate per UMI ",
             format(round(100*class_swap_rate_per_read, 3), nsmall = 1),
             "% of Cells"))
   alleles <- unique(cts$gene0)
@@ -195,17 +195,18 @@ HLA_Matrix <- function(cts, seu, hla_recip = character(), hla_donor = character(
     return(df)
   }
   # Applying the function
-  message(cat("\n3/6 - Correcting Molecular Swap: keeping the reads per UMI with the HLA allele occuring the most"))
+  message(cat("\n3/7 - Correcting Molecular Swap: keeping the reads per UMI with the HLA allele occuring the most"))
   cts.split.ct <- pbmclapply(cts.split.ct, keep_one, mc.cores = multi_thread)
   
   ## Performing Dedup
-  message(cat("\n4/6 - Performing Dedup on UMIs: removing PCR duplicates"))
+  message(cat("\n4/7 - Performing Dedup on UMIs: removing PCR duplicates"))
   cts.fltr.dedup <- pbmclapply(cts.split.ct, function(df){df[1,]}, mc.cores = multi_thread)
   cts.fltr.dedup <-  do.call("rbind", cts.fltr.dedup)
   row.names(cts.fltr.dedup)<-NULL
   rm(cts.split.ct)
   
   ## Clean-up HLA conflicts per CB
+  message(cat("\n5/7 - Estimating Genotype Conflicts: assuming a cell cannot have both recipient and donor-origin HLA allele"))
   # remove obsolete cols and add Seurat barcode
   cts.fltr.dedup$mol_swap <- NULL
   cts.fltr.dedup$class_swap <- NULL
@@ -225,9 +226,9 @@ HLA_Matrix <- function(cts, seu, hla_recip = character(), hla_donor = character(
   }
   close(pb)
   hla_conflict_rate <- length(which(sapply(cts.dedup.cb, function(df) "yes" %in% df$hla_conflict))) / length(cts.dedup.cb)
-  message(cat("Conflicting HLA (both donor and recipient HLA within the same Cell Barcode) affects ", 
+  message(cat("\n  Conflicting HLA (both donor and recipient HLA within the same Cell Barcode) affects ", 
             format(round(100*hla_conflict_rate, 1), nsmall = 1),
-            "% of Cells\n"))
+            "% of Cells"))
   # function to clean-up HLA conflicts by Seurat barcode
   keep_two <- function(df, recip, donor) {
     if (any(df$gene0 %in% recip) & any(df$gene0 %in% donor)){
@@ -248,13 +249,17 @@ HLA_Matrix <- function(cts, seu, hla_recip = character(), hla_donor = character(
     return(df)
   }
   # keep two alleles per HLA gene!
-  message(cat("\n5/6 - Resolving Conflicts: assuming a cell cannot have both recipient and donor-origin HLA allele, keeping only the most occuring"))
-  cts.dedup.cb <- pbmclapply(cts.dedup.cb, keep_two, recip = hla_recip, donor = hla_donor, mc.cores = multi_thread)
-  
+  if (hla_conflict_rate == 0) {
+    message(cat("\n6/7 - Resolving Genotype Conflicts: no conflicts to resolve"))
+  } else {
+    message(cat("\n6/7 - Resolving Genotype Conflicts: keeping recipient-origin or donor-origin HLA alleles, whichever the most occuring"))
+    cts.dedup.cb <- pbmclapply(cts.dedup.cb, keep_two, recip = hla_recip, donor = hla_donor, mc.cores = multi_thread)
+  }
+
   ## Matrix formation
   # matrix
   HLA.matrix <- matrix(0, nrow = length(alleles), ncol = length(cts.dedup.cb), dimnames = list(alleles, names(cts.dedup.cb)))
-  message(cat("\n6/6 - Creating the HLA Count Matrix compatible with the Seurat object"))
+  message(cat("\n7/7 - Creating the HLA Count Matrix compatible with the Seurat object"))
   pb <- txtProgressBar(min = 0, max = length(cts.dedup.cb), style = 3, char = "=")
   for (i in 1:length(cts.dedup.cb)) {
     counts <- table(cts.dedup.cb[[i]]$gene0)
