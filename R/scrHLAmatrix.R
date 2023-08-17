@@ -226,7 +226,7 @@ HLA_Matrix <- function(cts, seu, hla_recip = character(), hla_donor = character(
   }
   close(pb)
   hla_conflict_rate <- length(which(sapply(cts.dedup.cb, function(df) "yes" %in% df$hla_conflict))) / length(cts.dedup.cb)
-  message(cat("\n  Conflicting HLA (both donor and recipient HLA within the same Cell Barcode) affects ", 
+  message(cat("  Conflicting HLA (both donor and recipient HLA within the same Cell Barcode) affects ", 
             format(round(100*hla_conflict_rate, 1), nsmall = 1),
             "% of Cells"))
   # function to clean-up HLA conflicts by Seurat barcode
@@ -252,7 +252,7 @@ HLA_Matrix <- function(cts, seu, hla_recip = character(), hla_donor = character(
   if (hla_conflict_rate == 0) {
     message(cat("\n6/7 - Resolving Genotype Conflicts: no conflicts to resolve"))
   } else {
-    message(cat("\n6/7 - Resolving Genotype Conflicts: keeping recipient-origin or donor-origin HLA alleles, whichever the most occuring"))
+    message(cat("\n6/7 - Resolving Genotype Conflicts: keeping recipient-origin or donor-origin HLA alleles per Cell, whichever are the most occuring"))
     cts.dedup.cb <- pbmclapply(cts.dedup.cb, keep_two, recip = hla_recip, donor = hla_donor, mc.cores = multi_thread)
   }
 
