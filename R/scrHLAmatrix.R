@@ -416,7 +416,9 @@ Top_HLA_list <- function(cts_1, cts_2 = NULL, frac = 0.65, min_alleles_keep = 5,
       spl <- spl[names(spl) %in% u]
       if (length(spl) > 0) {
         for (i in 1:length(spl)) {
-          top <- c(top, spl[[i]]$twofield[spl[[i]]$fscore == max(spl[[i]]$fscore[!is.na(spl[[i]]$fscore)])])
+          if (length(spl[[i]]$fscore[!is.na(spl[[i]]$fscore)]) > 0) {
+            top <- c(top, spl[[i]]$twofield[spl[[i]]$fscore == max(spl[[i]]$fscore[!is.na(spl[[i]]$fscore)])])
+          }
         }
       }
     }
