@@ -49,7 +49,7 @@ HLA_Matrix <- function(cts, seu, hla_recip = character(), hla_donor = character(
   ## parallelize
   if (parallelize) {
     multi_thread <- parallel::detectCores()
-    message(cat("\n  Multi-threading! Available cores: ", parallel::detectCores(), "\n"))
+    message(cat("\n  Multi-threading! Available cores: ", parallel::detectCores()))
   } else {
     multi_thread <- 1
   }
