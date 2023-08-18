@@ -14,6 +14,7 @@ HLA_Matrix(
   NM_thresh = 15,
   de_thresh = 0.015,
   parallelize = TRUE,
+  CB_rev_com = FALSE,
   Ct = 0
 )
 }
@@ -34,7 +35,9 @@ HLA_Matrix(
 
 \item{de_thresh}{is the gap-compressed per-base sequence divergence in the minimap2 alignment at or below which the quality of the read is acceptable; the number is between 0 and 1, and default is 0.015.}
 
-\item{parallelize}{is a logical, called if using parallel processing (multi-threading) is desired; default is TRUE.}
+\item{parallelize}{is a logical, called TRUE if using parallel processing (multi-threading) is desired; default is TRUE.}
+
+\item{CB_rev_com}{is a logical, called TRUE if the need to obtained the reverse complement of Cell Barcodes (CBs) is desired; default is FALSE.}
 
 \item{Ct}{is the count threshold for the PCR copies of UMIs to retain; default is 0.}
 }
