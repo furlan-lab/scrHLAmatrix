@@ -261,14 +261,14 @@ HLA_Matrix <- function(cts, seu, hla_recip = character(), hla_donor = character(
   if (hla_conflict_rate == 0) {
     message(cat("\n7/8 - Resolving Genotype Conflicts: no conflicts to resolve"))
   } else {
-    message(cat("\n8/8 - Resolving Genotype Conflicts: keeping recipient-origin or donor-origin HLA alleles per Cell, whichever are the most occuring"))
+    message(cat("\n7/8 - Resolving Genotype Conflicts: keeping recipient-origin or donor-origin HLA alleles per Cell, whichever are the most occuring"))
     cts.dedup.cb <- pbmclapply(cts.dedup.cb, keep_two, recip = hla_recip, donor = hla_donor, mc.cores = multi_thread)
   }
 
   ## Matrix formation
   # matrix
   HLA.matrix <- matrix(0, nrow = length(alleles), ncol = length(cts.dedup.cb), dimnames = list(alleles, names(cts.dedup.cb)))
-  message(cat("\n7/7 - Creating the HLA Count Matrix compatible with the Seurat object"))
+  message(cat("\n8/8 - Creating the HLA Count Matrix compatible with the Seurat object"))
   pb <- txtProgressBar(min = 0, max = length(cts.dedup.cb), style = 3, char = "=")
   for (i in 1:length(cts.dedup.cb)) {
     counts <- table(cts.dedup.cb[[i]]$gene0)
