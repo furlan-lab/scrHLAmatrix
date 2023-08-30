@@ -332,7 +332,6 @@ HLA_Matrix <- function(cts, seu, hla_recip = character(), hla_donor = character(
 Top_HLA_list <- function(cts_1, cts_2 = NULL, frac = 0.65, min_alleles_keep = 5, min_reads_per_gene = 200, insert_pop_most_freq = TRUE, use_alt_align_ABC = FALSE){
   if (is.null(cts_2)) {
     cts_2 <- cts_1
-    warning("A secondary molecule info count file does not seem to be included. The function will run but the argument 'use_alt_align_ABC' will be irrelevant.")
   }
   # extract the HLA genes that appear in the reads
   special <- "[_*|?.+$^]"
