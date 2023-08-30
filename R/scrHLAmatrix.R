@@ -332,7 +332,7 @@ HLA_Matrix <- function(cts, seu, hla_recip = character(), hla_donor = character(
 Top_HLA_list <- function(cts_1, cts_2 = NULL, frac = 0.65, min_alleles_keep = 5, min_reads_per_gene = 200, insert_pop_most_freq = TRUE, use_alt_align_ABC = FALSE){
   if (is.null(cts_2)) {
     cts_2 <- cts_1
-    warning("The molecule_info_gene.txt.gz count file does not seem to be included. The function will run but the argument 'use_alt_align_ABC' will be irrelevant.")
+    warning("A secondary molecule info count file does not seem to be included. The function will run but the argument 'use_alt_align_ABC' will be irrelevant.")
   }
   # extract the HLA genes that appear in the reads
   special <- "[_*|?.+$^]"
@@ -346,7 +346,7 @@ Top_HLA_list <- function(cts_1, cts_2 = NULL, frac = 0.65, min_alleles_keep = 5,
   cts_abc <- unique(cts_2$hla)[order(unique(cts_2$hla))]
   if (use_alt_align_ABC) {
     if (length(cts_abc[which(cts_abc %in% c("A", "B", "C"))]) != 3) {
-      stop("the molecule_info_gene.txt.gz file does not contain alleles belonging to all of HLA-A, -B, and -C")
+      stop("the secondary molecule info count file does not contain alleles belonging to all of HLA-A, -B, and -C")
     }
   }
   cts_notabc <- unique(cts_1$hla)[order(unique(cts_1$hla))]
