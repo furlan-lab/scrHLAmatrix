@@ -115,6 +115,9 @@ HLA_Matrix <- function(cts, seu, hla_recip = character(), hla_donor = character(
   } else {
     message(cat("\n1/8 - Cell Barcodes in their correct format"))
   }
+  cts$seu_barcode <- paste0(cts$samp,"_",cts$CB,"-1")
+  message(cat("\n  Proportions of Cell Barcodes found (TRUE) or not found (FALSE) in the Seurat object colnames: "))
+  print(cts$seu_barcode %in% colnames(seu) %>% table() / dim(cts)[1])
   ## Remove low quality reads based on minimap2 tags
   message(cat("\n2/8 - Removing low quality reads based on minimap2 tags"))
   cts.split <- with(cts, split(cts, list(gene0=gene0)))
