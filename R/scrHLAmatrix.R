@@ -493,7 +493,7 @@ Top_HLA_plot <- function(cts_1, cts_2 = NULL, top_hla = 10, min_reads_per_gene =
   cts_abc <- unique(cts_2$hla)[order(unique(cts_2$hla))]
   if (use_alt_align_ABC) {
     if (length(cts_abc[which(cts_abc %in% c("A", "B", "C"))]) != 3) {
-      stop("the molecule_info_gene.txt.gz file does not contain alleles belonging to all of HLA-A, -B, and -C")
+      stop("the secondary molecule info count file does not contain alleles belonging to all of HLA-A, -B, and -C")
     }
   }
   cts_notabc <- unique(cts_1$hla)[order(unique(cts_1$hla))]
