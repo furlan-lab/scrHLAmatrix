@@ -41,7 +41,6 @@
 #' HLA_Matrix(cts = cts[["mRNA"]], seu = your_Seurat_obj, hla_recip = c("A*24:02:01", "DRB1*04:01:01", "DRB4*01:03:02"), hla_donor = c("A*33:03:01", "B*42:01:01"))
 #' @export
 
-
 HLA_Matrix <- function(cts, seu, hla_recip = character(), hla_donor = character(), s1_belowmax = 0.75, AS_belowmax = 0.85, NM_thresh = 15, de_thresh = 0.015, parallelize = TRUE, CB_rev_com = FALSE, Ct = 0) {
   ## check Seurat object
   if (class(seu) != "Seurat") {
@@ -239,7 +238,7 @@ HLA_Matrix <- function(cts, seu, hla_recip = character(), hla_donor = character(
   close(pb)
   hla_conflict_rate <- length(which(sapply(cts.dedup.cb, function(df) "yes" %in% df$hla_conflict))) / length(cts.dedup.cb)
   message(cat("  Conflicting HLA (both donor and recipient HLA within the same Cell Barcode) affects ", 
-            format(round(100*hla_conflict_rate, 1), nsmall = 1),
+            format(round(100*hla_conflict_rate, 3), nsmall = 1),
             "% of Cells"))
   # function to clean-up HLA conflicts by Seurat barcode
   keep_two <- function(df, recip, donor) {
@@ -294,6 +293,7 @@ HLA_Matrix <- function(cts, seu, hla_recip = character(), hla_donor = character(
   HLA <- CreateAssayObject(counts = HLA.matrix)
   return(HLA)
 }
+
 
 
 #' Extracting the top HLA alleles from the scrHLAtag count files
@@ -440,6 +440,8 @@ Top_HLA_list <- function(cts_1, cts_2 = NULL, frac = 0.65, min_alleles_keep = 5,
   top_alleles<-top_alleles[order(top_alleles)]
   return(top_alleles)
 }
+
+
 
 #' Plotting the top HLA alleles from the scrHLAtag count files
 #' 
@@ -591,6 +593,185 @@ Top_HLA_plot <- function(cts_1, cts_2 = NULL, top_hla = 10, min_reads_per_gene =
                       #guides(colour=guide_legend(override.aes=list(colour="grey70")))+
                       theme(text = element_text(size = 8), legend.key.size = unit(4, 'mm'), legend.title = element_text(size=6))
   )
-   pl2 <- plot_grid(pl, grid.arrange(leg), rel_widths = c(10,1)) 
+   pl2 <- plot_grid(pl, gridExtra::grid.arrange(leg), rel_widths = c(10,1)) 
   return(pl2)
+}
+
+
+
+#' Getting raw scrHLAtag counts and analyzing distribution of HLA alleles per Cell Barcodes in UMAP space
+#' 
+#' @param cts  is the scrHLAtag count file including columns for CB, UMI, and HLA alleles (https://github.com/furlan-lab/scrHLAtag).
+#' @param k  is the number of clusters to partition the UMAP space into, e.g. the number of entities or genotypes you 'think' there might be in your captured sample.
+#' @param seu  is the Seurat object associated with the scrHLAtag count file (https://satijalab.org/seurat/index.html).
+#' @param geno_metadata_id  is a character, the column ID of the Seurat metadata designated to distinguish genotypes, if this information is available. 'NULL' by default or when genotyping information is not available. 
+#' @param hla_with_counts_above  is the number of total reads accross CBs at or above which an HLA allele is retained in the matrix.
+#' @param CBs_with_counts_above  is the number of total reads accross HLA alleles at or above which a CB is retained in the matrix. Note: 'princomp()' can only be used with at least as many units (CBs) as variables (HLAs), thus the function will make sure that number of CBs is equal or more than available HLA alleles in the matrix
+#' @param umap_first_n_PCs  is a number representing the first 'n' principal components to input into the umap function. Note: current version only supports default parameters of the 'umap()' function (more info on: https://cran.r-project.org/web/packages/uwot/index.html)
+#' @param QC_mm2  is a logical, called TRUE if removing low quality reads based on minimap2 tags is desired.
+#' @param s1_belowmax  is a proportion (0 to 1) of the maximum value (best quality) of the minimap2 's1' tag above which the quality of the read is acceptable; default at 0.75 of the max s1 score.
+#' @param AS_belowmax  is a proportion (0 to 1) of the maximum value (best quality) of the minimap2 'AS' tag above which the quality of the read is acceptable; default at 0.85 of the max AS score.
+#' @param NM_thresh  is the number of mismatches and gaps in the minimap2 alignment at or below which the quality of the read is acceptable; default is 15.
+#' @param de_thresh  is the gap-compressed per-base sequence divergence in the minimap2 alignment at or below which the quality of the read is acceptable; the number is between 0 and 1, and default is 0.015.
+#' @param parallelize  is a logical, called TRUE if using parallel processing (multi-threading) is desired; default is TRUE.
+#' @param pt_size  is a number, the size of the geometric point displayed by ggplot2. 
+#' @import stringr
+#' @import pbmcapply
+#' @import parallel
+#' @import Matrix
+#' @import magrittr
+#' @import htmltools
+#' @import ggplot2
+#' @import Seurat
+#' @import dplyr
+#' @import stats
+#' @import uwot
+#' @return a large list containing DataFrame with UMAP coordinates and ggplot of HLA clusters
+#' @examples
+#' samples <- c("AML_101_BM", "AML_101_34")
+#' mol_info <- c("molecule_info_gene.txt.gz", "molecule_info_mRNA.txt.gz")
+#' for (i in 1:length(mol_info)){
+#'   dl<-lapply(samples, function(sample){
+#'     d<-read.table(file.path("path/to/scrHLAtag/out/files", sample,
+#'                             mol_info[i]), header = F, sep=" ", fill = T) 
+#'     d$V1<-paste0(sample, "_", d$V1, "-1")
+#'     colnames(d)<-c("name","CB", "nb", "UMI", "gene", "query_len","start", "mapq", "cigar", "NM", "AS", "s1", "de", "seq")
+#'     d$samp <- sample
+#'     d
+#'   })
+#'   ctsu<-do.call(rbind,dl)
+#'   rm(dl)
+#'   cts[[str_sub(strsplit(mol_info[i], "\\.")[[1]][1], start= -4)]] <- ctsu
+#'   rm(ctsu)
+#' }
+#' HLA_clusters(cts = cts[["mRNA"]], k = 2, seu = your_Seurat_Obj, geno_metadata_id = "geno", hla_with_counts_above = 1, CBs_with_counts_above = 40)
+#' @export
+
+HLA_clusters <- function(cts, k = 2, seu = NULL, geno_metadata_id = NULL, hla_with_counts_above = 0, CBs_with_counts_above = 0, umap_first_n_PCs = 25, QC_mm2 = TRUE, s1_belowmax = 0.75, AS_belowmax = 0.85, NM_thresh = 15, de_thresh = 0.015, parallelize = TRUE, pt_size = 0.5) {
+  ## parallelize
+  if (parallelize) {
+    multi_thread <- parallel::detectCores()
+    message(cat("\nMulti-threading! Available cores: ", parallel::detectCores()))
+  } else {
+    multi_thread <- 1
+  }
+  ## Remove low quality reads based on minimap2 tags
+  if (QC_mm2) {
+    message(cat("\nRemoving low quality reads based on minimap2 tags"))
+    cts.split <- with(cts, split(cts, list(gene=gene)))
+    cts.split <- pbmclapply(cts.split, function(df){df[df$s1 > s1_belowmax*max(df$s1) & df$AS > AS_belowmax*max(df$AS) & df$NM <= NM_thresh & df$de <= de_thresh,]}, mc.cores = multi_thread)
+    cts <-  do.call("rbind", cts.split)
+    row.names(cts)<-NULL
+    rm(cts.split)
+  } 
+  alleles <- unique(cts$gene)
+  cts$seu_barcode <- paste0(cts$samp,"_",cts$CB,"-1")
+  cts.cb <- with(cts, split(cts, list(seu_barcode=seu_barcode)))
+  ## Matrix formation
+  # matrix
+  HLA.matrix <- matrix(0, nrow = length(alleles), ncol = length(cts.cb), dimnames = list(alleles, names(cts.cb)))
+  message(cat("\nCreating an HLA Count Matrix"))
+  pb <- txtProgressBar(min = 0, max = length(cts.cb), style = 3, char = "=")
+  for (i in 1:length(cts.cb)) {
+    counts <- table(cts.cb[[i]]$gene)
+    HLA.matrix[, i] <- counts[alleles]
+    setTxtProgressBar(pb, i)
+  }
+  close(pb)
+  rm(cts.cb)
+  HLA.matrix[is.na(HLA.matrix)]<-0
+  #HLA.matrix<-Matrix(HLA.matrix,sparse = T)
+  ## Matching with Seurat colnames
+  if (is.null(seu)) {
+    part_HLA<- HLA.matrix
+  } else {
+    if (class(seu) == "Seurat") {
+      part_HLA<- HLA.matrix[,colnames(HLA.matrix) %in% Cells(seu)]
+    } else {
+      stop("Single-cell dataset container must be of class 'Seurat'")
+    }
+  }
+  ## removing HLA alleles with low counts overall
+  r <- hla_with_counts_above
+  part_HLA <- part_HLA[which(rowSums(part_HLA)>=r),]
+  ## removing cell barcodes (CBs) with low counts overall
+  n <- CBs_with_counts_above
+  if (dim(part_HLA[,which(colSums(part_HLA)>=n)])[2] < dim(part_HLA)[1]) {
+    part_HLA <- part_HLA[,order(-colSums(part_HLA))[1:dim(part_HLA)[1]]]
+  } else {
+    part_HLA <- part_HLA[,which(colSums(part_HLA)>=n)]
+  }
+  message(cat("\nRunning PCA (from 'stats') and UMAP (from 'uwot')"))
+  ## normalize by size factor
+  part_HLA <- prop.table(part_HLA, margin = 2)
+  ## log-transform
+  part_HLA <- log10(part_HLA+0.01)
+  ## princomp from stats
+  pc <- stats::princomp(t(part_HLA))
+  pcv<-as.data.frame(pc$scores)
+  elbow <- barplot((pc$sdev^2/sum(pc$sdev^2))[1:100])
+  # pcv<-cbind(pcv, seu@meta.data[match(row.names(pcv), colnames(seu)),])
+  # ggplot(pcv, aes(x=Comp.1, y=Comp.2, color=logUMI))+geom_point(size=0.25)+scale_color_viridis_b()+theme_bw()
+  # ggplot(pcv, aes(x=Comp.1, y=Comp.2, color=geno))+geom_point(size=0.5)+scale_color_manual(values=pals::glasbey())+theme_bw()
+  umat<-pcv[,1:umap_first_n_PCs] %>% as.matrix()
+  umapout<-uwot::umap(umat, verbose=T)
+  colnames(umapout)<-c("umap1", "umap2")
+  umapout <- as.data.frame(umapout)
+  if (!is.null(seu)){
+    if (!is.null(geno_metadata_id)) {
+      umapout<-cbind(umapout, seu@meta.data[match(rownames(umapout), colnames(seu)),])
+      g0 <- ggplot(umapout, aes(x=umap1, y=umap2, color=!!sym(geno_metadata_id)))+geom_point(size=pt_size)#+scale_color_manual(values=pals::glasbey())+theme_bw()
+    }
+  }
+  # ggplot(umapout, aes(x=umap1, y=umap2, color=celltype))+geom_point(size=0.25)+scale_color_manual(values=pals::glasbey())+theme_bw()
+  # ggplot(umapout, aes(x=umap1, y=umap2, color=geno))+geom_point(size=0.5)+scale_color_manual(values=pals::glasbey())+theme_bw()
+  # ggplot(umapout, aes(x=umap1, y=umap2, color=logUMI))+geom_point(size=0.25)+scale_color_viridis_b()+theme_bw()
+  message(cat("\nClustering on the UMAP space using Hierarchical Clustering (from 'stats')"))
+  humapout <- stats::hclust(dist(as.matrix(umapout[,1:2]))) 
+  umapout$hla_clusters <- stats::cutree(humapout, k = k)
+  umapout$hla_clusters <- as.factor(umapout$hla_clusters)
+  g <- ggplot(umapout, aes(x=umap1, y=umap2, color=hla_clusters))+geom_point(size=pt_size)#+scale_color_manual(values=pals::glasbey())+theme_bw()
+  message(cat("\nDone!!"))
+  if (!is.null(seu)){
+    return(list(UMAP_coordinates = umapout, HLA_clusters_on_umap = g, genotype_on_umap = g0))
+  } else {
+    return(list(UMAP_coordinates = umapout, HLA_clusters_on_umap = g))
+  }
+}
+
+
+
+
+#' Mapping the HLA clusters found by the 'HLA_clusters()' function back into the scrHLAtag count files
+#'
+#' @param cts.list  is a list of scrHLAtag count file(s) including columns for CB, UMI, and HLA alleles (https://github.com/furlan-lab/scrHLAtag).
+#' @param cluster_coordinates  is the UMAP coordinates dataframe with HLA clustering information (found by the 'HLA_clusters()' function) from which clusters are extracted and mapped into the scrHLAtag count files by matching Cell Barcodes. Currently the barcode format supported is: SAMPLE_AATGCTTGGTCCATTA-1
+#' @import stringr
+#' @return a large list containing scrHLAtag count file(s) including columns for CB, UMI, and HLA alleles, with the addition of HLA_clusters
+#' @examples
+#' samples <- c("AML_101_BM", "AML_101_34")
+#' mol_info <- c("molecule_info_gene.txt.gz", "molecule_info_mRNA.txt.gz")
+#' for (i in 1:length(mol_info)){
+#'   dl<-lapply(samples, function(sample){
+#'     d<-read.table(file.path("path/to/scrHLAtag/out/files", sample,
+#'                             mol_info[i]), header = F, sep=" ", fill = T) 
+#'     d$V1<-paste0(sample, "_", d$V1, "-1")
+#'     colnames(d)<-c("name","CB", "nb", "UMI", "gene", "query_len","start", "mapq", "cigar", "NM", "AS", "s1", "de", "seq")
+#'     d$samp <- sample
+#'     d
+#'   })
+#'   ctsu<-do.call(rbind,dl)
+#'   rm(dl)
+#'   cts[[str_sub(strsplit(mol_info[i], "\\.")[[1]][1], start= -4)]] <- ctsu
+#'   rm(ctsu)
+#' }
+#' map_HLA_clusters(cts.list = cts, k = 2, cluster_coordinates = UMAP_dataframe_from_HLA_clusters_function)
+#' @export
+
+map_HLA_clusters <- function(cts.list, cluster_coordinates) {
+  for (i in 1:length(cts.list)) {
+    cts.list[[i]]$hla_clusters <- NA
+    cts.list[[i]]$hla_clusters <- cluster_coordinates$hla_clusters[match(paste0(cts.list[[i]]$samp,"_",cts.list[[i]]$CB,"-1"), rownames(cluster_coordinates))]
+  }
+  return(cts.list)
 }
