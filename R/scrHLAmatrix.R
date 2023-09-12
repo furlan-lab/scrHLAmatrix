@@ -624,8 +624,6 @@ Top_HLA_plot <- function(cts_1, cts_2 = NULL, top_hla = 10, min_reads_per_gene =
 #' @import ggplot2
 #' @import Seurat
 #' @import dplyr
-#' @import stats
-#' @import uwot
 #' @return a large list containing DataFrame with UMAP coordinates and ggplot of HLA clusters
 #' @examples
 #' samples <- c("AML_101_BM", "AML_101_34")
