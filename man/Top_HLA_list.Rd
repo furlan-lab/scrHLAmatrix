@@ -7,7 +7,7 @@
 Top_HLA_list(
   cts_1,
   cts_2 = NULL,
-  frac = 0.65,
+  frac = 0.75,
   min_alleles_keep = 5,
   min_reads_per_gene = 200,
   insert_pop_most_freq = TRUE,
@@ -19,7 +19,7 @@ Top_HLA_list(
 
 \item{cts_2}{is the secondary scrHLAtag count file (the alternative file vs. the one designated in 'cts_1' argument). It includes columns for CB, UMI, and HLA alleles (https://github.com/furlan-lab/scrHLAtag). Default is NULL, in which case it will not be able to count alternative aligment and argument 'use_alt_align_ABC' will become irrelevant.}
 
-\item{frac}{is the fraction (0 to 1) of total reads for a particular HLA gene, which incorporates the highest ranking alleles of that gene in terms of number of reads; default at 0.65 .}
+\item{frac}{is the fraction (0 to 1) of total reads for a particular HLA gene, which incorporates the highest ranking alleles of that gene in terms of number of reads; default at 0.75 .}
 
 \item{min_alleles_keep}{is a numeric representing the minimum number of highest ranking alleles to keep despite filtering by fraction 'frac'; default is 5.}
 
