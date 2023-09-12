@@ -8,6 +8,7 @@ HLA_clusters(
   cts,
   k = 2,
   seu = NULL,
+  CB_rev_com = FALSE,
   geno_metadata_id = NULL,
   hla_with_counts_above = 0,
   CBs_with_counts_above = 0,
@@ -27,6 +28,8 @@ HLA_clusters(
 \item{k}{is the number of clusters to partition the UMAP space into, e.g. the number of entities or genotypes you 'think' there might be in your captured sample.}
 
 \item{seu}{is the Seurat object associated with the scrHLAtag count file (https://satijalab.org/seurat/index.html).}
+
+\item{CB_rev_com}{is a logical, called TRUE if the need to obtained the reverse complement of Cell Barcodes (CBs) is desired; default is FALSE.}
 
 \item{geno_metadata_id}{is a character, the column ID of the Seurat metadata designated to distinguish genotypes, if this information is available. 'NULL' by default or when genotyping information is not available.}
 

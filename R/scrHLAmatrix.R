@@ -108,17 +108,15 @@ HLA_Matrix <- function(cts, seu, hla_recip = character(), hla_donor = character(
   }
   ## Reverse Complement the CB
   if (CB_rev_com) {
-    message(cat("\n1/8 - Converting Cell Barcodes to their reverse complements"))
+    message(cat("\nConverting Cell Barcodes to their reverse complements"))
     # cts$CB <- pbmclapply(cts$CB, function(x) as.character(Biostrings::reverseComplement(DNAString(x))), mc.cores = parallel::detectCores()) %>% unlist() # slow
     cts$CB <- pbmclapply(cts$CB, function(x) intToUtf8(rev(utf8ToInt(chartr('ATGC', 'TACG', x)))), mc.cores = parallel::detectCores()) %>% unlist()        # fast
-  } else {
-    message(cat("\n1/8 - Cell Barcodes in their correct format"))
-  }
+  } 
   cts$seu_barcode <- paste0(cts$samp,"_",cts$CB,"-1")
   message(cat("\n  Proportions of Cell Barcodes found (TRUE) or not found (FALSE) in the Seurat object colnames: "))
   print(cts$seu_barcode %in% colnames(seu) %>% table() / dim(cts)[1])
   ## Remove low quality reads based on minimap2 tags
-  message(cat("\n2/8 - Removing low quality reads based on minimap2 tags"))
+  message(cat("\nRemoving low quality reads based on minimap2 tags"))
   cts.split <- with(cts, split(cts, list(gene0=gene0)))
   cts.split <- pbmclapply(cts.split, function(df){df[df$s1 > s1_belowmax*max(df$s1) & df$AS > AS_belowmax*max(df$AS) & df$NM <= NM_thresh & df$de <= de_thresh,]}, mc.cores = multi_thread)
   cts <-  do.call("rbind", cts.split)
@@ -146,7 +144,7 @@ HLA_Matrix <- function(cts, seu, hla_recip = character(), hla_donor = character(
   #   scale_x_continuous(name = "Rank", n.breaks = 8) +
   #   theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))
   # print(g)
-  message(cat("\n3/8 - Estimating molecular swap"))
+  message(cat("\nEstimating molecular swap"))
   pb <- txtProgressBar(min = 0, max = length(cts.split), style = 3, char = "=")
   for(j in 1:length(cts.split)){
     cts.split[[j]]$mol_swap <- ifelse(length(unique(cts.split[[j]]$gene)) > 1, 
@@ -206,18 +204,18 @@ HLA_Matrix <- function(cts, seu, hla_recip = character(), hla_donor = character(
     return(df)
   }
   # Applying the function
-  message(cat("\n4/8 - Correcting Molecular Swap: keeping the reads per UMI with the HLA allele occuring the most"))
+  message(cat("\nCorrecting Molecular Swap: keeping the reads per UMI with the HLA allele occuring the most"))
   cts.split.ct <- pbmclapply(cts.split.ct, keep_one, mc.cores = multi_thread)
   
   ## Performing Dedup
-  message(cat("\n5/8 - Performing Dedup on UMIs: removing PCR duplicates"))
+  message(cat("\nPerforming Dedup on UMIs: removing PCR duplicates"))
   cts.fltr.dedup <- pbmclapply(cts.split.ct, function(df){df[1,]}, mc.cores = multi_thread)
   cts.fltr.dedup <-  do.call("rbind", cts.fltr.dedup)
   row.names(cts.fltr.dedup)<-NULL
   rm(cts.split.ct)
   
   ## Clean-up HLA conflicts per CB
-  message(cat("\n6/8 - Estimating Genotype Conflicts: assuming a cell cannot have both recipient and donor-origin HLA allele"))
+  message(cat("\nEstimating Genotype Conflicts: assuming a cell cannot have both recipient and donor-origin HLA allele"))
   # remove obsolete cols and add Seurat barcode
   cts.fltr.dedup$mol_swap <- NULL
   cts.fltr.dedup$class_swap <- NULL
@@ -261,16 +259,16 @@ HLA_Matrix <- function(cts, seu, hla_recip = character(), hla_donor = character(
   }
   # keep two alleles per HLA gene!
   if (hla_conflict_rate == 0) {
-    message(cat("\n7/8 - Resolving Genotype Conflicts: no conflicts to resolve"))
+    message(cat("\nResolving Genotype Conflicts: no conflicts to resolve"))
   } else {
-    message(cat("\n7/8 - Resolving Genotype Conflicts: keeping recipient-origin or donor-origin HLA alleles per Cell, whichever are the most occuring"))
+    message(cat("\nResolving Genotype Conflicts: keeping recipient-origin or donor-origin HLA alleles per Cell, whichever are the most occuring"))
     cts.dedup.cb <- pbmclapply(cts.dedup.cb, keep_two, recip = hla_recip, donor = hla_donor, mc.cores = multi_thread)
   }
 
   ## Matrix formation
   # matrix
   HLA.matrix <- matrix(0, nrow = length(alleles), ncol = length(cts.dedup.cb), dimnames = list(alleles, names(cts.dedup.cb)))
-  message(cat("\n8/8 - Creating the HLA Count Matrix compatible with the Seurat object"))
+  message(cat("\nCreating the HLA Count Matrix compatible with the Seurat object"))
   pb <- txtProgressBar(min = 0, max = length(cts.dedup.cb), style = 3, char = "=")
   for (i in 1:length(cts.dedup.cb)) {
     counts <- table(cts.dedup.cb[[i]]$gene0)
@@ -291,6 +289,7 @@ HLA_Matrix <- function(cts, seu, hla_recip = character(), hla_donor = character(
   HLA.matrix<-as.matrix(t(HLA.matrix))
   HLA.matrix<-Matrix(HLA.matrix,sparse = T)
   HLA <- CreateAssayObject(counts = HLA.matrix)
+  message(cat("\nDone!!"))
   return(HLA)
 }
 
@@ -604,6 +603,7 @@ Top_HLA_plot <- function(cts_1, cts_2 = NULL, top_hla = 10, min_reads_per_gene =
 #' @param cts  is the scrHLAtag count file including columns for CB, UMI, and HLA alleles (https://github.com/furlan-lab/scrHLAtag).
 #' @param k  is the number of clusters to partition the UMAP space into, e.g. the number of entities or genotypes you 'think' there might be in your captured sample.
 #' @param seu  is the Seurat object associated with the scrHLAtag count file (https://satijalab.org/seurat/index.html).
+#' @param CB_rev_com  is a logical, called TRUE if the need to obtained the reverse complement of Cell Barcodes (CBs) is desired; default is FALSE. 
 #' @param geno_metadata_id  is a character, the column ID of the Seurat metadata designated to distinguish genotypes, if this information is available. 'NULL' by default or when genotyping information is not available. 
 #' @param hla_with_counts_above  is the number of total reads accross CBs at or above which an HLA allele is retained in the matrix.
 #' @param CBs_with_counts_above  is the number of total reads accross HLA alleles at or above which a CB is retained in the matrix. Note: 'princomp()' can only be used with at least as many units (CBs) as variables (HLAs), thus the function will make sure that number of CBs is equal or more than available HLA alleles in the matrix
@@ -645,7 +645,7 @@ Top_HLA_plot <- function(cts_1, cts_2 = NULL, top_hla = 10, min_reads_per_gene =
 #' HLA_clusters(cts = cts[["mRNA"]], k = 2, seu = your_Seurat_Obj, geno_metadata_id = "geno", hla_with_counts_above = 1, CBs_with_counts_above = 40)
 #' @export
 
-HLA_clusters <- function(cts, k = 2, seu = NULL, geno_metadata_id = NULL, hla_with_counts_above = 0, CBs_with_counts_above = 0, umap_first_n_PCs = 25, QC_mm2 = TRUE, s1_belowmax = 0.75, AS_belowmax = 0.85, NM_thresh = 15, de_thresh = 0.015, parallelize = TRUE, pt_size = 0.5) {
+HLA_clusters <- function(cts, k = 2, seu = NULL, CB_rev_com = FALSE, geno_metadata_id = NULL, hla_with_counts_above = 0, CBs_with_counts_above = 0, umap_first_n_PCs = 25, QC_mm2 = TRUE, s1_belowmax = 0.75, AS_belowmax = 0.85, NM_thresh = 15, de_thresh = 0.015, parallelize = TRUE, pt_size = 0.5) {
   ## parallelize
   if (parallelize) {
     multi_thread <- parallel::detectCores()
@@ -662,6 +662,12 @@ HLA_clusters <- function(cts, k = 2, seu = NULL, geno_metadata_id = NULL, hla_wi
     row.names(cts)<-NULL
     rm(cts.split)
   } 
+  ## Reverse Complement the CB
+  if (CB_rev_com) {
+    message(cat("\nConverting Cell Barcodes to their reverse complements"))
+    # cts$CB <- pbmclapply(cts$CB, function(x) as.character(Biostrings::reverseComplement(DNAString(x))), mc.cores = parallel::detectCores()) %>% unlist() # slow
+    cts$CB <- pbmclapply(cts$CB, function(x) intToUtf8(rev(utf8ToInt(chartr('ATGC', 'TACG', x)))), mc.cores = parallel::detectCores()) %>% unlist()        # fast
+  }  
   alleles <- unique(cts$gene)
   cts$seu_barcode <- paste0(cts$samp,"_",cts$CB,"-1")
   cts.cb <- with(cts, split(cts, list(seu_barcode=seu_barcode)))
