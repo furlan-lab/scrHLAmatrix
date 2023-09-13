@@ -12,6 +12,7 @@ HLA_clusters(
   geno_metadata_id = NULL,
   hla_with_counts_above = 0,
   CBs_with_counts_above = 0,
+  match_CB_with_seu = TRUE,
   umap_first_n_PCs = 25,
   QC_mm2 = TRUE,
   s1_belowmax = 0.75,
@@ -35,7 +36,9 @@ HLA_clusters(
 
 \item{hla_with_counts_above}{is the number of total reads accross CBs at or above which an HLA allele is retained in the matrix.}
 
-\item{CBs_with_counts_above}{is the number of total reads accross HLA alleles at or above which a CB is retained in the matrix. Note: 'princomp()' can only be used with at least as many units (CBs) as variables (HLAs), thus the function will make sure that number of CBs is equal or more than available HLA alleles in the matrix}
+\item{CBs_with_counts_above}{is the number of total reads accross HLA alleles at or above which a CB is retained in the matrix. Note: 'princomp()' can only be used with at least as many units (CBs) as variables (HLAs), thus the function will make sure that number of CBs is equal or more than available HLA alleles in the matrix.}
+
+\item{match_CB_with_seu}{is a logical, called TRUE if filtering CBs in the scrHLAtag count file with matching ones in the Seurat object is desired.}
 
 \item{umap_first_n_PCs}{is a number representing the first 'n' principal components to input into the umap function. Note: current version only supports default parameters of the 'umap()' function (more info on: https://cran.r-project.org/web/packages/uwot/index.html)}
 
