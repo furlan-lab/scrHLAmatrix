@@ -725,7 +725,7 @@ HLA_clusters <- function(cts, k = 2, seu = NULL, CB_rev_com = FALSE, geno_metada
   # ggplot(pcv, aes(x=Comp.1, y=Comp.2, color=logUMI))+geom_point(size=0.25)+scale_color_viridis_b()+theme_bw()
   # ggplot(pcv, aes(x=Comp.1, y=Comp.2, color=geno))+geom_point(size=0.5)+scale_color_manual(values=pals::glasbey())+theme_bw()
   umat<-pcv[,1:umap_first_n_PCs] %>% as.matrix()
-  umapout<-uwot::umap(umat, verbose=T, ..., !!!umap_args)
+  umapout<-uwot::umap(umat, verbose=T, ..., !!umap_args)
   colnames(umapout)<-c("umap1", "umap2")
   umapout <- as.data.frame(umapout)
   if (!is.null(seu)){
