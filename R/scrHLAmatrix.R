@@ -756,6 +756,7 @@ HLA_clusters <- function(cts, k = 2, seu = NULL, CB_rev_com = FALSE, geno_metada
 #'
 #' @param cts.list  is a list of scrHLAtag count file(s) including columns for CB, UMI, and HLA alleles (https://github.com/furlan-lab/scrHLAtag).
 #' @param cluster_coordinates  is the UMAP coordinates dataframe with HLA clustering information (found by the 'HLA_clusters()' function) from which clusters are extracted and mapped into the scrHLAtag count files by matching Cell Barcodes. Currently the barcode format supported is: SAMPLE_AATGCTTGGTCCATTA-1
+#' @param CB_rev_com  is a logical, called TRUE if the need to obtained the reverse complement of Cell Barcodes (CBs) is desired; default is FALSE.
 #' @import stringr
 #' @return a large list containing scrHLAtag count file(s) including columns for CB, UMI, and HLA alleles, with the addition of HLA_clusters
 #' @examples
@@ -778,10 +779,25 @@ HLA_clusters <- function(cts, k = 2, seu = NULL, CB_rev_com = FALSE, geno_metada
 #' map_HLA_clusters(cts.list = cts, k = 2, cluster_coordinates = UMAP_dataframe_from_HLA_clusters_function)
 #' @export
 
-map_HLA_clusters <- function(cts.list, cluster_coordinates) {
-  for (i in 1:length(cts.list)) {
-    cts.list[[i]]$hla_clusters <- NA
-    cts.list[[i]]$hla_clusters <- cluster_coordinates$hla_clusters[match(paste0(cts.list[[i]]$samp,"_",cts.list[[i]]$CB,"-1"), rownames(cluster_coordinates))]
+map_HLA_clusters <- function(cts.list, cluster_coordinates, CB_rev_com = FALSE) {
+  if (CB_rev_com) {
+    message(cat("\nConverting Cell Barcodes to their reverse complements"))
+    for (i in 1:length(cts.list)) {
+      cts.list[[i]]$hla_clusters <- NA
+      cts.list[[i]]$hla_clusters <- cluster_coordinates$hla_clusters[
+        match(paste0(cts.list[[i]]$samp,"_",pbmclapply(cts.list[[i]]$CB, function(x) intToUtf8(rev(utf8ToInt(chartr('ATGC', 'TACG', x)))), mc.cores = parallel::detectCores()) %>% unlist(),"-1"), 
+              rownames(cluster_coordinates))
+      ]
+    }
+  } else {
+    for (i in 1:length(cts.list)) {
+      cts.list[[i]]$hla_clusters <- NA
+      cts.list[[i]]$hla_clusters <- cluster_coordinates$hla_clusters[
+        match(paste0(cts.list[[i]]$samp,"_",cts.list[[i]]$CB,"-1"), 
+              rownames(cluster_coordinates))
+      ]
+    }
   }
   return(cts.list)
 }
+
