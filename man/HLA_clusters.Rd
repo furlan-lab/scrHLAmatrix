@@ -21,8 +21,6 @@ HLA_clusters(
   de_thresh = 0.015,
   parallelize = TRUE,
   pt_size = 0.5,
-  ggplot_args = list(),
-  umap_args = list(),
   ...
 )
 }
@@ -59,9 +57,7 @@ HLA_clusters(
 
 \item{pt_size}{is a number, the size of the geometric point displayed by ggplot2.}
 
-\item{ggplot_args}{a list of argument(s) to pass on to ggplot()}
-
-\item{umap_args}{a list of argument(s) to pass on to uwot::umap()}
+\item{...}{arguments passed onto uwot::umap()}
 }
 \value{
 a large list containing DataFrame with UMAP coordinates and ggplot of HLA clusters

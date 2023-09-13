@@ -616,8 +616,7 @@ Top_HLA_plot <- function(cts_1, cts_2 = NULL, top_hla = 10, min_reads_per_gene =
 #' @param de_thresh  is the gap-compressed per-base sequence divergence in the minimap2 alignment at or below which the quality of the read is acceptable; the number is between 0 and 1, and default is 0.015.
 #' @param parallelize  is a logical, called TRUE if using parallel processing (multi-threading) is desired; default is TRUE.
 #' @param pt_size  is a number, the size of the geometric point displayed by ggplot2. 
-#' @param ggplot_args  a list of argument(s) to pass on to ggplot()
-#' @param umap_args  a list of argument(s) to pass on to uwot::umap()
+#' @param ...  arguments passed onto uwot::umap()
 #' @import stringr
 #' @import pbmcapply
 #' @import parallel
@@ -648,7 +647,7 @@ Top_HLA_plot <- function(cts_1, cts_2 = NULL, top_hla = 10, min_reads_per_gene =
 #' HLA_clusters(cts = cts[["mRNA"]], k = 2, seu = your_Seurat_Obj, geno_metadata_id = "geno", hla_with_counts_above = 1, CBs_with_counts_above = 40)
 #' @export
 
-HLA_clusters <- function(cts, k = 2, seu = NULL, CB_rev_com = FALSE, geno_metadata_id = NULL, hla_with_counts_above = 0, CBs_with_counts_above = 0, match_CB_with_seu = TRUE, umap_first_n_PCs = 25, QC_mm2 = TRUE, s1_belowmax = 0.75, AS_belowmax = 0.85, NM_thresh = 15, de_thresh = 0.015, parallelize = TRUE, pt_size = 0.5, ggplot_args = list(), umap_args = list(), ...) {
+HLA_clusters <- function(cts, k = 2, seu = NULL, CB_rev_com = FALSE, geno_metadata_id = NULL, hla_with_counts_above = 0, CBs_with_counts_above = 0, match_CB_with_seu = TRUE, umap_first_n_PCs = 25, QC_mm2 = TRUE, s1_belowmax = 0.75, AS_belowmax = 0.85, NM_thresh = 15, de_thresh = 0.015, parallelize = TRUE, pt_size = 0.5, ...) {
   ## parallelize
   if (parallelize) {
     multi_thread <- parallel::detectCores()
@@ -725,13 +724,13 @@ HLA_clusters <- function(cts, k = 2, seu = NULL, CB_rev_com = FALSE, geno_metada
   # ggplot(pcv, aes(x=Comp.1, y=Comp.2, color=logUMI))+geom_point(size=0.25)+scale_color_viridis_b()+theme_bw()
   # ggplot(pcv, aes(x=Comp.1, y=Comp.2, color=geno))+geom_point(size=0.5)+scale_color_manual(values=pals::glasbey())+theme_bw()
   umat<-pcv[,1:umap_first_n_PCs] %>% as.matrix()
-  umapout<-uwot::umap(umat, verbose=T, ..., !!umap_args)
+  umapout<-uwot::umap(umat, verbose=T, ...)
   colnames(umapout)<-c("umap1", "umap2")
   umapout <- as.data.frame(umapout)
   if (!is.null(seu)){
     if (!is.null(geno_metadata_id)) {
       umapout<-cbind(umapout, seu@meta.data[match(rownames(umapout), colnames(seu)),])
-      g0 <- ggplot(umapout, aes(x=umap1, y=umap2, color=!!sym(geno_metadata_id)), ...)+geom_point(size=pt_size, ...)+ggplot_args#+scale_color_manual(values=pals::glasbey())+theme_bw()
+      g0 <- ggplot(umapout, aes(x=umap1, y=umap2, color=!!sym(geno_metadata_id)))+geom_point(size=pt_size)#+scale_color_manual(values=pals::glasbey())+theme_bw()
     }
   }
   # ggplot(umapout, aes(x=umap1, y=umap2, color=celltype))+geom_point(size=0.25)+scale_color_manual(values=pals::glasbey())+theme_bw()
@@ -741,7 +740,7 @@ HLA_clusters <- function(cts, k = 2, seu = NULL, CB_rev_com = FALSE, geno_metada
   humapout <- stats::hclust(dist(as.matrix(umapout[,1:2]))) 
   umapout$hla_clusters <- stats::cutree(humapout, k = k)
   umapout$hla_clusters <- as.factor(umapout$hla_clusters)
-  g <- ggplot(umapout, aes(x=umap1, y=umap2, color=hla_clusters), ...)+geom_point(size=pt_size, ...)+ggplot_args#+scale_color_manual(values=pals::glasbey())+theme_bw()
+  g <- ggplot(umapout, aes(x=umap1, y=umap2, color=hla_clusters))+geom_point(size=pt_size)#+scale_color_manual(values=pals::glasbey())+theme_bw()
   message(cat("\nDone!!"))
   if (!is.null(seu)){
     return(list(UMAP_coordinates = umapout, HLA_clusters_on_umap = g, genotype_on_umap = g0))
