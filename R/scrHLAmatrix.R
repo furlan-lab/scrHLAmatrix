@@ -4,6 +4,7 @@
 #' @param seu  is the Seurat object associated with the scrHLAtag count file (https://satijalab.org/seurat/index.html).
 #' @param hla_recip  is a character list of recipient-specific HLA alleles if known; default is an empty character vector.
 #' @param hla_donor  is a character list of donor-specific HLA alleles if known; default is an empty character vector.
+#' @param QC_mm2  is a logical, called TRUE if removing low quality reads based on minimap2 tags is desired.
 #' @param s1_belowmax  is a proportion (0 to 1) of the maximum value (best quality) of the minimap2 's1' tag above which the quality of the read is acceptable; default at 0.75 of the max s1 score.
 #' @param AS_belowmax  is a proportion (0 to 1) of the maximum value (best quality) of the minimap2 'AS' tag above which the quality of the read is acceptable; default at 0.85 of the max AS score.
 #' @param NM_thresh  is the number of mismatches and gaps in the minimap2 alignment at or below which the quality of the read is acceptable; default is 15.
@@ -41,7 +42,7 @@
 #' HLA_Matrix(cts = cts[["mRNA"]], seu = your_Seurat_obj, hla_recip = c("A*24:02:01", "DRB1*04:01:01", "DRB4*01:03:02"), hla_donor = c("A*33:03:01", "B*42:01:01"))
 #' @export
 
-HLA_Matrix <- function(cts, seu, hla_recip = character(), hla_donor = character(), s1_belowmax = 0.75, AS_belowmax = 0.85, NM_thresh = 15, de_thresh = 0.015, parallelize = TRUE, CB_rev_com = FALSE, Ct = 0) {
+HLA_Matrix <- function(cts, seu, hla_recip = character(), hla_donor = character(), QC_mm2 = TRUE, s1_belowmax = 0.75, AS_belowmax = 0.85, NM_thresh = 15, de_thresh = 0.015, parallelize = TRUE, CB_rev_com = FALSE, Ct = 0) {
   ## check Seurat object
   if (class(seu) != "Seurat") {
     stop("Single-cell dataset container must be of class 'Seurat'")
@@ -116,13 +117,14 @@ HLA_Matrix <- function(cts, seu, hla_recip = character(), hla_donor = character(
   message(cat("\n  Proportions of Cell Barcodes found (TRUE) or not found (FALSE) in the Seurat object colnames: "))
   print(cts$seu_barcode %in% colnames(seu) %>% table() / dim(cts)[1])
   ## Remove low quality reads based on minimap2 tags
-  message(cat("\nRemoving low quality reads based on minimap2 tags"))
-  cts.split <- with(cts, split(cts, list(gene0=gene0)))
-  cts.split <- pbmclapply(cts.split, function(df){df[df$s1 > s1_belowmax*max(df$s1) & df$AS > AS_belowmax*max(df$AS) & df$NM <= NM_thresh & df$de <= de_thresh,]}, mc.cores = multi_thread)
-  cts <-  do.call("rbind", cts.split)
-  row.names(cts)<-NULL
-  rm(cts.split)
-
+  if (QC_mm2) {
+    message(cat("\nRemoving low quality reads based on minimap2 tags"))
+    cts.split <- with(cts, split(cts, list(gene0=gene0)))
+    cts.split <- pbmclapply(cts.split, function(df){df[df$s1 > s1_belowmax*max(df$s1) & df$AS > AS_belowmax*max(df$AS) & df$NM <= NM_thresh & df$de <= de_thresh,]}, mc.cores = multi_thread)
+    cts <-  do.call("rbind", cts.split)
+    row.names(cts)<-NULL
+    rm(cts.split)
+  }
   ## see if more than 1 allele are present per umi at a time
   # count all the problematic CB:UMIs for which a molecular swap is suspected
   cts$mol_swap <- NA
@@ -131,7 +133,7 @@ HLA_Matrix <- function(cts, seu, hla_recip = character(), hla_donor = character(
   cts$class_swap <- as.factor(cts$class_swap)
   # split,   this is computationally heavy (about 10min for 10M rows)
   cts.split <- with(cts, split(cts, list(cbumi=cbumi))) 
-  # message(cat("\n1/6 - Estimating UMI duplication rate"))
+  # message(cat("\nEstimating UMI duplication rate"))
   # n_umi<-pbmclapply(cts.split, nrow, mc.cores = multi_thread) %>% unlist()
   # umi_counts<- data.frame(n_umi)
   # umi_counts$dummy <- 1
