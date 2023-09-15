@@ -50,7 +50,7 @@ HLA_Matrix <- function(cts, seu, hla_recip = character(), hla_donor = character(
   ## parallelize
   if (parallelize) {
     multi_thread <- parallel::detectCores()
-    message(cat("\n  Multi-threading! Available cores: ", parallel::detectCores()))
+    message(cat("\nMulti-threading! Available cores: ", parallel::detectCores()))
   } else {
     multi_thread <- 1
   }
@@ -60,13 +60,13 @@ HLA_Matrix <- function(cts, seu, hla_recip = character(), hla_donor = character(
     cts$gene0 <- gsub(special, "-", cts$gene)
     cts[c("hla", "leftover")] <- str_split_fixed(cts$gene, special, 2)
     cts$leftover <- NULL
-    message(cat("\n  Available reads per gene"))
+    message(cat("\nAvailable reads per gene"))
     print(table(cts$hla, useNA = "ifany"))
   } else if (all(grepl("-", cts$gene))){
     cts$gene0 <- cts$gene
     cts[c("hla", "leftover")] <- str_split_fixed(cts$gene, "-", 2)
     cts$leftover <- NULL
-    message(cat("\n  Available reads per gene"))
+    message(cat("\nAvailable reads per gene"))
     print(table(cts$hla, useNA = "ifany"))
   } else {
     stop("The HLA allele column is unrecognizable or has incorrect format. \nMake sure gene and allele are separated by standard nomenclature asterisk (or other special character).")
@@ -114,7 +114,7 @@ HLA_Matrix <- function(cts, seu, hla_recip = character(), hla_donor = character(
     cts$CB <- pbmclapply(cts$CB, function(x) intToUtf8(rev(utf8ToInt(chartr('ATGC', 'TACG', x)))), mc.cores = multi_thread) %>% unlist()        # fast
   } 
   cts$seu_barcode <- paste0(cts$samp,"_",cts$CB,"-1")
-  message(cat("\n  Proportions of Cell Barcodes found (TRUE) or not found (FALSE) in the Seurat object colnames: "))
+  message(cat("\nProportions of Cell Barcodes found (TRUE) or not found (FALSE) in the Seurat object colnames: "))
   print(cts$seu_barcode %in% colnames(seu) %>% table() / dim(cts)[1])
   ## Remove low quality reads based on minimap2 tags
   if (QC_mm2) {
@@ -124,6 +124,8 @@ HLA_Matrix <- function(cts, seu, hla_recip = character(), hla_donor = character(
     cts <-  do.call("rbind", cts.split)
     row.names(cts)<-NULL
     rm(cts.split)
+  } else {
+    cts <- cts[order(cts$gene0), ]
   }
   ## see if more than 1 allele are present per umi at a time
   # count all the problematic CB:UMIs for which a molecular swap is suspected
