@@ -4,7 +4,12 @@
 \alias{map_HLA_clusters}
 \title{Mapping the HLA clusters found by the 'HLA_clusters()' function back into the scrHLAtag count files}
 \usage{
-map_HLA_clusters(cts.list, cluster_coordinates, CB_rev_com = FALSE)
+map_HLA_clusters(
+  cts.list,
+  cluster_coordinates,
+  CB_rev_com = FALSE,
+  parallelize = TRUE
+)
 }
 \arguments{
 \item{cts.list}{is a list of scrHLAtag count file(s) including columns for CB, UMI, and HLA alleles (https://github.com/furlan-lab/scrHLAtag).}
@@ -12,6 +17,8 @@ map_HLA_clusters(cts.list, cluster_coordinates, CB_rev_com = FALSE)
 \item{cluster_coordinates}{is the UMAP coordinates dataframe with HLA clustering information (found by the 'HLA_clusters()' function) from which clusters are extracted and mapped into the scrHLAtag count files by matching Cell Barcodes. Currently the barcode format supported is: SAMPLE_AATGCTTGGTCCATTA-1}
 
 \item{CB_rev_com}{is a logical, called TRUE if the need to obtained the reverse complement of Cell Barcodes (CBs) is desired; default is FALSE.}
+
+\item{parallelize}{is a logical, called TRUE if using parallel processing (multi-threading) is desired; default is TRUE.}
 }
 \value{
 a large list containing scrHLAtag count file(s) including columns for CB, UMI, and HLA alleles, with the addition of HLA_clusters

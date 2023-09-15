@@ -109,8 +109,8 @@ HLA_Matrix <- function(cts, seu, hla_recip = character(), hla_donor = character(
   ## Reverse Complement the CB
   if (CB_rev_com) {
     message(cat("\nConverting Cell Barcodes to their reverse complements"))
-    # cts$CB <- pbmclapply(cts$CB, function(x) as.character(Biostrings::reverseComplement(DNAString(x))), mc.cores = parallel::detectCores()) %>% unlist() # slow
-    cts$CB <- pbmclapply(cts$CB, function(x) intToUtf8(rev(utf8ToInt(chartr('ATGC', 'TACG', x)))), mc.cores = parallel::detectCores()) %>% unlist()        # fast
+    # cts$CB <- pbmclapply(cts$CB, function(x) as.character(Biostrings::reverseComplement(DNAString(x))), mc.cores = multi_thread) %>% unlist() # slow
+    cts$CB <- pbmclapply(cts$CB, function(x) intToUtf8(rev(utf8ToInt(chartr('ATGC', 'TACG', x)))), mc.cores = multi_thread) %>% unlist()        # fast
   } 
   cts$seu_barcode <- paste0(cts$samp,"_",cts$CB,"-1")
   message(cat("\n  Proportions of Cell Barcodes found (TRUE) or not found (FALSE) in the Seurat object colnames: "))
@@ -301,7 +301,7 @@ HLA_Matrix <- function(cts, seu, hla_recip = character(), hla_donor = character(
 #' @param cts_2  is the secondary scrHLAtag count file (the alternative file vs. the one designated in 'cts_1' argument). It includes columns for CB, UMI, and HLA alleles (https://github.com/furlan-lab/scrHLAtag). Default is NULL, in which case it will not be able to count alternative aligment and argument 'use_alt_align_ABC' will become irrelevant.
 #' @param frac  is the fraction (0 to 1) of total reads for a particular HLA gene, which incorporates the highest ranking alleles of that gene in terms of number of reads; default at 0.75 .
 #' @param min_alleles_keep  is a numeric representing the minimum number of highest ranking alleles to keep despite filtering by fraction 'frac'; default is 5.
-#' @param min_reads_per_gene  is a numeric representing minimum number of total reads per HLA gene (including all its alleles) below which the gene is filtered out; default is 200. 
+#' @param min_reads_per_gene  is a numeric representing minimum number of total reads per HLA gene (including all its alleles) below which the gene is filtered out; default is 20. 
 #' @param insert_pop_most_freq  is a logical, whether to to include the HLA allele with the highest frequency in the human population despite low reads in the count files; default is TRUE.
 #' @param use_alt_align_ABC  is a logical, whether to use the count file from the alternative alignment (rather than the primary alignment) to count reads for the HLA-A, -B, and -C genes. It was observed in some cases that using genomic alignments has better accuracy in predicting genotype versus mRNA alignments (not the case for Class-II and other HLA genes); default is FALSE.
 #' @import stringr
@@ -331,7 +331,7 @@ HLA_Matrix <- function(cts, seu, hla_recip = character(), hla_donor = character(
 #' Top_HLA_list(cts_1 = cts[["mRNA"]], cts_2 = cts[["gene"]], frac = 0.8, min_alleles_keep = 2, use_alt_align_ABC = TRUE)
 #' @export
 
-Top_HLA_list <- function(cts_1, cts_2 = NULL, frac = 0.75, min_alleles_keep = 5, min_reads_per_gene = 200, insert_pop_most_freq = TRUE, use_alt_align_ABC = FALSE){
+Top_HLA_list <- function(cts_1, cts_2 = NULL, frac = 0.75, min_alleles_keep = 5, min_reads_per_gene = 20, insert_pop_most_freq = TRUE, use_alt_align_ABC = FALSE){
   if (is.null(cts_2)) {
     cts_2 <- cts_1
   }
@@ -447,7 +447,7 @@ Top_HLA_list <- function(cts_1, cts_2 = NULL, frac = 0.75, min_alleles_keep = 5,
 #' @param cts_1  is the primary scrHLAtag count file (1 of 2 files containing either the mRNA molecular info or the genomic (gene) molecular info). It includes columns for CB, UMI, and HLA alleles (https://github.com/furlan-lab/scrHLAtag).
 #' @param cts_2  is the secondary scrHLAtag count file (the alternative file vs. the one designated in 'cts_1' argument). It includes columns for CB, UMI, and HLA alleles (https://github.com/furlan-lab/scrHLAtag). Default is NULL, in which case it will not be able to count alternative aligment and argument 'use_alt_align_ABC' will become irrelevant.
 #' @param top_hla  is a numeric, representing the number of top HLA alleles (i.e. with the highest number of reads) per HLA gene to display in the plot; default is 10.
-#' @param min_reads_per_gene  is a numeric representing minimum number of total reads per HLA gene (including all its alleles) below which the gene is filtered out; default is 200. 
+#' @param min_reads_per_gene  is a numeric representing minimum number of total reads per HLA gene (including all its alleles) below which the gene is filtered out; default is 20. 
 #' @param use_alt_align_ABC  is a logical, whether to use the count file from the alternative alignment (rather than the primary alignment) to count reads for the HLA-A, -B, and -C genes. It was observed in some cases that using genomic alignments has better accuracy in predicting genotype versus mRNA alignments (not the case for Class-II and other HLA genes); default is FALSE.
 #' @param color_pal  is a character list of colors to visualize HLA polulation frequencies when available. When 'color_pal' is not provided (NULL), it defaults to viridis::viridis(n = 10, option = "C").
 #' @import stringr
@@ -477,7 +477,7 @@ Top_HLA_list <- function(cts_1, cts_2 = NULL, frac = 0.75, min_alleles_keep = 5,
 #' Top_HLA_plot(cts_1 = cts[["mRNA"]], cts_2 = cts[["gene"]], use_alt_align_ABC = TRUE)
 #' @export
 
-Top_HLA_plot <- function(cts_1, cts_2 = NULL, top_hla = 10, min_reads_per_gene = 200, use_alt_align_ABC = FALSE, color_pal = NULL){
+Top_HLA_plot <- function(cts_1, cts_2 = NULL, top_hla = 10, min_reads_per_gene = 20, use_alt_align_ABC = FALSE, color_pal = NULL){
   if (is.null(cts_2)) {
     cts_2 <- cts_1
     warning("The molecule_info_gene.txt.gz count file does not seem to be included. The function will run but the argument 'use_alt_align_ABC' will be irrelevant.")
@@ -667,8 +667,8 @@ HLA_clusters <- function(cts, k = 2, seu = NULL, CB_rev_com = FALSE, geno_metada
   ## Reverse Complement the CB
   if (CB_rev_com) {
     message(cat("\nConverting Cell Barcodes to their reverse complements"))
-    # cts$CB <- pbmclapply(cts$CB, function(x) as.character(Biostrings::reverseComplement(DNAString(x))), mc.cores = parallel::detectCores()) %>% unlist() # slow
-    cts$CB <- pbmclapply(cts$CB, function(x) intToUtf8(rev(utf8ToInt(chartr('ATGC', 'TACG', x)))), mc.cores = parallel::detectCores()) %>% unlist()        # fast
+    # cts$CB <- pbmclapply(cts$CB, function(x) as.character(Biostrings::reverseComplement(DNAString(x))), mc.cores = multi_thread) %>% unlist() # slow
+    cts$CB <- pbmclapply(cts$CB, function(x) intToUtf8(rev(utf8ToInt(chartr('ATGC', 'TACG', x)))), mc.cores = multi_thread) %>% unlist()        # fast
   }  
   alleles <- unique(cts$gene)
   cts$seu_barcode <- paste0(cts$samp,"_",cts$CB,"-1")
@@ -757,6 +757,7 @@ HLA_clusters <- function(cts, k = 2, seu = NULL, CB_rev_com = FALSE, geno_metada
 #' @param cts.list  is a list of scrHLAtag count file(s) including columns for CB, UMI, and HLA alleles (https://github.com/furlan-lab/scrHLAtag).
 #' @param cluster_coordinates  is the UMAP coordinates dataframe with HLA clustering information (found by the 'HLA_clusters()' function) from which clusters are extracted and mapped into the scrHLAtag count files by matching Cell Barcodes. Currently the barcode format supported is: SAMPLE_AATGCTTGGTCCATTA-1
 #' @param CB_rev_com  is a logical, called TRUE if the need to obtained the reverse complement of Cell Barcodes (CBs) is desired; default is FALSE.
+#' @param parallelize  is a logical, called TRUE if using parallel processing (multi-threading) is desired; default is TRUE.
 #' @import stringr
 #' @return a large list containing scrHLAtag count file(s) including columns for CB, UMI, and HLA alleles, with the addition of HLA_clusters
 #' @examples
@@ -779,13 +780,20 @@ HLA_clusters <- function(cts, k = 2, seu = NULL, CB_rev_com = FALSE, geno_metada
 #' map_HLA_clusters(cts.list = cts, k = 2, cluster_coordinates = UMAP_dataframe_from_HLA_clusters_function)
 #' @export
 
-map_HLA_clusters <- function(cts.list, cluster_coordinates, CB_rev_com = FALSE) {
+map_HLA_clusters <- function(cts.list, cluster_coordinates, CB_rev_com = FALSE, parallelize = TRUE) {
+  ## parallelize
+  if (parallelize) {
+    multi_thread <- parallel::detectCores()
+    # message(cat("\nMulti-threading! Available cores: ", parallel::detectCores()))
+  } else {
+    multi_thread <- 1
+  }  
   if (CB_rev_com) {
     message(cat("\nConverting Cell Barcodes to their reverse complements"))
     for (i in 1:length(cts.list)) {
       cts.list[[i]]$hla_clusters <- NA
       cts.list[[i]]$hla_clusters <- cluster_coordinates$hla_clusters[
-        match(paste0(cts.list[[i]]$samp,"_",pbmclapply(cts.list[[i]]$CB, function(x) intToUtf8(rev(utf8ToInt(chartr('ATGC', 'TACG', x)))), mc.cores = parallel::detectCores()) %>% unlist(),"-1"), 
+        match(paste0(cts.list[[i]]$samp,"_",pbmclapply(cts.list[[i]]$CB, function(x) intToUtf8(rev(utf8ToInt(chartr('ATGC', 'TACG', x)))), mc.cores = multi_thread) %>% unlist(),"-1"), 
               rownames(cluster_coordinates))
       ]
     }

@@ -9,7 +9,7 @@ Top_HLA_list(
   cts_2 = NULL,
   frac = 0.75,
   min_alleles_keep = 5,
-  min_reads_per_gene = 200,
+  min_reads_per_gene = 20,
   insert_pop_most_freq = TRUE,
   use_alt_align_ABC = FALSE
 )
@@ -23,7 +23,7 @@ Top_HLA_list(
 
 \item{min_alleles_keep}{is a numeric representing the minimum number of highest ranking alleles to keep despite filtering by fraction 'frac'; default is 5.}
 
-\item{min_reads_per_gene}{is a numeric representing minimum number of total reads per HLA gene (including all its alleles) below which the gene is filtered out; default is 200.}
+\item{min_reads_per_gene}{is a numeric representing minimum number of total reads per HLA gene (including all its alleles) below which the gene is filtered out; default is 20.}
 
 \item{insert_pop_most_freq}{is a logical, whether to to include the HLA allele with the highest frequency in the human population despite low reads in the count files; default is TRUE.}
 

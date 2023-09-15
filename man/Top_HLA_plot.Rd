@@ -8,7 +8,7 @@ Top_HLA_plot(
   cts_1,
   cts_2 = NULL,
   top_hla = 10,
-  min_reads_per_gene = 200,
+  min_reads_per_gene = 20,
   use_alt_align_ABC = FALSE,
   color_pal = NULL
 )
@@ -20,7 +20,7 @@ Top_HLA_plot(
 
 \item{top_hla}{is a numeric, representing the number of top HLA alleles (i.e. with the highest number of reads) per HLA gene to display in the plot; default is 10.}
 
-\item{min_reads_per_gene}{is a numeric representing minimum number of total reads per HLA gene (including all its alleles) below which the gene is filtered out; default is 200.}
+\item{min_reads_per_gene}{is a numeric representing minimum number of total reads per HLA gene (including all its alleles) below which the gene is filtered out; default is 20.}
 
 \item{use_alt_align_ABC}{is a logical, whether to use the count file from the alternative alignment (rather than the primary alignment) to count reads for the HLA-A, -B, and -C genes. It was observed in some cases that using genomic alignments has better accuracy in predicting genotype versus mRNA alignments (not the case for Class-II and other HLA genes); default is FALSE.}
 
