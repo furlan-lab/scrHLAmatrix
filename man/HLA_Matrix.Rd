@@ -10,6 +10,7 @@ HLA_Matrix(
   hla_recip = character(),
   hla_donor = character(),
   QC_mm2 = TRUE,
+  res_conflict_per_gene = TRUE,
   s1_belowmax = 0.75,
   AS_belowmax = 0.85,
   NM_thresh = 15,
@@ -29,6 +30,8 @@ HLA_Matrix(
 \item{hla_donor}{is a character list of donor-specific HLA alleles if known; default is an empty character vector.}
 
 \item{QC_mm2}{is a logical, called TRUE if removing low quality reads based on minimap2 tags is desired.}
+
+\item{res_conflict_per_gene}{is a logical, called TRUE if resolving per-HLA genotype conflicts is desired, with the assumption that each Cell can have no more than 2 alleles of the same HLA gene.}
 
 \item{s1_belowmax}{is a proportion (0 to 1) of the maximum value (best quality) of the minimap2 's1' tag above which the quality of the read is acceptable; default at 0.75 of the max s1 score.}
 

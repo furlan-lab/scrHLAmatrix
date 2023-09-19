@@ -5,6 +5,7 @@
 #' @param hla_recip  is a character list of recipient-specific HLA alleles if known; default is an empty character vector.
 #' @param hla_donor  is a character list of donor-specific HLA alleles if known; default is an empty character vector.
 #' @param QC_mm2  is a logical, called TRUE if removing low quality reads based on minimap2 tags is desired.
+#' @param res_conflict_per_gene  is a logical, called TRUE if resolving per-HLA genotype conflicts is desired, with the assumption that each Cell can have no more than 2 alleles of the same HLA gene.
 #' @param s1_belowmax  is a proportion (0 to 1) of the maximum value (best quality) of the minimap2 's1' tag above which the quality of the read is acceptable; default at 0.75 of the max s1 score.
 #' @param AS_belowmax  is a proportion (0 to 1) of the maximum value (best quality) of the minimap2 'AS' tag above which the quality of the read is acceptable; default at 0.85 of the max AS score.
 #' @param NM_thresh  is the number of mismatches and gaps in the minimap2 alignment at or below which the quality of the read is acceptable; default is 15.
@@ -42,7 +43,7 @@
 #' HLA_Matrix(reads = cts[["mRNA"]], seu = your_Seurat_obj, hla_recip = c("A*24:02:01", "DRB1*04:01:01", "DRB4*01:03:02"), hla_donor = c("A*33:03:01", "B*42:01:01"))
 #' @export
 
-HLA_Matrix <- function(reads, seu, hla_recip = character(), hla_donor = character(), QC_mm2 = TRUE, s1_belowmax = 0.75, AS_belowmax = 0.85, NM_thresh = 15, de_thresh = 0.015, parallelize = TRUE, CB_rev_com = FALSE, Ct = 0) {
+HLA_Matrix <- function(reads, seu, hla_recip = character(), hla_donor = character(), QC_mm2 = TRUE, res_conflict_per_gene = TRUE, s1_belowmax = 0.75, AS_belowmax = 0.85, NM_thresh = 15, de_thresh = 0.015, parallelize = TRUE, CB_rev_com = FALSE, Ct = 0) {
   ## check Seurat object
   if (class(seu) != "Seurat") {
     stop("Single-cell dataset container must be of class 'Seurat'")
@@ -147,7 +148,7 @@ HLA_Matrix <- function(reads, seu, hla_recip = character(), hla_donor = characte
   #   scale_x_continuous(name = "Rank", n.breaks = 8) +
   #   theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))
   # print(g)
-  message(cat("\nEstimating molecular swap"))
+  message(cat("\nEstimating Molecular Swap"))
   pb <- txtProgressBar(min = 0, max = length(reads), style = 3, char = "=")
   for(j in 1:length(reads)){
     reads[[j]]$mol_swap <- ifelse(length(unique(reads[[j]]$gene)) > 1, 
@@ -185,20 +186,19 @@ HLA_Matrix <- function(reads, seu, hla_recip = character(), hla_donor = characte
   keep_one <- function(df) {
     n_hla <- table(df$gene0)
     if (length(n_hla) > 1) {
-      most_hla <- names(which.max(n_hla))
-      most_hla_count <- n_hla[most_hla]
-      if (sum(n_hla == most_hla_count) > 1) {
+      most_hla <- names(which(n_hla==max(n_hla)))
+      if (length(most_hla) > 1) {
         # If there is a tie, remove the entire df
         df <- NULL
       } else {
         # Filter the df to keep only rows with the most occurring hla
-        df <- df[df$gene0 == most_hla, ]
+        df <- df[df$gene0 %in% most_hla, ]
       }
     }
     return(df)
   }
   # Applying the function
-  message(cat("\nCorrecting Molecular Swap: keeping the reads per UMI with the HLA allele occuring the most"))
+  message(cat("\nCorrecting Molecular Swap: keeping the reads per UMI with the HLA allele having the highest statistical probability"))
   reads <- pbmclapply(reads, keep_one, mc.cores = multi_thread)
   ## Performing Dedup
   message(cat("\nPerforming Dedup on UMIs: removing PCR duplicates"))
@@ -206,14 +206,14 @@ HLA_Matrix <- function(reads, seu, hla_recip = character(), hla_donor = characte
   reads <-  do.call("rbind", reads)
   row.names(reads)<-NULL
   ## Clean-up HLA conflicts per CB
-  message(cat("\nEstimating Genotype Conflicts: assuming a cell cannot have both recipient and donor-origin HLA allele"))
+  message(cat("\nDonor-v-Recipient Genotype Conflict: assuming a cell cannot have both recipient and donor-origin HLA allele"))
   # remove obsolete cols and add Seurat barcode
   reads$mol_swap <- NULL
   reads$class_swap <- NULL
   reads$seu_barcode <- paste0(reads$samp,"_",reads$CB,"-1")
   reads$hla_conflict <- NA
   reads$hla_conflict <- as.factor(reads$hla_conflict)
-  alleles <- unique(reads$gene0)
+  alleles <- unique(reads$gene0) %>% sort() 
   # split by Seurat barcode
   reads <- with(reads, split(reads, list(seu_barcode=seu_barcode)))
   # detect HLA conflicts (i.e. donor-spec and recipient-spec HLA in the same barcode)
@@ -226,11 +226,11 @@ HLA_Matrix <- function(reads, seu, hla_recip = character(), hla_donor = characte
   }
   close(pb)
   hla_conflict_rate <- length(which(sapply(reads, function(df) "yes" %in% df$hla_conflict))) / length(reads)
-  message(cat("  Conflicting HLA (both donor and recipient HLA within the same Cell Barcode) affects ", 
+  message(cat("  Both donor and recipient HLA within the same Cell Barcode in ", 
             format(round(100*hla_conflict_rate, 3), nsmall = 1),
             "% of Cells"))
   # function to clean-up HLA conflicts by Seurat barcode
-  keep_two <- function(df, recip, donor) {
+  remove_conflict <- function(df, recip, donor) {
     if (any(df$gene0 %in% recip) & any(df$gene0 %in% donor)){
       # determine the count difference between recipient-specific HLA-associated UMIs & donor-specific HLA-associated UMIs
       diff <- sum(table(df[which(df$gene0 %in% donor),]$gene0))-sum(table(df[which(df$gene0 %in% recip),]$gene0))
@@ -248,13 +248,39 @@ HLA_Matrix <- function(reads, seu, hla_recip = character(), hla_donor = characte
     }
     return(df)
   }
-  # keep two alleles per HLA gene!
   if (hla_conflict_rate == 0) {
-    message(cat("\nResolving Genotype Conflicts: no conflicts to resolve"))
+    message(cat("\nResolving Donor-v-Recipient Genotype Conflicts: no conflicts to resolve"))
   } else {
-    message(cat("\nResolving Genotype Conflicts: keeping recipient-origin or donor-origin HLA alleles per Cell, whichever are the most occuring"))
-    reads <- pbmclapply(reads, keep_two, recip = hla_recip, donor = hla_donor, mc.cores = multi_thread)
+    message(cat("\nResolving Donor-v-Recipient Genotype Conflicts: the group of HLA alleles with the highest counts per cell is kept"))
+    reads <- pbmclapply(reads, remove_conflict, recip = hla_recip, donor = hla_donor, mc.cores = multi_thread)
   }
+  ## Resolving per gene conflicts
+  if (res_conflict_per_gene) {
+    reads <-  do.call("rbind", reads)
+    reads$cb_hla <- paste0(reads$CB,"_",reads$hla)
+    reads <- with(reads, split(reads, list(cb_hla=cb_hla)))
+    keep_two <- function(df) {
+      n_hla <- table(df$gene0)
+      if (length(n_hla) > 2) {
+        most_hla <- c(names(which(n_hla==max(n_hla))), names(which(n_hla[n_hla!=max(n_hla)]==max(n_hla[n_hla!=max(n_hla)])))) %>% suppressWarnings()
+        if (length(most_hla) > 2) {
+          # If there is a tie with 3 or more alleles, remove the entire df
+          df <- NULL
+        } else {
+          # Filter the df to keep only rows with the most occurring hla
+          df <- df[df$gene0 %in% most_hla, ]
+        }
+      }
+      return(df)
+    }
+    # Applying the function
+    message(cat("\nResolving per-HLA Genotype Conflicts: keeping the reads per CB with the 2 highest counts alleles for each HLA gene"))
+    reads <- pbmclapply(reads, keep_two, mc.cores = multi_thread)
+    reads <-  do.call("rbind", reads)
+    alleles <- unique(reads$gene0) %>% sort() 
+    reads <- with(reads, split(reads, list(seu_barcode=seu_barcode)))
+  }
+
   ## Matrix formation
   # matrix
   HLA.matrix <- matrix(0, nrow = length(alleles), ncol = length(reads), dimnames = list(alleles, names(reads)))
@@ -659,7 +685,7 @@ HLA_clusters <- function(reads, k = 2, seu = NULL, CB_rev_com = FALSE, geno_meta
     # reads$CB <- pbmclapply(reads$CB, function(x) as.character(Biostrings::reverseComplement(DNAString(x))), mc.cores = multi_thread) %>% unlist() # slow
     reads$CB <- pbmclapply(reads$CB, function(x) intToUtf8(rev(utf8ToInt(chartr('ATGC', 'TACG', x)))), mc.cores = multi_thread) %>% unlist()        # fast
   }  
-  alleles <- unique(reads$gene)
+  alleles <- unique(reads$gene) %>% sort()
   reads$seu_barcode <- paste0(reads$samp,"_",reads$CB,"-1")
   reads <- with(reads, split(reads, list(seu_barcode=seu_barcode)))
   ## Matrix formation
