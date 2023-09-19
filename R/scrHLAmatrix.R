@@ -1,6 +1,6 @@
 #' Deduping and Correcting scrHLAtag counts and Creating Seurat-compatible Matrices
 #' 
-#' @param molecule.info  is the scrHLAtag count file including columns for CB, UMI, and HLA alleles (https://github.com/furlan-lab/scrHLAtag).
+#' @param reads  is the scrHLAtag count file including columns for CB, UMI, and HLA alleles (https://github.com/furlan-lab/scrHLAtag).
 #' @param seu  is the Seurat object associated with the scrHLAtag count file (https://satijalab.org/seurat/index.html).
 #' @param hla_recip  is a character list of recipient-specific HLA alleles if known; default is an empty character vector.
 #' @param hla_donor  is a character list of donor-specific HLA alleles if known; default is an empty character vector.
@@ -39,10 +39,10 @@
 #'   cts[[str_sub(strsplit(mol_info[i], "\\.")[[1]][1], start= -4)]] <- ctsu
 #'   rm(ctsu)
 #' }
-#' HLA_Matrix(molecule.info = cts[["mRNA"]], seu = your_Seurat_obj, hla_recip = c("A*24:02:01", "DRB1*04:01:01", "DRB4*01:03:02"), hla_donor = c("A*33:03:01", "B*42:01:01"))
+#' HLA_Matrix(reads = cts[["mRNA"]], seu = your_Seurat_obj, hla_recip = c("A*24:02:01", "DRB1*04:01:01", "DRB4*01:03:02"), hla_donor = c("A*33:03:01", "B*42:01:01"))
 #' @export
 
-HLA_Matrix <- function(molecule.info, seu, hla_recip = character(), hla_donor = character(), QC_mm2 = TRUE, s1_belowmax = 0.75, AS_belowmax = 0.85, NM_thresh = 15, de_thresh = 0.015, parallelize = TRUE, CB_rev_com = FALSE, Ct = 0) {
+HLA_Matrix <- function(reads, seu, hla_recip = character(), hla_donor = character(), QC_mm2 = TRUE, s1_belowmax = 0.75, AS_belowmax = 0.85, NM_thresh = 15, de_thresh = 0.015, parallelize = TRUE, CB_rev_com = FALSE, Ct = 0) {
   ## check Seurat object
   if (class(seu) != "Seurat") {
     stop("Single-cell dataset container must be of class 'Seurat'")
@@ -56,22 +56,22 @@ HLA_Matrix <- function(molecule.info, seu, hla_recip = character(), hla_donor = 
   }
   ## add the dash into the HLA allele as it is the one accepted in the names of the Seurat assay features
   special <- "[_*|?.+$^]"
-  if (any(grepl(special, molecule.info$gene))) {
-    molecule.info$gene0 <- gsub(special, "-", molecule.info$gene)
-    molecule.info[c("hla", "leftover")] <- str_split_fixed(molecule.info$gene, special, 2)
-    molecule.info$leftover <- NULL
+  if (any(grepl(special, reads$gene))) {
+    reads$gene0 <- gsub(special, "-", reads$gene)
+    reads[c("hla", "leftover")] <- str_split_fixed(reads$gene, special, 2)
+    reads$leftover <- NULL
     message(cat("\nAvailable reads per gene"))
-    print(table(molecule.info$hla, useNA = "ifany"))
-  } else if (all(grepl("-", molecule.info$gene))){
-    molecule.info$gene0 <- molecule.info$gene
-    molecule.info[c("hla", "leftover")] <- str_split_fixed(molecule.info$gene, "-", 2)
-    molecule.info$leftover <- NULL
+    print(table(reads$hla, useNA = "ifany"))
+  } else if (all(grepl("-", reads$gene))){
+    reads$gene0 <- reads$gene
+    reads[c("hla", "leftover")] <- str_split_fixed(reads$gene, "-", 2)
+    reads$leftover <- NULL
     message(cat("\nAvailable reads per gene"))
-    print(table(molecule.info$hla, useNA = "ifany"))
+    print(table(reads$hla, useNA = "ifany"))
   } else {
     stop("The HLA allele column is unrecognizable or has incorrect format. \nMake sure gene and allele are separated by standard nomenclature asterisk (or other special character).")
   }
-  molecule.info$cbumi <- paste0(molecule.info$CB, ":", molecule.info$UMI)
+  reads$cbumi <- paste0(reads$CB, ":", reads$UMI)
   ## check format of 'hla_recip' and 'hla_donor'
   if (any(grepl(special, hla_recip))) {
     hla_recip <- gsub(special, "-", hla_recip)
@@ -104,38 +104,39 @@ HLA_Matrix <- function(molecule.info, seu, hla_recip = character(), hla_donor = 
     stop("'s1_belowmax', 'AS_belowmax', and 'de_thresh' should be numerics between 0 and 1")
   }
   ## check relevant col names exist
-  if (!all(c("CB", "UMI", "gene", "samp") %in% colnames(molecule.info))){
-    stop("scrHLAtag output 'molecule.info' dataframe must at least contain the columns 'CB', 'UMI', 'gene' (with HLA alleles), and 'samp' (matching the sample names in the corresponding Seurat object)")
+  if (!all(c("CB", "UMI", "gene", "samp") %in% colnames(reads))){
+    stop("scrHLAtag output 'reads' dataframe must at least contain the columns 'CB', 'UMI', 'gene' (with HLA alleles), and 'samp' (matching the sample names in the corresponding Seurat object)")
   }
   ## Reverse Complement the CB
   if (CB_rev_com) {
     message(cat("\nConverting Cell Barcodes to their reverse complements"))
-    # molecule.info$CB <- pbmclapply(molecule.info$CB, function(x) as.character(Biostrings::reverseComplement(DNAString(x))), mc.cores = multi_thread) %>% unlist() # slow
-    molecule.info$CB <- pbmclapply(molecule.info$CB, function(x) intToUtf8(rev(utf8ToInt(chartr('ATGC', 'TACG', x)))), mc.cores = multi_thread) %>% unlist()        # fast
+    # reads$CB <- pbmclapply(reads$CB, function(x) as.character(Biostrings::reverseComplement(DNAString(x))), mc.cores = multi_thread) %>% unlist() # slow
+    reads$CB <- pbmclapply(reads$CB, function(x) intToUtf8(rev(utf8ToInt(chartr('ATGC', 'TACG', x)))), mc.cores = multi_thread) %>% unlist()        # fast
   } 
-  molecule.info$seu_barcode <- paste0(molecule.info$samp,"_",molecule.info$CB,"-1")
+  reads$seu_barcode <- paste0(reads$samp,"_",reads$CB,"-1")
   message(cat("\nProportions of Cell Barcodes found (TRUE) or not found (FALSE) in the Seurat object colnames: "))
-  print(molecule.info$seu_barcode %in% colnames(seu) %>% table() / dim(molecule.info)[1])
+  print(reads$seu_barcode %in% colnames(seu) %>% table() / dim(reads)[1])
   ## Remove low quality reads based on minimap2 tags
   if (QC_mm2) {
     message(cat("\nRemoving low quality reads based on minimap2 tags"))
-    molecule.info <- with(molecule.info, split(molecule.info, list(gene0=gene0)))
-    molecule.info <- pbmclapply(molecule.info, function(df){df[df$s1 > s1_belowmax*max(df$s1) & df$AS > AS_belowmax*max(df$AS) & df$NM <= NM_thresh & df$de <= de_thresh,]}, mc.cores = multi_thread)
-    molecule.info <-  do.call("rbind", molecule.info)
-    row.names(molecule.info)<-NULL
+    reads <- with(reads, split(reads, list(gene0=gene0)))
+    reads <- pbmclapply(reads, function(df){df[df$s1 > s1_belowmax*max(df$s1) & df$AS > AS_belowmax*max(df$AS) & df$NM <= NM_thresh & df$de <= de_thresh,]}, mc.cores = multi_thread)
+    reads <-  do.call("rbind", reads)
+    row.names(reads)<-NULL
   } else {
-    molecule.info <- molecule.info[order(molecule.info$gene0), ]
+    reads <- reads[order(reads$gene0), ]
   }
   ## see if more than 1 allele are present per umi at a time
   # count all the problematic CB:UMIs for which a molecular swap is suspected
-  molecule.info$mol_swap <- NA
-  molecule.info$mol_swap <- as.factor(molecule.info$mol_swap)
-  molecule.info$class_swap <- NA
-  molecule.info$class_swap <- as.factor(molecule.info$class_swap)
+  reads$mol_swap <- NA
+  reads$mol_swap <- as.factor(reads$mol_swap)
+  reads$class_swap <- NA
+  reads$class_swap <- as.factor(reads$class_swap)
+  alleles <- unique(reads$gene0)  
   # split,   this is computationally heavy (about 10min for 10M rows)
-  molecule.info <- with(molecule.info, split(molecule.info, list(cbumi=cbumi))) 
+  reads <- with(reads, split(reads, list(cbumi=cbumi))) 
   # message(cat("\nEstimating UMI duplication rate"))
-  # n_umi<-pbmclapply(molecule.info, nrow, mc.cores = multi_thread) %>% unlist()
+  # n_umi<-pbmclapply(reads, nrow, mc.cores = multi_thread) %>% unlist()
   # umi_counts<- data.frame(n_umi)
   # umi_counts$dummy <- 1
   # umi_counts <- umi_counts[order(umi_counts$n_umi),]
@@ -148,29 +149,27 @@ HLA_Matrix <- function(molecule.info, seu, hla_recip = character(), hla_donor = 
   #   theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))
   # print(g)
   message(cat("\nEstimating molecular swap"))
-  pb <- txtProgressBar(min = 0, max = length(molecule.info), style = 3, char = "=")
-  for(j in 1:length(molecule.info)){
-    molecule.info[[j]]$mol_swap <- ifelse(length(unique(molecule.info[[j]]$gene)) > 1, 
-                                      molecule.info[[j]]$mol_swap <- "yes",
-                                      molecule.info[[j]]$mol_swap <- "no")
+  pb <- txtProgressBar(min = 0, max = length(reads), style = 3, char = "=")
+  for(j in 1:length(reads)){
+    reads[[j]]$mol_swap <- ifelse(length(unique(reads[[j]]$gene)) > 1, 
+                                      reads[[j]]$mol_swap <- "yes",
+                                      reads[[j]]$mol_swap <- "no")
     setTxtProgressBar(pb, j)
   }
   close(pb)
-  unique(molecule.info$hla)
   cl1<-c("A" , "B" , "C", "E" , "F" , "G")
   cl2<-c("DRA", "DRB1", "DRB3", "DRB4", "DRB5", "DQA1", "DQA2", "DQB1", "DQB2", "DPA1", "DPA2", "DPB1", "DPB2", "DMA", "DMB", "DOA", "DOB")
-  any(molecule.info$hla %in% cl1)
-  for(j in 1:length(molecule.info)){
-    molecule.info[[j]]$class_swap <- ifelse(any(molecule.info[[j]]$hla %in% cl1) & any(molecule.info[[j]]$hla %in% cl2), 
-                                        molecule.info[[j]]$class_swap <- "yes",
-                                        molecule.info[[j]]$class_swap <- "no")
+  for(j in 1:length(reads)){
+    reads[[j]]$class_swap <- ifelse(any(reads[[j]]$hla %in% cl1) & any(reads[[j]]$hla %in% cl2), 
+                                        reads[[j]]$class_swap <- "yes",
+                                        reads[[j]]$class_swap <- "no")
     setTxtProgressBar(pb, j)
   }
   close(pb)
   # count the molecular swap rate 
-  mol_swap_rate_per_read <- length(which(sapply(molecule.info, function(df) "yes" %in% df$mol_swap))) / length(which(sapply(molecule.info, function(df) nrow(df)>1)))
+  mol_swap_rate_per_read <- length(which(sapply(reads, function(df) "yes" %in% df$mol_swap))) / length(which(sapply(reads, function(df) nrow(df)>1)))
   mol_swap_rate_per_read
-  class_swap_rate_per_read<-length(which(sapply(molecule.info, function(df) "yes" %in% df$class_swap))) / length(which(sapply(molecule.info, function(df) nrow(df)>1)))
+  class_swap_rate_per_read<-length(which(sapply(reads, function(df) "yes" %in% df$class_swap))) / length(which(sapply(reads, function(df) nrow(df)>1)))
   class_swap_rate_per_read
   intraclass_swap_rate<- mol_swap_rate_per_read - class_swap_rate_per_read
   intraclass_swap_rate
@@ -178,14 +177,11 @@ HLA_Matrix <- function(molecule.info, seu, hla_recip = character(), hla_donor = 
             format(round(100*intraclass_swap_rate, 3), nsmall = 1),
             "% of Cells\n  inter-class molecular swap rate per UMI ",
             format(round(100*class_swap_rate_per_read, 3), nsmall = 1),
-            "% of Cells"))
-  alleles <- unique(molecule.info$gene0)
-  
+            "% of Cells"))  
   ## Count Threshold 'Ct' above which the count of UMI copies becomes acceptable  
   if (Ct > 0) {
-    molecule.info <- molecule.info[sapply(molecule.info, nrow) > Ct]
+    reads <- reads[sapply(reads, nrow) > Ct]
   }
-  
   ## Function to keep the most occurring HLA when more than 1 HLA is present per cb:umi
   keep_one <- function(df) {
     n_hla <- table(df$gene0)
@@ -204,34 +200,32 @@ HLA_Matrix <- function(molecule.info, seu, hla_recip = character(), hla_donor = 
   }
   # Applying the function
   message(cat("\nCorrecting Molecular Swap: keeping the reads per UMI with the HLA allele occuring the most"))
-  molecule.info <- pbmclapply(molecule.info, keep_one, mc.cores = multi_thread)
-  
+  reads <- pbmclapply(reads, keep_one, mc.cores = multi_thread)
   ## Performing Dedup
   message(cat("\nPerforming Dedup on UMIs: removing PCR duplicates"))
-  molecule.info <- pbmclapply(molecule.info, function(df){df[1,]}, mc.cores = multi_thread)
-  molecule.info <-  do.call("rbind", molecule.info)
-  row.names(molecule.info)<-NULL
-  
+  reads <- pbmclapply(reads, function(df){df[1,]}, mc.cores = multi_thread)
+  reads <-  do.call("rbind", reads)
+  row.names(reads)<-NULL
   ## Clean-up HLA conflicts per CB
   message(cat("\nEstimating Genotype Conflicts: assuming a cell cannot have both recipient and donor-origin HLA allele"))
   # remove obsolete cols and add Seurat barcode
-  molecule.info$mol_swap <- NULL
-  molecule.info$class_swap <- NULL
-  molecule.info$seu_barcode <- paste0(molecule.info$samp,"_",molecule.info$CB,"-1")
-  molecule.info$hla_conflict <- NA
-  molecule.info$hla_conflict <- as.factor(molecule.info$hla_conflict)
+  reads$mol_swap <- NULL
+  reads$class_swap <- NULL
+  reads$seu_barcode <- paste0(reads$samp,"_",reads$CB,"-1")
+  reads$hla_conflict <- NA
+  reads$hla_conflict <- as.factor(reads$hla_conflict)
   # split by Seurat barcode
-  molecule.info <- with(molecule.info, split(molecule.info, list(seu_barcode=seu_barcode)))
+  reads <- with(reads, split(reads, list(seu_barcode=seu_barcode)))
   # detect HLA conflicts (i.e. donor-spec and recipient-spec HLA in the same barcode)
-  pb <- txtProgressBar(min = 0, max = length(molecule.info), style = 3, char = "=")
-  for(j in 1:length(molecule.info)){
-    molecule.info[[j]]$hla_conflict <- ifelse(any(molecule.info[[j]]$gene0 %in% hla_recip) & any(molecule.info[[j]]$gene0 %in% hla_donor),
-                                             molecule.info[[j]]$hla_conflict <- "yes",
-                                             molecule.info[[j]]$hla_conflict <- "no")
+  pb <- txtProgressBar(min = 0, max = length(reads), style = 3, char = "=")
+  for(j in 1:length(reads)){
+    reads[[j]]$hla_conflict <- ifelse(any(reads[[j]]$gene0 %in% hla_recip) & any(reads[[j]]$gene0 %in% hla_donor),
+                                             reads[[j]]$hla_conflict <- "yes",
+                                             reads[[j]]$hla_conflict <- "no")
     setTxtProgressBar(pb, j)
   }
   close(pb)
-  hla_conflict_rate <- length(which(sapply(molecule.info, function(df) "yes" %in% df$hla_conflict))) / length(molecule.info)
+  hla_conflict_rate <- length(which(sapply(reads, function(df) "yes" %in% df$hla_conflict))) / length(reads)
   message(cat("  Conflicting HLA (both donor and recipient HLA within the same Cell Barcode) affects ", 
             format(round(100*hla_conflict_rate, 3), nsmall = 1),
             "% of Cells"))
@@ -259,21 +253,20 @@ HLA_Matrix <- function(molecule.info, seu, hla_recip = character(), hla_donor = 
     message(cat("\nResolving Genotype Conflicts: no conflicts to resolve"))
   } else {
     message(cat("\nResolving Genotype Conflicts: keeping recipient-origin or donor-origin HLA alleles per Cell, whichever are the most occuring"))
-    molecule.info <- pbmclapply(molecule.info, keep_two, recip = hla_recip, donor = hla_donor, mc.cores = multi_thread)
+    reads <- pbmclapply(reads, keep_two, recip = hla_recip, donor = hla_donor, mc.cores = multi_thread)
   }
-
   ## Matrix formation
   # matrix
-  HLA.matrix <- matrix(0, nrow = length(alleles), ncol = length(molecule.info), dimnames = list(alleles, names(molecule.info)))
+  HLA.matrix <- matrix(0, nrow = length(alleles), ncol = length(reads), dimnames = list(alleles, names(reads)))
   message(cat("\nCreating the HLA Count Matrix compatible with the Seurat object"))
-  pb <- txtProgressBar(min = 0, max = length(molecule.info), style = 3, char = "=")
-  for (i in 1:length(molecule.info)) {
-    counts <- table(molecule.info[[i]]$gene0)
+  pb <- txtProgressBar(min = 0, max = length(reads), style = 3, char = "=")
+  for (i in 1:length(reads)) {
+    counts <- table(reads[[i]]$gene0)
     HLA.matrix[, i] <- counts[alleles]
     setTxtProgressBar(pb, i)
   }
   close(pb)
-  rm(molecule.info)
+  # rm(reads)
   # merging with Seurat cell names
   HLA.matrix<-as.data.frame(t(HLA.matrix))
   HLA.matrix <- HLA.matrix[rownames(HLA.matrix) %in% colnames(seu),]
@@ -294,8 +287,8 @@ HLA_Matrix <- function(molecule.info, seu, hla_recip = character(), hla_donor = 
 
 #' Extracting the top HLA alleles from the scrHLAtag count files
 #' 
-#' @param cts_1  is the primary scrHLAtag count file (1 of 2 files containing either the mRNA molecular info or the genomic (gene) molecular info). It includes columns for CB, UMI, and HLA alleles (https://github.com/furlan-lab/scrHLAtag).
-#' @param cts_2  is the secondary scrHLAtag count file (the alternative file vs. the one designated in 'cts_1' argument). It includes columns for CB, UMI, and HLA alleles (https://github.com/furlan-lab/scrHLAtag). Default is NULL, in which case it will not be able to count alternative aligment and argument 'use_alt_align_ABC' will become irrelevant.
+#' @param reads_1  is the primary scrHLAtag count file (1 of 2 files containing either the mRNA molecular info or the genomic (gene) molecular info). It includes columns for CB, UMI, and HLA alleles (https://github.com/furlan-lab/scrHLAtag).
+#' @param reads_2  is the secondary scrHLAtag count file (the alternative file vs. the one designated in 'reads_1' argument). It includes columns for CB, UMI, and HLA alleles (https://github.com/furlan-lab/scrHLAtag). Default is NULL, in which case it will not be able to count alternative aligment and argument 'use_alt_align_ABC' will become irrelevant.
 #' @param frac  is the fraction (0 to 1) of total reads for a particular HLA gene, which incorporates the highest ranking alleles of that gene in terms of number of reads; default at 0.75 .
 #' @param min_alleles_keep  is a numeric representing the minimum number of highest ranking alleles to keep despite filtering by fraction 'frac'; default is 5.
 #' @param min_reads_per_gene  is a numeric representing minimum number of total reads per HLA gene (including all its alleles) below which the gene is filtered out; default is 20. 
@@ -325,38 +318,38 @@ HLA_Matrix <- function(molecule.info, seu, hla_recip = character(), hla_donor = 
 #'   cts[[str_sub(strsplit(mol_info[i], "\\.")[[1]][1], start= -4)]] <- ctsu
 #'   rm(ctsu)
 #' }
-#' Top_HLA_list(cts_1 = cts[["mRNA"]], cts_2 = cts[["gene"]], frac = 0.8, min_alleles_keep = 2, use_alt_align_ABC = TRUE)
+#' Top_HLA_list(reads_1 = cts[["mRNA"]], reads_2 = cts[["gene"]], frac = 0.8, min_alleles_keep = 2, use_alt_align_ABC = TRUE)
 #' @export
 
-Top_HLA_list <- function(cts_1, cts_2 = NULL, frac = 0.75, min_alleles_keep = 5, min_reads_per_gene = 20, insert_pop_most_freq = TRUE, use_alt_align_ABC = FALSE){
-  if (is.null(cts_2)) {
-    cts_2 <- cts_1
+Top_HLA_list <- function(reads_1, reads_2 = NULL, frac = 0.75, min_alleles_keep = 5, min_reads_per_gene = 20, insert_pop_most_freq = TRUE, use_alt_align_ABC = FALSE){
+  if (is.null(reads_2)) {
+    reads_2 <- reads_1
   }
   # extract the HLA genes that appear in the reads
   special <- "[_*|?.+$^]"
-  cts_2$gene0 <- gsub(special, "-", cts_2$gene)
-  cts_2[c("hla", "leftover")] <- str_split_fixed(cts_2$gene, special, 2)
-  cts_2$leftover <- NULL
-  cts_1$gene0 <- gsub(special, "-", cts_1$gene)
-  cts_1[c("hla", "leftover")] <- str_split_fixed(cts_1$gene, special, 2)
-  cts_1$leftover <- NULL
+  reads_2$gene0 <- gsub(special, "-", reads_2$gene)
+  reads_2[c("hla", "leftover")] <- str_split_fixed(reads_2$gene, special, 2)
+  reads_2$leftover <- NULL
+  reads_1$gene0 <- gsub(special, "-", reads_1$gene)
+  reads_1[c("hla", "leftover")] <- str_split_fixed(reads_1$gene, special, 2)
+  reads_1$leftover <- NULL
   # get the HLA genes in a list
-  cts_abc <- unique(cts_2$hla)[order(unique(cts_2$hla))]
+  cts_abc <- unique(reads_2$hla)[order(unique(reads_2$hla))]
   if (use_alt_align_ABC) {
     if (length(cts_abc[which(cts_abc %in% c("A", "B", "C"))]) != 3) {
       stop("the secondary molecule info count file does not contain alleles belonging to all of HLA-A, -B, and -C")
     }
   }
-  cts_notabc <- unique(cts_1$hla)[order(unique(cts_1$hla))]
+  cts_notabc <- unique(reads_1$hla)[order(unique(reads_1$hla))]
   top_alleles <- c()
   for (j in 1:length(cts_notabc)){
     if (!use_alt_align_ABC) {
-      t<-as.data.table(table(cts_1[cts_1$hla == cts_notabc[j],]$gene))
+      t<-as.data.table(table(reads_1[reads_1$hla == cts_notabc[j],]$gene))
     } else {
       if (cts_notabc[j] %in% c("A", "B", "C")) {
-        t<-as.data.table(table(cts_2[cts_2$hla == cts_notabc[j],]$gene))
+        t<-as.data.table(table(reads_2[reads_2$hla == cts_notabc[j],]$gene))
       } else {
-        t<-as.data.table(table(cts_1[cts_1$hla == cts_notabc[j],]$gene))
+        t<-as.data.table(table(reads_1[reads_1$hla == cts_notabc[j],]$gene))
       }
     }
     # t$twofield <- sapply(t$V1, function(x) strsplit(x, ":")[[1]][1:2] %>% paste0(collapse=":"))
@@ -441,8 +434,8 @@ Top_HLA_list <- function(cts_1, cts_2 = NULL, frac = 0.75, min_alleles_keep = 5,
 
 #' Plotting the top HLA alleles from the scrHLAtag count files
 #' 
-#' @param cts_1  is the primary scrHLAtag count file (1 of 2 files containing either the mRNA molecular info or the genomic (gene) molecular info). It includes columns for CB, UMI, and HLA alleles (https://github.com/furlan-lab/scrHLAtag).
-#' @param cts_2  is the secondary scrHLAtag count file (the alternative file vs. the one designated in 'cts_1' argument). It includes columns for CB, UMI, and HLA alleles (https://github.com/furlan-lab/scrHLAtag). Default is NULL, in which case it will not be able to count alternative aligment and argument 'use_alt_align_ABC' will become irrelevant.
+#' @param reads_1  is the primary scrHLAtag count file (1 of 2 files containing either the mRNA molecular info or the genomic (gene) molecular info). It includes columns for CB, UMI, and HLA alleles (https://github.com/furlan-lab/scrHLAtag).
+#' @param reads_2  is the secondary scrHLAtag count file (the alternative file vs. the one designated in 'reads_1' argument). It includes columns for CB, UMI, and HLA alleles (https://github.com/furlan-lab/scrHLAtag). Default is NULL, in which case it will not be able to count alternative aligment and argument 'use_alt_align_ABC' will become irrelevant.
 #' @param top_hla  is a numeric, representing the number of top HLA alleles (i.e. with the highest number of reads) per HLA gene to display in the plot; default is 10.
 #' @param min_reads_per_gene  is a numeric representing minimum number of total reads per HLA gene (including all its alleles) below which the gene is filtered out; default is 20. 
 #' @param use_alt_align_ABC  is a logical, whether to use the count file from the alternative alignment (rather than the primary alignment) to count reads for the HLA-A, -B, and -C genes. It was observed in some cases that using genomic alignments has better accuracy in predicting genotype versus mRNA alignments (not the case for Class-II and other HLA genes); default is FALSE.
@@ -471,39 +464,39 @@ Top_HLA_list <- function(cts_1, cts_2 = NULL, frac = 0.75, min_alleles_keep = 5,
 #'   cts[[str_sub(strsplit(mol_info[i], "\\.")[[1]][1], start= -4)]] <- ctsu
 #'   rm(ctsu)
 #' }
-#' Top_HLA_plot(cts_1 = cts[["mRNA"]], cts_2 = cts[["gene"]], use_alt_align_ABC = TRUE)
+#' Top_HLA_plot(reads_1 = cts[["mRNA"]], reads_2 = cts[["gene"]], use_alt_align_ABC = TRUE)
 #' @export
 
-Top_HLA_plot <- function(cts_1, cts_2 = NULL, top_hla = 10, min_reads_per_gene = 20, use_alt_align_ABC = FALSE, color_pal = NULL){
-  if (is.null(cts_2)) {
-    cts_2 <- cts_1
+Top_HLA_plot <- function(reads_1, reads_2 = NULL, top_hla = 10, min_reads_per_gene = 20, use_alt_align_ABC = FALSE, color_pal = NULL){
+  if (is.null(reads_2)) {
+    reads_2 <- reads_1
     warning("The molecule_info_gene.txt.gz count file does not seem to be included. The function will run but the argument 'use_alt_align_ABC' will be irrelevant.")
   }  
   # extract the HLA genes that appear in the reads
   special <- "[_*|?.+$^]"
-  cts_2$gene0 <- gsub(special, "-", cts_2$gene)
-  cts_2[c("hla", "leftover")] <- str_split_fixed(cts_2$gene, special, 2)
-  cts_2$leftover <- NULL
-  cts_1$gene0 <- gsub(special, "-", cts_1$gene)
-  cts_1[c("hla", "leftover")] <- str_split_fixed(cts_1$gene, special, 2)
-  cts_1$leftover <- NULL
+  reads_2$gene0 <- gsub(special, "-", reads_2$gene)
+  reads_2[c("hla", "leftover")] <- str_split_fixed(reads_2$gene, special, 2)
+  reads_2$leftover <- NULL
+  reads_1$gene0 <- gsub(special, "-", reads_1$gene)
+  reads_1[c("hla", "leftover")] <- str_split_fixed(reads_1$gene, special, 2)
+  reads_1$leftover <- NULL
   # get the HLA genes in a list
-  cts_abc <- unique(cts_2$hla)[order(unique(cts_2$hla))]
+  cts_abc <- unique(reads_2$hla)[order(unique(reads_2$hla))]
   if (use_alt_align_ABC) {
     if (length(cts_abc[which(cts_abc %in% c("A", "B", "C"))]) != 3) {
       stop("the secondary molecule info count file does not contain alleles belonging to all of HLA-A, -B, and -C")
     }
   }
-  cts_notabc <- unique(cts_1$hla)[order(unique(cts_1$hla))]
+  cts_notabc <- unique(reads_1$hla)[order(unique(reads_1$hla))]
   tab <- data.frame("twofield"=character(0), "N"=integer(0), "fscore"=numeric(0), "hlagene"=character(0), "onefield"=character(0), "csum"=integer(0))
   for (j in 1:length(cts_notabc)){
     if (!use_alt_align_ABC) {
-      t<-as.data.table(table(cts_1[cts_1$hla == cts_notabc[j],]$gene))
+      t<-as.data.table(table(reads_1[reads_1$hla == cts_notabc[j],]$gene))
     } else {
       if (cts_notabc[j] %in% c("A", "B", "C")) {
-        t<-as.data.table(table(cts_2[cts_2$hla == cts_notabc[j],]$gene))
+        t<-as.data.table(table(reads_2[reads_2$hla == cts_notabc[j],]$gene))
       } else {
-        t<-as.data.table(table(cts_1[cts_1$hla == cts_notabc[j],]$gene))
+        t<-as.data.table(table(reads_1[reads_1$hla == cts_notabc[j],]$gene))
       }
     }
     # t$twofield <- sapply(t$V1, function(x) strsplit(x, ":")[[1]][1:2] %>% paste0(collapse=":"))
@@ -597,7 +590,7 @@ Top_HLA_plot <- function(cts_1, cts_2 = NULL, top_hla = 10, min_reads_per_gene =
 
 #' Getting raw scrHLAtag counts and analyzing distribution of HLA alleles per Cell Barcodes in UMAP space
 #' 
-#' @param molecule.info  is the scrHLAtag count file including columns for CB, UMI, and HLA alleles (https://github.com/furlan-lab/scrHLAtag).
+#' @param reads  is the scrHLAtag count file including columns for CB, UMI, and HLA alleles (https://github.com/furlan-lab/scrHLAtag).
 #' @param k  is the number of clusters to partition the UMAP space into, e.g. the number of entities or genotypes you 'think' there might be in your captured sample.
 #' @param seu  is the Seurat object associated with the scrHLAtag count file (https://satijalab.org/seurat/index.html).
 #' @param CB_rev_com  is a logical, called TRUE if the need to obtained the reverse complement of Cell Barcodes (CBs) is desired; default is FALSE. 
@@ -641,10 +634,10 @@ Top_HLA_plot <- function(cts_1, cts_2 = NULL, top_hla = 10, min_reads_per_gene =
 #'   cts[[str_sub(strsplit(mol_info[i], "\\.")[[1]][1], start= -4)]] <- ctsu
 #'   rm(ctsu)
 #' }
-#' HLA_clusters(molecule.info = cts[["mRNA"]], k = 2, seu = your_Seurat_Obj, geno_metadata_id = "geno", hla_with_counts_above = 1, CBs_with_counts_above = 40)
+#' HLA_clusters(reads = cts[["mRNA"]], k = 2, seu = your_Seurat_Obj, geno_metadata_id = "geno", hla_with_counts_above = 1, CBs_with_counts_above = 40)
 #' @export
 
-HLA_clusters <- function(molecule.info, k = 2, seu = NULL, CB_rev_com = FALSE, geno_metadata_id = NULL, hla_with_counts_above = 0, CBs_with_counts_above = 0, match_CB_with_seu = TRUE, umap_first_n_PCs = 25, QC_mm2 = TRUE, s1_belowmax = 0.75, AS_belowmax = 0.85, NM_thresh = 15, de_thresh = 0.015, parallelize = TRUE, pt_size = 0.5, ...) {
+HLA_clusters <- function(reads, k = 2, seu = NULL, CB_rev_com = FALSE, geno_metadata_id = NULL, hla_with_counts_above = 0, CBs_with_counts_above = 0, match_CB_with_seu = TRUE, umap_first_n_PCs = 25, QC_mm2 = TRUE, s1_belowmax = 0.75, AS_belowmax = 0.85, NM_thresh = 15, de_thresh = 0.015, parallelize = TRUE, pt_size = 0.5, ...) {
   ## parallelize
   if (parallelize) {
     multi_thread <- parallel::detectCores()
@@ -655,32 +648,32 @@ HLA_clusters <- function(molecule.info, k = 2, seu = NULL, CB_rev_com = FALSE, g
   ## Remove low quality reads based on minimap2 tags
   if (QC_mm2) {
     message(cat("\nRemoving low quality reads based on minimap2 tags"))
-    molecule.info <- with(molecule.info, split(molecule.info, list(gene=gene)))
-    molecule.info <- pbmclapply(molecule.info, function(df){df[df$s1 > s1_belowmax*max(df$s1) & df$AS > AS_belowmax*max(df$AS) & df$NM <= NM_thresh & df$de <= de_thresh,]}, mc.cores = multi_thread)
-    molecule.info <-  do.call("rbind", molecule.info)
-    row.names(molecule.info)<-NULL
+    reads <- with(reads, split(reads, list(gene=gene)))
+    reads <- pbmclapply(reads, function(df){df[df$s1 > s1_belowmax*max(df$s1) & df$AS > AS_belowmax*max(df$AS) & df$NM <= NM_thresh & df$de <= de_thresh,]}, mc.cores = multi_thread)
+    reads <-  do.call("rbind", reads)
+    row.names(reads)<-NULL
   } 
   ## Reverse Complement the CB
   if (CB_rev_com) {
     message(cat("\nConverting Cell Barcodes to their reverse complements"))
-    # molecule.info$CB <- pbmclapply(molecule.info$CB, function(x) as.character(Biostrings::reverseComplement(DNAString(x))), mc.cores = multi_thread) %>% unlist() # slow
-    molecule.info$CB <- pbmclapply(molecule.info$CB, function(x) intToUtf8(rev(utf8ToInt(chartr('ATGC', 'TACG', x)))), mc.cores = multi_thread) %>% unlist()        # fast
+    # reads$CB <- pbmclapply(reads$CB, function(x) as.character(Biostrings::reverseComplement(DNAString(x))), mc.cores = multi_thread) %>% unlist() # slow
+    reads$CB <- pbmclapply(reads$CB, function(x) intToUtf8(rev(utf8ToInt(chartr('ATGC', 'TACG', x)))), mc.cores = multi_thread) %>% unlist()        # fast
   }  
-  alleles <- unique(molecule.info$gene)
-  molecule.info$seu_barcode <- paste0(molecule.info$samp,"_",molecule.info$CB,"-1")
-  molecule.info <- with(molecule.info, split(molecule.info, list(seu_barcode=seu_barcode)))
+  alleles <- unique(reads$gene)
+  reads$seu_barcode <- paste0(reads$samp,"_",reads$CB,"-1")
+  reads <- with(reads, split(reads, list(seu_barcode=seu_barcode)))
   ## Matrix formation
   # matrix
-  HLA.matrix <- matrix(0, nrow = length(alleles), ncol = length(molecule.info), dimnames = list(alleles, names(molecule.info)))
+  HLA.matrix <- matrix(0, nrow = length(alleles), ncol = length(reads), dimnames = list(alleles, names(reads)))
   message(cat("\nCreating an HLA Count Matrix"))
-  pb <- txtProgressBar(min = 0, max = length(molecule.info), style = 3, char = "=")
-  for (i in 1:length(molecule.info)) {
-    counts <- table(molecule.info[[i]]$gene)
+  pb <- txtProgressBar(min = 0, max = length(reads), style = 3, char = "=")
+  for (i in 1:length(reads)) {
+    counts <- table(reads[[i]]$gene)
     HLA.matrix[, i] <- counts[alleles]
     setTxtProgressBar(pb, i)
   }
   close(pb)
-  rm(molecule.info)
+  rm(reads)
   HLA.matrix[is.na(HLA.matrix)]<-0
   #HLA.matrix<-Matrix(HLA.matrix,sparse = T)
   ## Matching with Seurat colnames
@@ -750,7 +743,7 @@ HLA_clusters <- function(molecule.info, k = 2, seu = NULL, CB_rev_com = FALSE, g
 
 #' Mapping the HLA clusters found by the 'HLA_clusters()' function back into the scrHLAtag count files
 #'
-#' @param cts.list  is a list of scrHLAtag count file(s) including columns for CB, UMI, and HLA alleles (https://github.com/furlan-lab/scrHLAtag).
+#' @param reads.list  is a list of scrHLAtag count file(s) including columns for CB, UMI, and HLA alleles (https://github.com/furlan-lab/scrHLAtag).
 #' @param cluster_coordinates  is the UMAP coordinates dataframe with HLA clustering information (found by the 'HLA_clusters()' function) from which clusters are extracted and mapped into the scrHLAtag count files by matching Cell Barcodes. Currently the barcode format supported is: SAMPLE_AATGCTTGGTCCATTA-1
 #' @param CB_rev_com  is a logical, called TRUE if the need to obtained the reverse complement of Cell Barcodes (CBs) is desired; default is FALSE.
 #' @param parallelize  is a logical, called TRUE if using parallel processing (multi-threading) is desired; default is TRUE.
@@ -773,10 +766,10 @@ HLA_clusters <- function(molecule.info, k = 2, seu = NULL, CB_rev_com = FALSE, g
 #'   cts[[str_sub(strsplit(mol_info[i], "\\.")[[1]][1], start= -4)]] <- ctsu
 #'   rm(ctsu)
 #' }
-#' map_HLA_clusters(cts.list = cts, k = 2, cluster_coordinates = UMAP_dataframe_from_HLA_clusters_function)
+#' map_HLA_clusters(reads.list = cts, k = 2, cluster_coordinates = UMAP_dataframe_from_HLA_clusters_function)
 #' @export
 
-map_HLA_clusters <- function(cts.list, cluster_coordinates, CB_rev_com = FALSE, parallelize = TRUE) {
+map_HLA_clusters <- function(reads.list, cluster_coordinates, CB_rev_com = FALSE, parallelize = TRUE) {
   ## parallelize
   if (parallelize) {
     multi_thread <- parallel::detectCores()
@@ -786,22 +779,22 @@ map_HLA_clusters <- function(cts.list, cluster_coordinates, CB_rev_com = FALSE, 
   }  
   if (CB_rev_com) {
     message(cat("\nConverting Cell Barcodes to their reverse complements"))
-    for (i in 1:length(cts.list)) {
-      cts.list[[i]]$hla_clusters <- NA
-      cts.list[[i]]$hla_clusters <- cluster_coordinates$hla_clusters[
-        match(paste0(cts.list[[i]]$samp,"_",pbmclapply(cts.list[[i]]$CB, function(x) intToUtf8(rev(utf8ToInt(chartr('ATGC', 'TACG', x)))), mc.cores = multi_thread) %>% unlist(),"-1"), 
+    for (i in 1:length(reads.list)) {
+      reads.list[[i]]$hla_clusters <- NA
+      reads.list[[i]]$hla_clusters <- cluster_coordinates$hla_clusters[
+        match(paste0(reads.list[[i]]$samp,"_",pbmclapply(reads.list[[i]]$CB, function(x) intToUtf8(rev(utf8ToInt(chartr('ATGC', 'TACG', x)))), mc.cores = multi_thread) %>% unlist(),"-1"), 
               rownames(cluster_coordinates))
       ]
     }
   } else {
-    for (i in 1:length(cts.list)) {
-      cts.list[[i]]$hla_clusters <- NA
-      cts.list[[i]]$hla_clusters <- cluster_coordinates$hla_clusters[
-        match(paste0(cts.list[[i]]$samp,"_",cts.list[[i]]$CB,"-1"), 
+    for (i in 1:length(reads.list)) {
+      reads.list[[i]]$hla_clusters <- NA
+      reads.list[[i]]$hla_clusters <- cluster_coordinates$hla_clusters[
+        match(paste0(reads.list[[i]]$samp,"_",reads.list[[i]]$CB,"-1"), 
               rownames(cluster_coordinates))
       ]
     }
   }
-  return(cts.list)
+  return(reads.list)
 }
 

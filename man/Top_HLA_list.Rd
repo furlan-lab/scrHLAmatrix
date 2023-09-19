@@ -5,8 +5,8 @@
 \title{Extracting the top HLA alleles from the scrHLAtag count files}
 \usage{
 Top_HLA_list(
-  cts_1,
-  cts_2 = NULL,
+  reads_1,
+  reads_2 = NULL,
   frac = 0.75,
   min_alleles_keep = 5,
   min_reads_per_gene = 20,
@@ -15,9 +15,9 @@ Top_HLA_list(
 )
 }
 \arguments{
-\item{cts_1}{is the primary scrHLAtag count file (1 of 2 files containing either the mRNA molecular info or the genomic (gene) molecular info). It includes columns for CB, UMI, and HLA alleles (https://github.com/furlan-lab/scrHLAtag).}
+\item{reads_1}{is the primary scrHLAtag count file (1 of 2 files containing either the mRNA molecular info or the genomic (gene) molecular info). It includes columns for CB, UMI, and HLA alleles (https://github.com/furlan-lab/scrHLAtag).}
 
-\item{cts_2}{is the secondary scrHLAtag count file (the alternative file vs. the one designated in 'cts_1' argument). It includes columns for CB, UMI, and HLA alleles (https://github.com/furlan-lab/scrHLAtag). Default is NULL, in which case it will not be able to count alternative aligment and argument 'use_alt_align_ABC' will become irrelevant.}
+\item{reads_2}{is the secondary scrHLAtag count file (the alternative file vs. the one designated in 'reads_1' argument). It includes columns for CB, UMI, and HLA alleles (https://github.com/furlan-lab/scrHLAtag). Default is NULL, in which case it will not be able to count alternative aligment and argument 'use_alt_align_ABC' will become irrelevant.}
 
 \item{frac}{is the fraction (0 to 1) of total reads for a particular HLA gene, which incorporates the highest ranking alleles of that gene in terms of number of reads; default at 0.75 .}
 
@@ -52,5 +52,5 @@ for (i in 1:length(mol_info)){
   cts[[str_sub(strsplit(mol_info[i], "\\\\.")[[1]][1], start= -4)]] <- ctsu
   rm(ctsu)
 }
-Top_HLA_list(cts_1 = cts[["mRNA"]], cts_2 = cts[["gene"]], frac = 0.8, min_alleles_keep = 2, use_alt_align_ABC = TRUE)
+Top_HLA_list(reads_1 = cts[["mRNA"]], reads_2 = cts[["gene"]], frac = 0.8, min_alleles_keep = 2, use_alt_align_ABC = TRUE)
 }
