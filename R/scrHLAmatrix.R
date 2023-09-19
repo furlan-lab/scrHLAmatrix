@@ -266,7 +266,7 @@ HLA_Matrix <- function(reads, seu, hla_recip = character(), hla_donor = characte
     setTxtProgressBar(pb, i)
   }
   close(pb)
-  # rm(reads)
+  rm(reads)
   # merging with Seurat cell names
   HLA.matrix<-as.data.frame(t(HLA.matrix))
   HLA.matrix <- HLA.matrix[rownames(HLA.matrix) %in% colnames(seu),]
