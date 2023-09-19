@@ -131,8 +131,7 @@ HLA_Matrix <- function(reads, seu, hla_recip = character(), hla_donor = characte
   reads$mol_swap <- NA
   reads$mol_swap <- as.factor(reads$mol_swap)
   reads$class_swap <- NA
-  reads$class_swap <- as.factor(reads$class_swap)
-  alleles <- unique(reads$gene0)  
+  reads$class_swap <- as.factor(reads$class_swap)  
   # split,   this is computationally heavy (about 10min for 10M rows)
   reads <- with(reads, split(reads, list(cbumi=cbumi))) 
   # message(cat("\nEstimating UMI duplication rate"))
@@ -214,6 +213,7 @@ HLA_Matrix <- function(reads, seu, hla_recip = character(), hla_donor = characte
   reads$seu_barcode <- paste0(reads$samp,"_",reads$CB,"-1")
   reads$hla_conflict <- NA
   reads$hla_conflict <- as.factor(reads$hla_conflict)
+  alleles <- unique(reads$gene0)
   # split by Seurat barcode
   reads <- with(reads, split(reads, list(seu_barcode=seu_barcode)))
   # detect HLA conflicts (i.e. donor-spec and recipient-spec HLA in the same barcode)
