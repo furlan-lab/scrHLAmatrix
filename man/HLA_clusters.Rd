@@ -5,7 +5,7 @@
 \title{Getting raw scrHLAtag counts and analyzing distribution of HLA alleles per Cell Barcodes in UMAP space}
 \usage{
 HLA_clusters(
-  cts,
+  molecule.info,
   k = 2,
   seu = NULL,
   CB_rev_com = FALSE,
@@ -25,7 +25,7 @@ HLA_clusters(
 )
 }
 \arguments{
-\item{cts}{is the scrHLAtag count file including columns for CB, UMI, and HLA alleles (https://github.com/furlan-lab/scrHLAtag).}
+\item{molecule.info}{is the scrHLAtag count file including columns for CB, UMI, and HLA alleles (https://github.com/furlan-lab/scrHLAtag).}
 
 \item{k}{is the number of clusters to partition the UMAP space into, e.g. the number of entities or genotypes you 'think' there might be in your captured sample.}
 
@@ -82,5 +82,5 @@ for (i in 1:length(mol_info)){
   cts[[str_sub(strsplit(mol_info[i], "\\\\.")[[1]][1], start= -4)]] <- ctsu
   rm(ctsu)
 }
-HLA_clusters(cts = cts[["mRNA"]], k = 2, seu = your_Seurat_Obj, geno_metadata_id = "geno", hla_with_counts_above = 1, CBs_with_counts_above = 40)
+HLA_clusters(molecule.info = cts[["mRNA"]], k = 2, seu = your_Seurat_Obj, geno_metadata_id = "geno", hla_with_counts_above = 1, CBs_with_counts_above = 40)
 }

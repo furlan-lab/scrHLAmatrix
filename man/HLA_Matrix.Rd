@@ -5,7 +5,7 @@
 \title{Deduping and Correcting scrHLAtag counts and Creating Seurat-compatible Matrices}
 \usage{
 HLA_Matrix(
-  cts,
+  molecule.info,
   seu,
   hla_recip = character(),
   hla_donor = character(),
@@ -20,7 +20,7 @@ HLA_Matrix(
 )
 }
 \arguments{
-\item{cts}{is the scrHLAtag count file including columns for CB, UMI, and HLA alleles (https://github.com/furlan-lab/scrHLAtag).}
+\item{molecule.info}{is the scrHLAtag count file including columns for CB, UMI, and HLA alleles (https://github.com/furlan-lab/scrHLAtag).}
 
 \item{seu}{is the Seurat object associated with the scrHLAtag count file (https://satijalab.org/seurat/index.html).}
 
@@ -67,5 +67,5 @@ for (i in 1:length(mol_info)){
   cts[[str_sub(strsplit(mol_info[i], "\\\\.")[[1]][1], start= -4)]] <- ctsu
   rm(ctsu)
 }
-HLA_Matrix(cts = cts[["mRNA"]], seu = your_Seurat_obj, hla_recip = c("A*24:02:01", "DRB1*04:01:01", "DRB4*01:03:02"), hla_donor = c("A*33:03:01", "B*42:01:01"))
+HLA_Matrix(molecule.info = cts[["mRNA"]], seu = your_Seurat_obj, hla_recip = c("A*24:02:01", "DRB1*04:01:01", "DRB4*01:03:02"), hla_donor = c("A*33:03:01", "B*42:01:01"))
 }
