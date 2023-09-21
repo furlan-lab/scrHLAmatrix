@@ -6,6 +6,7 @@
 #' @param hla_donor  is a character list of donor-specific HLA alleles if known; default is an empty character vector.
 #' @param QC_mm2  is a logical, called TRUE if removing low quality reads based on minimap2 tags is desired.
 #' @param res_conflict_per_gene  is a logical, called TRUE if resolving per-HLA genotype conflicts is desired, with the assumption that each Cell can have no more than 2 alleles of the same HLA gene.
+#' @param LD_correct  is a logical, called TRUE if Linkage Diseqilibrium (LD) correction in the HLA-DR locus is desired, with the assumption of a very strong LD between certain DRB1 allele families and the DRB2, DRB3, DRB4, DRB5, DRB6, DRB7, DRB8, and DRB9 loci.
 #' @param s1_belowmax  is a proportion (0 to 1) of the maximum value (best quality) of the minimap2 's1' tag above which the quality of the read is acceptable; default at 0.75 of the max s1 score.
 #' @param AS_belowmax  is a proportion (0 to 1) of the maximum value (best quality) of the minimap2 'AS' tag above which the quality of the read is acceptable; default at 0.85 of the max AS score.
 #' @param NM_thresh  is the number of mismatches and gaps in the minimap2 alignment at or below which the quality of the read is acceptable; default is 15.
@@ -43,7 +44,7 @@
 #' HLA_Matrix(reads = cts[["mRNA"]], seu = your_Seurat_obj, hla_recip = c("A*24:02:01", "DRB1*04:01:01", "DRB4*01:03:02"), hla_donor = c("A*33:03:01", "B*42:01:01"))
 #' @export
 
-HLA_Matrix <- function(reads, seu, hla_recip = character(), hla_donor = character(), QC_mm2 = TRUE, res_conflict_per_gene = TRUE, s1_belowmax = 0.75, AS_belowmax = 0.85, NM_thresh = 15, de_thresh = 0.015, parallelize = TRUE, CB_rev_com = FALSE, Ct = 0) {
+HLA_Matrix <- function(reads, seu, hla_recip = character(), hla_donor = character(), QC_mm2 = TRUE, res_conflict_per_gene = TRUE, LD_correct = TRUE, s1_belowmax = 0.75, AS_belowmax = 0.85, NM_thresh = 15, de_thresh = 0.015, parallelize = TRUE, CB_rev_com = FALSE, Ct = 0) {
   ## check Seurat object
   if (class(seu) != "Seurat") {
     stop("Single-cell dataset container must be of class 'Seurat'")
@@ -59,13 +60,13 @@ HLA_Matrix <- function(reads, seu, hla_recip = character(), hla_donor = characte
   special <- "[_*|?.+$^]"
   if (any(grepl(special, reads$gene))) {
     reads$gene0 <- gsub(special, "-", reads$gene)
-    reads[c("hla", "leftover")] <- str_split_fixed(reads$gene, special, 2)
+    reads[c("hla", "leftover")] <- stringr::str_split_fixed(reads$gene, special, 2)
     reads$leftover <- NULL
     message(cat("\nAvailable reads per gene"))
     print(table(reads$hla, useNA = "ifany"))
   } else if (all(grepl("-", reads$gene))){
     reads$gene0 <- reads$gene
-    reads[c("hla", "leftover")] <- str_split_fixed(reads$gene, "-", 2)
+    reads[c("hla", "leftover")] <- stringr::str_split_fixed(reads$gene, "-", 2)
     reads$leftover <- NULL
     message(cat("\nAvailable reads per gene"))
     print(table(reads$hla, useNA = "ifany"))
@@ -280,7 +281,44 @@ HLA_Matrix <- function(reads, seu, hla_recip = character(), hla_donor = characte
     alleles <- unique(reads$gene0) %>% sort() 
     reads <- with(reads, split(reads, list(seu_barcode=seu_barcode)))
   }
-
+  ## Linkage Diseqilibrium correction in the DR region
+  if (LD_correct) {
+    message(cat("\nLinkage Diseqilibrium Correction in the HLA-DR locus: assuming strong LD in
+            the DR1  subregion haplotype: DRB1*01 and *10 in LD with DRB6 and DRB9
+            the DR51 subregion haplotype: DRB1*15 and *16 in LD with DRB6, DRB5, and DRB9
+            the DR52 subregion haplotype: DRB1*03, *11, *12, *13, and *14 in LD with DRB2, DRB3, and DRB9
+            the DR8  subregion haplotype: DRB1*08 in LD with DRB9
+            the DR53 subregion haplotype: DRB1*04, *07, and *09 in LD with DRB7, DRB8, DRB4, and DRB9"))
+    LD <- function(df) {
+      ld <- list(
+        DR1 = c("DRB1-01", "DRB1-10"),
+        DR51 = c("DRB1-15", "DRB1-16"),
+        DR52 = c("DRB1-03", "DRB1-11", "DRB1-12", "DRB1-13", "DRB1-14"),
+        DR8 = c("DRB1-08"),
+        DR53 = c("DRB1-04", "DRB1-07", "DRB1-09")
+      )
+      rmv <- list(
+        DR1 = c("DRB2", "DRB3", "DRB4", "DRB5", "DRB7", "DRB8"), # haplotypes DRB1*01/*10 in LD with DRB6 and DRB9
+        DR51 = c("DRB2", "DRB3", "DRB4", "DRB7", "DRB8"), # haplotypes DRB1*15/*16 in LD with DRB6, DRB5, and DRB9
+        DR52 = c("DRB4", "DRB5", "DRB6", "DRB7", "DRB8"), # haplotypes DRB1*03/*11/*12/*13/*14 in LD with DRB2, DRB3, and DRB9
+        DR8 = c("DRB2", "DRB3", "DRB4", "DRB5", "DRB6", "DRB7", "DRB8"), # haplotypes DRB1*08 in LD with DRB9
+        DR53 =  c("DRB2", "DRB3", "DRB5", "DRB6") # haplotypes DRB1*04/*07/*09 in LD with DRB7, DRB8, DRB4, and DRB9
+      )
+      if (any(df$gene1 %in% ld[["DR1"]]))  {haplo <- c(DR1 = T)} else {haplo <- c(DR1 = F)}
+      if (any(df$gene1 %in% ld[["DR51"]])) {haplo <- c(haplo, DR51 = T)} else {haplo <- c(haplo, DR51 = F)}
+      if (any(df$gene1 %in% ld[["DR52"]])) {haplo <- c(haplo, DR52 = T)} else {haplo <- c(haplo, DR52 = F)}
+      if (any(df$gene1 %in% ld[["DR8"]]))  {haplo <- c(haplo, DR8 = T)} else {haplo <- c(haplo, DR8 = F)}
+      if (any(df$gene1 %in% ld[["DR53"]])) {haplo <- c(haplo, DR53 = T)} else {haplo <- c(haplo, DR53 = F)}
+      for (i in 1:length(rmv)) {
+        if (!haplo[i]) {rmv[[i]] <- NA}
+      }
+      rmv <- rmv[!is.na(rmv)]
+      rmv <- Reduce(intersect, rmv)
+      if (length(which(df$hla %in% rmv)) > 0) {df <- df[-which(df$hla %in% rmv),]}
+      return(df)
+    }    
+    reads <- pbmcapply::pbmclapply(reads, LD, mc.cores = multi_thread)
+  }
   ## Matrix formation
   # matrix
   HLA.matrix <- matrix(0, nrow = length(alleles), ncol = length(reads), dimnames = list(alleles, names(reads)))
@@ -294,16 +332,17 @@ HLA_Matrix <- function(reads, seu, hla_recip = character(), hla_donor = characte
   close(pb)
   rm(reads)
   # merging with Seurat cell names
-  HLA.matrix<-as.data.frame(t(HLA.matrix))
+  HLA.matrix <- as.data.frame(t(HLA.matrix))
   HLA.matrix <- HLA.matrix[rownames(HLA.matrix) %in% colnames(seu),]
   cells <- data.frame(row.names = colnames(seu))
   HLA.matrix<- merge(HLA.matrix, cells, by= "row.names", all=T)
   rownames(HLA.matrix) <- HLA.matrix$Row.names
   HLA.matrix <- subset(HLA.matrix, select = -1)
   HLA.matrix <- HLA.matrix[order(rownames(HLA.matrix)),]
-  HLA.matrix[is.na(HLA.matrix)]<-0
-  HLA.matrix<-as.matrix(t(HLA.matrix))
-  HLA.matrix<-Matrix(HLA.matrix,sparse = T)
+  HLA.matrix[is.na(HLA.matrix)] <- 0
+  HLA.matrix <- HLA.matrix[,which(colSums(HLA.matrix)>0)]
+  HLA.matrix <- as.matrix(t(HLA.matrix))
+  HLA.matrix <- Matrix(HLA.matrix,sparse = T)
   HLA <- CreateAssayObject(counts = HLA.matrix)
   message(cat("\nDone!!"))
   return(HLA)
@@ -354,10 +393,10 @@ Top_HLA_list <- function(reads_1, reads_2 = NULL, frac = 0.75, min_alleles_keep 
   # extract the HLA genes that appear in the reads
   special <- "[_*|?.+$^]"
   reads_2$gene0 <- gsub(special, "-", reads_2$gene)
-  reads_2[c("hla", "leftover")] <- str_split_fixed(reads_2$gene, special, 2)
+  reads_2[c("hla", "leftover")] <- stringr::str_split_fixed(reads_2$gene, special, 2)
   reads_2$leftover <- NULL
   reads_1$gene0 <- gsub(special, "-", reads_1$gene)
-  reads_1[c("hla", "leftover")] <- str_split_fixed(reads_1$gene, special, 2)
+  reads_1[c("hla", "leftover")] <- stringr::str_split_fixed(reads_1$gene, special, 2)
   reads_1$leftover <- NULL
   # get the HLA genes in a list
   cts_abc <- unique(reads_2$hla)[order(unique(reads_2$hla))]
@@ -501,10 +540,10 @@ Top_HLA_plot <- function(reads_1, reads_2 = NULL, top_hla = 10, min_reads_per_ge
   # extract the HLA genes that appear in the reads
   special <- "[_*|?.+$^]"
   reads_2$gene0 <- gsub(special, "-", reads_2$gene)
-  reads_2[c("hla", "leftover")] <- str_split_fixed(reads_2$gene, special, 2)
+  reads_2[c("hla", "leftover")] <- stringr::str_split_fixed(reads_2$gene, special, 2)
   reads_2$leftover <- NULL
   reads_1$gene0 <- gsub(special, "-", reads_1$gene)
-  reads_1[c("hla", "leftover")] <- str_split_fixed(reads_1$gene, special, 2)
+  reads_1[c("hla", "leftover")] <- stringr::str_split_fixed(reads_1$gene, special, 2)
   reads_1$leftover <- NULL
   # get the HLA genes in a list
   cts_abc <- unique(reads_2$hla)[order(unique(reads_2$hla))]
