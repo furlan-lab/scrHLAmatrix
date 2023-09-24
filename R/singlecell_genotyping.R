@@ -7,6 +7,7 @@
 #' @param CBs_with_counts_above  is the number of total reads accross HLA alleles at or above which a CB is retained in the matrix. Note: 'princomp()' can only be used with at least as many units (CBs) as variables (HLAs), thus the function will make sure that number of CBs is equal or more than available HLA alleles in the matrix.
 #' @param match_CB_with_seu  is a logical, called TRUE if filtering CBs in the scrHLAtag count file with matching ones in the Seurat object is desired. 
 #' @param top_hla  is a numeric, representing the number of top HLA alleles (i.e. with the highest number of reads) per HLA gene to display in the plot; default is 10.
+#' @param field_resolution  is a numeric, to select the HLA nomenclature level of Field resolution, where 1, 2, or 3 will take into consideration the first, the first two, or the first three field(s) of HLA designation; default is 3.
 #' @param QC_mm2  is a logical, called TRUE if removing low quality reads based on minimap2 tags is desired.
 #' @param s1_belowmax  is a proportion (0 to 1) of the maximum value (best quality) of the minimap2 's1' tag above which the quality of the read is acceptable; default at 0.75 of the max s1 score.
 #' @param AS_belowmax  is a proportion (0 to 1) of the maximum value (best quality) of the minimap2 'AS' tag above which the quality of the read is acceptable; default at 0.85 of the max AS score.
@@ -47,7 +48,7 @@
 #' # Note: if for a particular HLA, the alleles with the most counts are a tie between 3 or more alleles in a particular Cell Barcode, we cannot know which are the top two alleles, so that CB is not counted. This is similar if there are no counts for that allele (all zeros).
 #' @export
 
-HLA_alleles_per_CB <- function(reads, seu = NULL, CB_rev_com = FALSE, hla_with_counts_above = 0, CBs_with_counts_above = 0, match_CB_with_seu = TRUE, top_hla = 10, QC_mm2 = TRUE, s1_belowmax = 0.75, AS_belowmax = 0.85, NM_thresh = 15, de_thresh = 0.015, default_theme = TRUE, return_genotype_data = FALSE, parallelize = TRUE) {
+HLA_alleles_per_CB <- function(reads, seu = NULL, CB_rev_com = FALSE, hla_with_counts_above = 0, CBs_with_counts_above = 0, match_CB_with_seu = TRUE, top_hla = 10, field_resolution = 3, QC_mm2 = TRUE, s1_belowmax = 0.75, AS_belowmax = 0.85, NM_thresh = 15, de_thresh = 0.015, default_theme = TRUE, return_genotype_data = FALSE, parallelize = TRUE) {
   ## parallelize
   if (parallelize) {
     multi_thread <- parallel::detectCores()
@@ -89,6 +90,23 @@ HLA_alleles_per_CB <- function(reads, seu = NULL, CB_rev_com = FALSE, hla_with_c
   reads$b <- NULL
   reads$c <- NULL
   rm(mic)
+  ## Selecting HLA designation level of field resolution.
+  if (field_resolution == 2) {
+    reads$a <- sapply(reads$gene, function(x) strsplit(x, ":")[[1]][1])
+    reads$b <- sapply(reads$gene, function(x) strsplit(x, ":")[[1]][2])
+    reads$a <- ifelse(is.na(reads$b), reads$a, paste0(reads$a, ":", reads$b))
+    reads$gene <- reads$a
+    reads$a <- NULL
+    reads$b <- NULL
+  }
+  if (field_resolution == 1) {
+    reads$a <- sapply(reads$gene, function(x) strsplit(x, ":")[[1]][1])
+    reads$gene <- reads$a
+    reads$a <- NULL
+  }
+  if (!(field_resolution %in% c(1:3))) {
+    warning("HLA field resolution must be 1, 2, or 3 to take into consideration the first, the first two, or the first three field(s) of HLA designation.\nKeeping field resolution at 3 by default.")
+  }
   ## Matrix formation
   alleles <- unique(reads$gene) %>% sort()
   reads$seu_barcode <- paste0(reads$samp,"_",reads$CB,"-1")

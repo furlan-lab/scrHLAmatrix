@@ -12,6 +12,7 @@ HLA_alleles_per_CB(
   CBs_with_counts_above = 0,
   match_CB_with_seu = TRUE,
   top_hla = 10,
+  field_resolution = 3,
   QC_mm2 = TRUE,
   s1_belowmax = 0.75,
   AS_belowmax = 0.85,
@@ -36,6 +37,8 @@ HLA_alleles_per_CB(
 \item{match_CB_with_seu}{is a logical, called TRUE if filtering CBs in the scrHLAtag count file with matching ones in the Seurat object is desired.}
 
 \item{top_hla}{is a numeric, representing the number of top HLA alleles (i.e. with the highest number of reads) per HLA gene to display in the plot; default is 10.}
+
+\item{field_resolution}{is a numeric, to select the HLA nomenclature level of Field resolution, where 1, 2, or 3 will take into consideration the first, the first two, or the first three field(s) of HLA designation; default is 3.}
 
 \item{QC_mm2}{is a logical, called TRUE if removing low quality reads based on minimap2 tags is desired.}
 
