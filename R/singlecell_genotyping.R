@@ -158,7 +158,7 @@ HLA_alleles_per_CB <- function(reads, seu = NULL, CB_rev_com = FALSE, hla_with_c
   top2 <- c()
   pb <- txtProgressBar(min = 0, max = length(part_HLA), style = 3, char = "=")
   for (j in 1:length(part_HLA)) {
-    top2tab <- pbmclapply(1:(ncol(part_HLA[[j]])-1), function(i) {
+    top2tab <- mclapply(1:(ncol(part_HLA[[j]])-1), function(i) {
       colval <- part_HLA[[j]][,i][part_HLA[[j]][,i]!=0] # column values that are greater than zero
       rnames <- row.names(part_HLA[[j]])[part_HLA[[j]][,i]!=0] # only row.names with column values greater than zero
       names(colval) <- rnames
