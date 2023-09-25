@@ -155,9 +155,7 @@ HLA_alleles_per_CB <- function(reads, seu = NULL, CB_rev_com = FALSE, hla_with_c
   part_HLA[c("hla", "leftover")] <- stringr::str_split_fixed(row.names(part_HLA), special, 2)
   part_HLA$leftover <- NULL
   part_HLA <- with(part_HLA, split(part_HLA, list(hla=hla)))
-  top2 <- c()
-  pb <- txtProgressBar(min = 0, max = length(part_HLA), style = 3, char = "=")
-  for (j in 1:length(part_HLA)) {
+  top2cb <- pbmclapply(1:length(part_HLA), function(j) {
     top2tab <- mclapply(1:(ncol(part_HLA[[j]])-1), function(i) {
       colval <- part_HLA[[j]][,i][part_HLA[[j]][,i]!=0] # column values that are greater than zero
       rnames <- row.names(part_HLA[[j]])[part_HLA[[j]][,i]!=0] # only row.names with column values greater than zero
@@ -190,11 +188,9 @@ HLA_alleles_per_CB <- function(reads, seu = NULL, CB_rev_com = FALSE, hla_with_c
         return(maxt)
       }
     }, mc.cores = multi_thread)
-    top2[[j]] <- do.call("rbind", top2tab)
-    setTxtProgressBar(pb, j)
-  }
-  close(pb)
-  top2cb <- do.call("rbind", top2)
+    return(do.call("rbind", top2tab))
+  }, mc.cores = multi_thread)
+  top2cb <- do.call("rbind", top2cb)
   
   ## count the alleles in the CBs and prepare them for ggplot2
   message(cat("\nDrawing Plots"))
