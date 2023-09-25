@@ -187,9 +187,9 @@ HLA_alleles_per_CB <- function(reads, seu = NULL, CB_rev_com = FALSE, hla_with_c
         maxt <- data.frame("seu_barcode"=cname, "toptwo"=max1, "hla"=part_HLA[[j]]$hla[1])
         return(maxt)
       }
-    }, mc.cores = 1) # use single CPU for the internal loop
+    }, mc.cores = multi_thread) 
     return(do.call("rbind", top2tab))
-  }, mc.cores = multi_thread)
+  }, mc.cores = 1) # use single CPU for the outter loop
   top2cb <- do.call("rbind", top2cb)
   
   ## count the alleles in the CBs and prepare them for ggplot2
