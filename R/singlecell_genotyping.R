@@ -158,8 +158,7 @@ HLA_alleles_per_CB <- function(reads, seu = NULL, CB_rev_com = FALSE, hla_with_c
   top2 <- c()
   pb <- txtProgressBar(min = 0, max = length(part_HLA), style = 3, char = "=")
   for (j in 1:length(part_HLA)) {
-    top2tab <- data.frame("seu_barcode"=character(), "toptwo"=character(), "hla"=character())
-    for (i in 1:(ncol(part_HLA[[j]])-1)) {
+    top2tab <- pbmclapply(1:(ncol(part_HLA[[j]])-1), function(i) {
       colval <- part_HLA[[j]][,i][part_HLA[[j]][,i]!=0] # column values that are greater than zero
       rnames <- row.names(part_HLA[[j]])[part_HLA[[j]][,i]!=0] # only row.names with column values greater than zero
       names(colval) <- rnames
@@ -188,10 +187,10 @@ HLA_alleles_per_CB <- function(reads, seu = NULL, CB_rev_com = FALSE, hla_with_c
           }
         }
         maxt <- data.frame("seu_barcode"=cname, "toptwo"=max1, "hla"=part_HLA[[j]]$hla[1])
-        top2tab <- rbind(top2tab, maxt)
+        return(maxt)
       }
-    }
-    top2[[j]] <- top2tab
+    }, mc.cores = multi_thread)
+    top2[[j]] <- do.call("rbind", top2tab)
     setTxtProgressBar(pb, j)
   }
   close(pb)
