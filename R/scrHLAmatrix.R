@@ -288,7 +288,7 @@ HLA_Matrix <- function(reads, seu, hla_recip = character(), hla_donor = characte
       return(df)
     }
     # Applying the function
-    message(cat("\nResolving per-HLA Genotype Conflicts: keeping the reads per CB with the 2 highest counts alleles for each HLA gene"))
+    message(cat("\nResolving per-HLA Genotype Conflicts: assuming each cell has a max of 2 genotypes per HLA gene and keeping those with the most counts"))
     reads <- pbmclapply(reads, keep_two, mc.cores = multi_thread)
     reads <-  do.call("rbind", reads)
     alleles <- unique(reads$gene0) %>% sort() 
