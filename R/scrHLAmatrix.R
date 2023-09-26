@@ -118,8 +118,13 @@ HLA_Matrix <- function(reads, seu, hla_recip = character(), hla_donor = characte
     reads$CB <- pbmclapply(reads$CB, function(x) intToUtf8(rev(utf8ToInt(chartr('ATGC', 'TACG', x)))), mc.cores = multi_thread) %>% unlist()        # fast
   } 
   reads$seu_barcode <- paste0(reads$samp,"_",reads$CB,"-1")
-  message(cat("\nProportions of Cell Barcodes found (TRUE) or not found (FALSE) in the Seurat object colnames: "))
-  print(reads$seu_barcode %in% colnames(seu) %>% table() / dim(reads)[1])
+  found <- as.character(reads$seu_barcode %in% colnames(seu) %>% table() / dim(reads)[1])
+  #message(cat("\nProportions of Cell Barcodes found (TRUE) or not found (FALSE) in the Seurat object colnames: "))
+  message(cat("\n  Proportions of Cell Barcodes FOUND in the Seurat object: ", 
+            format(round(found[2], 3), nsmall = 1),
+            "\n  Proportions of Cell Barcodes NOT FOUND in the Seurat object:  ",
+            format(round(found[1], 3), nsmall = 1)))  
+  #print(reads$seu_barcode %in% colnames(seu) %>% table() / dim(reads)[1])
   ## Remove low quality reads based on minimap2 tags
   if (QC_mm2) {
     message(cat("\nRemoving low quality reads based on minimap2 tags"))
