@@ -254,7 +254,8 @@ HLA_Matrix <- function(reads, seu, hla_recip = character(), hla_donor = characte
   if (hla_conflict_rate == 0) {
     message(cat("\nResolving Donor-v-Recipient Genotype Conflicts: no conflicts to resolve"))
   } else {
-    message(cat("\nResolving Donor-v-Recipient Genotype Conflicts: the group of HLA alleles with the highest counts per cell is kept"))
+    message(cat("\nResolving Donor-v-Recipient Genotype Conflicts: 
+      keeping either donor-specific or recipient specific HLA-associated UMIs, based on their count difference per Cell"))
     reads <- pbmclapply(reads, remove_conflict, recip = hla_recip, donor = hla_donor, mc.cores = multi_thread)
   }
   ## Resolving per gene conflicts
@@ -265,13 +266,23 @@ HLA_Matrix <- function(reads, seu, hla_recip = character(), hla_donor = characte
     keep_two <- function(df) {
       n_hla <- table(df$gene0)
       if (length(n_hla) > 2) {
-        most_hla <- c(names(which(n_hla==max(n_hla))), names(which(n_hla[n_hla!=max(n_hla)]==max(n_hla[n_hla!=max(n_hla)])))) %>% suppressWarnings()
-        if (length(most_hla) > 2) {
+        max1 <- names(which(n_hla==max(n_hla))) %>% suppressWarnings()
+        max2 <- names(which(n_hla[n_hla!=max(n_hla)]==max(n_hla[n_hla!=max(n_hla)]))) %>% suppressWarnings()
+        if (length(max1) > 2) {
           # If there is a tie with 3 or more alleles, remove the entire df
           df <- NULL
         } else {
-          # Filter the df to keep only rows with the most occurring hla
-          df <- df[df$gene0 %in% most_hla, ]
+          if (length(max1) == 2) {
+            # if 2 alleles are in a tie, we have our 2 alleles per cell!
+            df <- df[df$gene0 %in% max1, ]
+          } else {
+            if (length(max1) == 1 & length(max2) == 1) {
+              df <- df[df$gene0 %in% c(max1, max2), ]
+            } else {
+              # if the second most common allele is a list of 2 or more alleles, or zero alleles, we won't know which to pick, so leave out
+              df <- df[df$gene0 %in% max1, ]
+            }
+          }
         }
       }
       return(df)
@@ -524,7 +535,7 @@ HLA_clusters <- function(reads, k = 2, seu = NULL, CB_rev_com = FALSE, geno_meta
 
 #' Mapping the HLA clusters found by the 'HLA_clusters()' function back into the scrHLAtag count files
 #'
-#' @param reads.list  is a list of scrHLAtag count file(s) including columns for CB, UMI, and HLA alleles (https://github.com/furlan-lab/scrHLAtag).
+#' @param reads.list  is a scrHLAtag count file (or a list of scrHLAtag count files) including columns for CB, UMI, and HLA alleles (https://github.com/furlan-lab/scrHLAtag).
 #' @param cluster_coordinates  is the UMAP coordinates dataframe with HLA clustering information (found by the 'HLA_clusters()' function) from which clusters are extracted and mapped into the scrHLAtag count files by matching Cell Barcodes. Currently the barcode format supported is: SAMPLE_AATGCTTGGTCCATTA-1
 #' @param CB_rev_com  is a logical, called TRUE if the need to obtained the reverse complement of Cell Barcodes (CBs) is desired; default is FALSE.
 #' @param parallelize  is a logical, called TRUE if using parallel processing (multi-threading) is desired; default is TRUE.
@@ -558,6 +569,13 @@ map_HLA_clusters <- function(reads.list, cluster_coordinates, CB_rev_com = FALSE
   } else {
     multi_thread <- 1
   }  
+  if (class(reads.list) %in% c("data.frame", "data.table")) {
+    reads.list <- list(reads.list=reads.list)
+  } else {
+    if (!(sapply(reads.list, function(x) class(x)) %in% c("data.frame", "data.table") %>% all()) | class(reads.list) != "list") {
+      stop("The 'reads' object's class should be either a 'data.frame', a 'data.table', or a 'list' of the formers")
+    }
+  }
   if (CB_rev_com) {
     message(cat("\nConverting Cell Barcodes to their reverse complements"))
     for (i in 1:length(reads.list)) {
