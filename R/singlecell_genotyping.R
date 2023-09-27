@@ -6,6 +6,7 @@
 #' @param hla_with_counts_above  is the number of total reads accross CBs at or above which an HLA allele is retained in the matrix.
 #' @param CBs_with_counts_above  is the number of total reads accross HLA alleles at or above which a CB is retained in the matrix. Note: at present, the function will make sure that number of CBs is equal or more than available HLA alleles in the matrix.
 #' @param match_CB_with_seu  is a logical, called TRUE if filtering CBs in the scrHLAtag count file with matching ones in the Seurat object is desired. 
+#' @param cluster_index  is a numeric, representing the index of the HLA cluster present in the counts data (as previously analyzed by 'HLA_clusters()' and mapped back to the data by 'map_HLA_clusters()'). It allows to subset the visualization based on the selected HLA cluster.
 #' @param top_hla  is a numeric, representing the number of top HLA alleles (i.e. with the highest number of reads) per HLA gene to display in the plot; default is 10.
 #' @param field_resolution  is a numeric, to select the HLA nomenclature level of Field resolution, where 1, 2, or 3 will take into consideration the first, the first two, or the first three field(s) of HLA designation; default is 3.
 #' @param QC_mm2  is a logical, called TRUE if removing low quality reads based on minimap2 tags is desired.
@@ -52,7 +53,7 @@
 #' # there were no counts for that allele (all zeros).
 #' @export
 
-HLA_alleles_per_CB <- function(reads, seu = NULL, CB_rev_com = FALSE, hla_with_counts_above = 0, CBs_with_counts_above = 0, match_CB_with_seu = TRUE, top_hla = 10, field_resolution = 3, QC_mm2 = TRUE, s1_belowmax = 0.75, AS_belowmax = 0.85, NM_thresh = 15, de_thresh = 0.015, default_theme = TRUE, return_genotype_data = FALSE, parallelize = TRUE) {
+HLA_alleles_per_CB <- function(reads, seu = NULL, CB_rev_com = FALSE, hla_with_counts_above = 0, CBs_with_counts_above = 0, match_CB_with_seu = TRUE, cluster_index = NULL, top_hla = 10, field_resolution = 3, QC_mm2 = TRUE, s1_belowmax = 0.75, AS_belowmax = 0.85, NM_thresh = 15, de_thresh = 0.015, default_theme = TRUE, return_genotype_data = FALSE, parallelize = TRUE) {
   ## parallelize
   if (parallelize) {
     multi_thread <- parallel::detectCores()
@@ -60,6 +61,18 @@ HLA_alleles_per_CB <- function(reads, seu = NULL, CB_rev_com = FALSE, hla_with_c
   } else {
     multi_thread <- 1
   }
+  ## if HLA clusters based on distribution on UMAP was analyzed, and visualizing top alleles per cluster is desired
+  if (!is.null(cluster_index)) {
+    if ("hla_clusters" %in% colnames(reads)) {
+      cl <- unique(reads$hla_clusters)
+      cl <- cl[!is.na(cl)]
+      idx <- cluster_index
+      message(cat("  Clusters generated from HLA distribution per Cell Barcode in UMAP space detected! Number of Clusters: ", length(cl)))
+      reads <- reads[reads$hla_clusters %in% cl[idx],]
+    } else {
+      warning("  Colname 'hla_clusters' not detected in counts data.\n  Did you analyze distribution of alleles per Cell Barcodes in UMAP space using 'HLA_clusters()', \n  then map the generated HLA Clusters back to your counts data using 'map_HLA_clusters()'?")
+    }
+  }  
   ## Remove low quality reads based on minimap2 tags
   if (QC_mm2) {
     message(cat("\nRemoving low quality reads based on minimap2 tags"))
