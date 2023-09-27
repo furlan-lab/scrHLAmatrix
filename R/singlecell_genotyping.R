@@ -4,7 +4,7 @@
 #' @param seu  is the Seurat object associated with the scrHLAtag count file (https://satijalab.org/seurat/index.html).
 #' @param CB_rev_com  is a logical, called TRUE if the need to obtained the reverse complement of Cell Barcodes (CBs) is desired; default is FALSE. 
 #' @param hla_with_counts_above  is the number of total reads accross CBs at or above which an HLA allele is retained in the matrix.
-#' @param CBs_with_counts_above  is the number of total reads accross HLA alleles at or above which a CB is retained in the matrix. Note: 'princomp()' can only be used with at least as many units (CBs) as variables (HLAs), thus the function will make sure that number of CBs is equal or more than available HLA alleles in the matrix.
+#' @param CBs_with_counts_above  is the number of total reads accross HLA alleles at or above which a CB is retained in the matrix. Note: at present, the function will make sure that number of CBs is equal or more than available HLA alleles in the matrix.
 #' @param match_CB_with_seu  is a logical, called TRUE if filtering CBs in the scrHLAtag count file with matching ones in the Seurat object is desired. 
 #' @param top_hla  is a numeric, representing the number of top HLA alleles (i.e. with the highest number of reads) per HLA gene to display in the plot; default is 10.
 #' @param field_resolution  is a numeric, to select the HLA nomenclature level of Field resolution, where 1, 2, or 3 will take into consideration the first, the first two, or the first three field(s) of HLA designation; default is 3.
@@ -277,10 +277,10 @@ HLA_alleles_per_CB <- function(reads, seu = NULL, CB_rev_com = FALSE, hla_with_c
 #' @param seu  is the Seurat object associated with the scrHLAtag count file (https://satijalab.org/seurat/index.html).
 #' @param CB_rev_com  is a logical, called TRUE if the need to obtained the reverse complement of Cell Barcodes (CBs) is desired; default is FALSE. 
 #' @param hla_with_counts_above  is the number of total reads accross CBs at or above which an HLA allele is retained in the matrix.
-#' @param CBs_with_counts_above  is the number of total reads accross HLA alleles at or above which a CB is retained in the matrix. Note: 'princomp()' can only be used with at least as many units (CBs) as variables (HLAs), thus the function will make sure that number of CBs is equal or more than available HLA alleles in the matrix.
+#' @param CBs_with_counts_above  is the number of total reads accross HLA alleles at or above which a CB is retained in the matrix. Note: at present, the function will make sure that number of CBs is equal or more than available HLA alleles in the matrix.
 #' @param match_CB_with_seu  is a logical, called TRUE if filtering CBs in the scrHLAtag count file with matching ones in the Seurat object is desired. 
 #' @param frac  is the fraction (0 to 1) of total reads for a particular HLA gene, which incorporates the highest ranking alleles of that gene in terms of number of reads; default at 0.85 .
-#' @param min_alleles_keep  is a numeric representing the minimum number of highest ranking alleles to keep despite filtering by fraction 'frac'; default is 2.
+#' @param min_alleles_keep  is a numeric representing the minimum number of highest ranking alleles to keep despite filtering by fraction 'frac'; default is 1.
 #' @param field_resolution  is a numeric, to select the HLA nomenclature level of Field resolution, where 1, 2, or 3 will take into consideration the first, the first two, or the first three field(s) of HLA designation; default is 3.
 #' @param QC_mm2  is a logical, called TRUE if removing low quality reads based on minimap2 tags is desired.
 #' @param s1_belowmax  is a proportion (0 to 1) of the maximum value (best quality) of the minimap2 's1' tag above which the quality of the read is acceptable; default at 0.75 of the max s1 score.
@@ -322,7 +322,7 @@ HLA_alleles_per_CB <- function(reads, seu = NULL, CB_rev_com = FALSE, hla_with_c
 #' # there were no counts for that allele (all zeros).
 #' @export
 
-Top_HLA_list <- function(reads, seu = NULL, CB_rev_com = FALSE, hla_with_counts_above = 0, CBs_with_counts_above = 0, match_CB_with_seu = TRUE, frac = 0.85, min_alleles_keep = 2, field_resolution = 3, QC_mm2 = TRUE, s1_belowmax = 0.75, AS_belowmax = 0.85, NM_thresh = 15, de_thresh = 0.015, parallelize = TRUE) {
+Top_HLA_list <- function(reads, seu = NULL, CB_rev_com = FALSE, hla_with_counts_above = 0, CBs_with_counts_above = 0, match_CB_with_seu = TRUE, frac = 0.85, min_alleles_keep = 1, field_resolution = 3, QC_mm2 = TRUE, s1_belowmax = 0.75, AS_belowmax = 0.85, NM_thresh = 15, de_thresh = 0.015, parallelize = TRUE) {
   ## parallelize
   if (parallelize) {
     multi_thread <- parallel::detectCores()
@@ -516,5 +516,6 @@ Top_HLA_list <- function(reads, seu = NULL, CB_rev_com = FALSE, hla_with_counts_
   }, mc.cores = multi_thread)
   top_a_list <- do.call("c", top_a_list)
   top_a_list <- top_a_list %>% unique() %>% sort()
+  message(cat("\nDone!!"))
   return(top_a_list)
 }

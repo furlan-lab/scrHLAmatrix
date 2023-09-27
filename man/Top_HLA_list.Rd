@@ -12,7 +12,7 @@ Top_HLA_list(
   CBs_with_counts_above = 0,
   match_CB_with_seu = TRUE,
   frac = 0.85,
-  min_alleles_keep = 2,
+  min_alleles_keep = 1,
   field_resolution = 3,
   QC_mm2 = TRUE,
   s1_belowmax = 0.75,
@@ -31,13 +31,13 @@ Top_HLA_list(
 
 \item{hla_with_counts_above}{is the number of total reads accross CBs at or above which an HLA allele is retained in the matrix.}
 
-\item{CBs_with_counts_above}{is the number of total reads accross HLA alleles at or above which a CB is retained in the matrix. Note: 'princomp()' can only be used with at least as many units (CBs) as variables (HLAs), thus the function will make sure that number of CBs is equal or more than available HLA alleles in the matrix.}
+\item{CBs_with_counts_above}{is the number of total reads accross HLA alleles at or above which a CB is retained in the matrix. Note: at present, the function will make sure that number of CBs is equal or more than available HLA alleles in the matrix.}
 
 \item{match_CB_with_seu}{is a logical, called TRUE if filtering CBs in the scrHLAtag count file with matching ones in the Seurat object is desired.}
 
 \item{frac}{is the fraction (0 to 1) of total reads for a particular HLA gene, which incorporates the highest ranking alleles of that gene in terms of number of reads; default at 0.85 .}
 
-\item{min_alleles_keep}{is a numeric representing the minimum number of highest ranking alleles to keep despite filtering by fraction 'frac'; default is 2.}
+\item{min_alleles_keep}{is a numeric representing the minimum number of highest ranking alleles to keep despite filtering by fraction 'frac'; default is 1.}
 
 \item{field_resolution}{is a numeric, to select the HLA nomenclature level of Field resolution, where 1, 2, or 3 will take into consideration the first, the first two, or the first three field(s) of HLA designation; default is 3.}
 
