@@ -37,7 +37,7 @@ HLA_alleles_per_CB(
 
 \item{match_CB_with_seu}{is a logical, called TRUE if filtering CBs in the scrHLAtag count file with matching ones in the Seurat object is desired.}
 
-\item{cluster_index}{is a numeric, representing the index of the HLA cluster present in the counts data (as previously analyzed by 'HLA_clusters()' and mapped back to the data by 'map_HLA_clusters()'). It allows to subset the visualization based on the selected HLA cluster.}
+\item{cluster_index}{is a numeric, representing the index of the HLA cluster present in the counts data (as previously analyzed by 'HLA_clusters()' and mapped back to the data by 'map_HLA_clusters()'). It allows to subset the visualization based on the selected HLA cluster. 'NULL' is the default in which case the counts data will not be subsetted.}
 
 \item{top_hla}{is a numeric, representing the number of top HLA alleles (i.e. with the highest number of reads) per HLA gene to display in the plot; default is 10.}
 

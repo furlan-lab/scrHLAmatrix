@@ -6,7 +6,7 @@
 #' @param hla_with_counts_above  is the number of total reads accross CBs at or above which an HLA allele is retained in the matrix.
 #' @param CBs_with_counts_above  is the number of total reads accross HLA alleles at or above which a CB is retained in the matrix. Note: at present, the function will make sure that number of CBs is equal or more than available HLA alleles in the matrix.
 #' @param match_CB_with_seu  is a logical, called TRUE if filtering CBs in the scrHLAtag count file with matching ones in the Seurat object is desired. 
-#' @param cluster_index  is a numeric, representing the index of the HLA cluster present in the counts data (as previously analyzed by 'HLA_clusters()' and mapped back to the data by 'map_HLA_clusters()'). It allows to subset the visualization based on the selected HLA cluster.
+#' @param cluster_index  is a numeric, representing the index of the HLA cluster present in the counts data (as previously analyzed by 'HLA_clusters()' and mapped back to the data by 'map_HLA_clusters()'). It allows to subset the visualization based on the selected HLA cluster. 'NULL' is the default in which case the counts data will not be subsetted.
 #' @param top_hla  is a numeric, representing the number of top HLA alleles (i.e. with the highest number of reads) per HLA gene to display in the plot; default is 10.
 #' @param field_resolution  is a numeric, to select the HLA nomenclature level of Field resolution, where 1, 2, or 3 will take into consideration the first, the first two, or the first three field(s) of HLA designation; default is 3.
 #' @param QC_mm2  is a logical, called TRUE if removing low quality reads based on minimap2 tags is desired.
