@@ -119,12 +119,10 @@ HLA_Matrix <- function(reads, seu, hla_recip = character(), hla_donor = characte
   } 
   reads$seu_barcode <- paste0(reads$samp,"_",reads$CB,"-1")
   found <- as.numeric(reads$seu_barcode %in% colnames(seu) %>% table() / dim(reads)[1])
-  #message(cat("\nProportions of Cell Barcodes found (TRUE) or not found (FALSE) in the Seurat object colnames: "))
-  message(cat("\nProportions of Cell Barcodes   FOUND   in the Seurat object: ", 
+  message(cat("\nProportion of Cell Barcodes   FOUND   in the Seurat object: ", 
             format(round(found[2], 4), nsmall = 1),
-            "\nProportions of Cell Barcodes NOT FOUND in the Seurat object: ",
+            "\nProportion of Cell Barcodes NOT FOUND in the Seurat object: ",
             format(round(found[1], 4), nsmall = 1)))  
-  #print(reads$seu_barcode %in% colnames(seu) %>% table() / dim(reads)[1])
   ## Remove low quality reads based on minimap2 tags
   if (QC_mm2) {
     message(cat("\nRemoving low quality reads based on minimap2 tags"))
