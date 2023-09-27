@@ -386,12 +386,14 @@ Top_HLA_list <- function(reads, seu = NULL, CB_rev_com = FALSE, hla_with_counts_
   if ("hla_clusters" %in% colnames(reads)) {
     cl <- unique(reads$hla_clusters)
     cl <- cl[!is.na(cl)]
+    message(cat("Clusters generated from HLA distribution per Cell Barcode in UMAP space detected! \nNumber of Clusters: ", length(cl)))
     reads <- lapply(cl, function(x) {
       tmp <- reads[reads$hla_clusters %in% x,]
       return(tmp)
     })
   } else {
     reads <- list(reads = reads)
+    message(cat("Suggestion: To refine your results, first analyze distribution of alleles per Cell Barcodes in UMAP space using 'HLA_clusters()', \nthen map the generated HLA Clusters back to your count data using 'map_HLA_clusters()'."))
   }  
   matrices <- mclapply(1:length(reads), function(m) {
     alleles <- unique(reads[[m]]$gene) %>% sort()
