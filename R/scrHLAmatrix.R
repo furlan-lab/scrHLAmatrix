@@ -53,7 +53,7 @@ HLA_Matrix <- function(reads, seu, hla_recip = character(), hla_donor = characte
   ## parallelize
   if (parallelize) {
     multi_thread <- parallel::detectCores()
-    message(cat("\nMulti-threading! Available cores: ", parallel::detectCores()))
+    message(cat("\nMulti-threading! Available cores: ", parallel::detectCores(), sep = ""))
   } else {
     multi_thread <- 1
   }
@@ -119,6 +119,14 @@ HLA_Matrix <- function(reads, seu, hla_recip = character(), hla_donor = characte
     reads$CB <- pbmclapply(reads$CB, function(x) intToUtf8(rev(utf8ToInt(chartr('ATGC', 'TACG', x)))), mc.cores = multi_thread) %>% unlist()        # fast
   } 
   reads$seu_barcode <- paste0(reads$samp,"_",reads$CB,"-1")
+  message(cat("\n  Number of reads in count file: ", nrow(reads)))
+  cb <- length(unique(reads$seu_barcode))
+  found <- as.numeric(reads$seu_barcode %in% colnames(seu) %>% table())
+  message(cat("  Number of unique Cell Barcodes: ", 
+    cb, ", including: ", 
+    found[2], 
+    " (", format(round(100*(found[2]/cb), 2), nsmall = 1), 
+    "%) found in the Seurat object", sep = ""))
   found <- as.numeric(reads$seu_barcode %in% colnames(seu) %>% table() / dim(reads)[1])
   message(cat("\nProportion of Cell Barcodes   FOUND   in the Seurat object: ", 
             format(round(found[2], 4), nsmall = 1),
@@ -184,7 +192,7 @@ HLA_Matrix <- function(reads, seu, hla_recip = character(), hla_donor = characte
             format(round(100*intraclass_swap_rate, 3), nsmall = 1),
             "% of Cells\n  inter-class molecular swap rate per UMI ",
             format(round(100*class_swap_rate_per_read, 3), nsmall = 1),
-            "% of Cells"))  
+            "% of Cells", sep = ""))  
   ## Count Threshold 'Ct' above which the count of UMI copies becomes acceptable  
   if (Ct > 0) {
     reads <- reads[sapply(reads, nrow) > Ct]
@@ -222,7 +230,7 @@ HLA_Matrix <- function(reads, seu, hla_recip = character(), hla_donor = characte
   reads$hla_conflict <- as.factor(reads$hla_conflict)
   ## Remove undesired HLa alleles
   if (length(remove_alleles) > 0) {
-    message(cat("\nRemoving the following alleles from the counts file: ", remove_alleles))
+    message(cat("\nRemoving the following alleles from the counts file: ", remove_alleles, sep = ""))
     remove_alleles <- remove_alleles %>% gsub(special, "-", .)
     reads <- reads[-which(reads$gene0 %in% remove_alleles),]
   }
@@ -241,7 +249,7 @@ HLA_Matrix <- function(reads, seu, hla_recip = character(), hla_donor = characte
   hla_conflict_rate <- length(which(sapply(reads, function(df) "yes" %in% df$hla_conflict))) / length(reads)
   message(cat("  Both donor and recipient HLA within the same Cell Barcode in ", 
             format(round(100*hla_conflict_rate, 3), nsmall = 1),
-            "% of Cells"))
+            "% of Cells", sep = ""))
   # function to clean-up HLA conflicts by Seurat barcode
   remove_conflict <- function(df, recip, donor) {
     if (any(df$gene0 %in% recip) & any(df$gene0 %in% donor)){
@@ -425,7 +433,7 @@ HLA_clusters <- function(reads, k = 2, seu = NULL, CB_rev_com = FALSE, geno_meta
   ## parallelize
   if (parallelize) {
     multi_thread <- parallel::detectCores()
-    message(cat("\nMulti-threading! Available cores: ", parallel::detectCores()))
+    message(cat("\nMulti-threading! Available cores: ", parallel::detectCores(), sep = ""))
   } else {
     multi_thread <- 1
   }
@@ -575,7 +583,7 @@ map_HLA_clusters <- function(reads.list, cluster_coordinates, CB_rev_com = FALSE
   ## parallelize
   if (parallelize) {
     multi_thread <- parallel::detectCores()
-    # message(cat("\nMulti-threading! Available cores: ", parallel::detectCores()))
+    # message(cat("\nMulti-threading! Available cores: ", parallel::detectCores(), sep = ""))
   } else {
     multi_thread <- 1
   }  
