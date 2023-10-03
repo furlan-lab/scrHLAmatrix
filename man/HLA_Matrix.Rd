@@ -12,6 +12,7 @@ HLA_Matrix(
   QC_mm2 = TRUE,
   res_conflict_per_gene = TRUE,
   LD_correct = TRUE,
+  remove_alleles = character(),
   s1_belowmax = 0.75,
   AS_belowmax = 0.85,
   NM_thresh = 15,
@@ -35,6 +36,8 @@ HLA_Matrix(
 \item{res_conflict_per_gene}{is a logical, called TRUE if resolving per-HLA genotype conflicts is desired, with the assumption that each Cell can have no more than 2 alleles of the same HLA gene.}
 
 \item{LD_correct}{is a logical, called TRUE if Linkage Diseqilibrium (LD) correction in the HLA-DR locus is desired, with the assumption of a very strong LD between certain DRB1 allele families and the DRB2, DRB3, DRB4, DRB5, DRB6, DRB7, DRB8, and DRB9 loci.}
+
+\item{remove_alleles}{is a character list of HLA alleles to be removed from the count file if desired; default is an empty character vector.}
 
 \item{s1_belowmax}{is a proportion (0 to 1) of the maximum value (best quality) of the minimap2 's1' tag above which the quality of the read is acceptable; default at 0.75 of the max s1 score.}
 
