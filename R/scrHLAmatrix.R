@@ -118,20 +118,17 @@ HLA_Matrix <- function(reads, seu, hla_recip = character(), hla_donor = characte
     # reads$CB <- pbmclapply(reads$CB, function(x) as.character(Biostrings::reverseComplement(DNAString(x))), mc.cores = multi_thread) %>% unlist() # slow
     reads$CB <- pbmclapply(reads$CB, function(x) intToUtf8(rev(utf8ToInt(chartr('ATGC', 'TACG', x)))), mc.cores = multi_thread) %>% unlist()        # fast
   } 
+  ## Estimating number of reads and number of CBs
   reads$seu_barcode <- paste0(reads$samp,"_",reads$CB,"-1")
-  message(cat("\n  Number of reads in count file: ", nrow(reads)))
-  cb <- length(unique(reads$seu_barcode))
-  found <- as.numeric(reads$seu_barcode %in% colnames(seu) %>% table())
-  message(cat("  Number of unique Cell Barcodes: ", 
-    cb, ", including: ", 
-    found[2], 
-    " (", format(round(100*(found[2]/cb), 2), nsmall = 1), 
-    "%) found in the Seurat object", sep = ""))
-  found <- as.numeric(reads$seu_barcode %in% colnames(seu) %>% table() / dim(reads)[1])
-  message(cat("\nProportion of Cell Barcodes   FOUND   in the Seurat object: ", 
-            format(round(found[2], 4), nsmall = 1),
-            "\nProportion of Cell Barcodes NOT FOUND in the Seurat object: ",
-            format(round(found[1], 4), nsmall = 1)))  
+  message(cat("\n  Number of reads in count file: ", nrow(reads), 
+              ", including ", as.numeric(reads$seu_barcode %in% colnames(seu) %>% table())[2],
+              " (", format(round(100*(as.numeric(reads$seu_barcode %in% colnames(seu) %>% table())[2]/nrow(reads)), 2), nsmall = 1),
+              "%) belonging to Cell Barcodes found in the Seurat object", sep = ""))
+  message(cat("  Number of unique Cell Barcodes: ", length(unique(reads$seu_barcode)), 
+              ", including ", 
+              as.numeric(unique(reads$seu_barcode) %in% colnames(seu) %>% table())[2], 
+              " (", format(round(100*(as.numeric(unique(reads$seu_barcode) %in% colnames(seu) %>% table())[2]/length(colnames(seu))), 2), nsmall = 1), 
+              "%) found among the ", length(colnames(seu)), " Cells in the Seurat object", sep = ""))
   ## Remove low quality reads based on minimap2 tags
   if (QC_mm2) {
     message(cat("\nRemoving low quality reads based on minimap2 tags"))
