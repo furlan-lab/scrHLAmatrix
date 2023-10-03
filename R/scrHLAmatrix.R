@@ -219,6 +219,12 @@ HLA_Matrix <- function(reads, seu, hla_recip = character(), hla_donor = characte
   reads$seu_barcode <- paste0(reads$samp,"_",reads$CB,"-1")
   reads$hla_conflict <- NA
   reads$hla_conflict <- as.factor(reads$hla_conflict)
+  ## Remove undesired HLa alleles
+  if (length(remove_alleles) > 0) {
+    message(cat("\nRemoving the following alleles from the counts file: ", remove_alleles))
+    remove_alleles <- remove_alleles %>% gsub(special, "-", .)
+    reads <- reads[-which(reads$gene0 %in% remove_alleles),]
+  }
   alleles <- unique(reads$gene0) %>% sort() 
   # split by Seurat barcode
   reads <- with(reads, split(reads, list(seu_barcode=seu_barcode)))
@@ -299,7 +305,7 @@ HLA_Matrix <- function(reads, seu, hla_recip = character(), hla_donor = characte
   }
   ## Linkage Diseqilibrium correction in the DR region
   if (LD_correct) {
-    message(cat("\nLinkage Diseqilibrium Correction in the HLA-DR locus: assuming strong LD in
+    message(cat("\nLinkage Disequilibrium Correction in the HLA-DR locus: assuming strong LD in
             the DR1  subregion haplotype: DRB1*01 and *10 in LD with DRB6 and DRB9
             the DR51 subregion haplotype: DRB1*15 and *16 in LD with DRB6, DRB5, and DRB9
             the DR52 subregion haplotype: DRB1*03, *11, *12, *13, and *14 in LD with DRB2, DRB3, and DRB9
