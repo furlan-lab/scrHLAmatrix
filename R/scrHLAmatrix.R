@@ -46,7 +46,8 @@
 #' @export
 
 HLA_Matrix <- function(reads, seu, hla_recip = character(), hla_donor = character(), QC_mm2 = TRUE, res_conflict_per_gene = TRUE, LD_correct = TRUE, remove_alleles = character(), s1_belowmax = 0.75, AS_belowmax = 0.85, NM_thresh = 15, de_thresh = 0.015, parallelize = TRUE, CB_rev_com = FALSE, Ct = 0) {
-  message(cat(format(Sys.time(), "%F %H:%M:%S")))
+  s <- Sys.time()
+  message(cat(format(s, "%F %H:%M:%S")))
   ## check Seurat object
   if (class(seu) != "Seurat") {
     stop("Single-cell dataset container must be of class 'Seurat'")
@@ -453,8 +454,7 @@ HLA_Matrix <- function(reads, seu, hla_recip = character(), hla_donor = characte
   HLA.matrix <- as.matrix(t(HLA.matrix))
   HLA.matrix <- Matrix(HLA.matrix,sparse = T)
   HLA <- CreateAssayObject(counts = HLA.matrix)
-  message(cat("\nDone!!"))
-  message(cat(format(Sys.time(), "%F %H:%M:%S")))
+  message(cat("\nDone!!  ", format(Sys.time(), "%F %H:%M:%S"), " (runtime: ", difftime(Sys.time(), s, units = "min") %>% as.numeric() %>% abs(), " min)", sep = ""))
   return(HLA)
 }
 
