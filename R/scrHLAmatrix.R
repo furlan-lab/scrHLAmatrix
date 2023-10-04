@@ -140,7 +140,7 @@ HLA_Matrix <- function(reads, seu, hla_recip = character(), hla_donor = characte
                 ", including ", as.numeric(reads$seu_barcode %in% colnames(seu) %>% table())[2],
                 " (", format(round(100*(as.numeric(reads$seu_barcode %in% colnames(seu) %>% table())[2]/nrow(reads)), 2), nsmall = 1),
                 "%) belonging to Cells found in Seurat object", sep = ""))
-    message(cat("Unique Cell Barcodes (CB): ", length(unique(reads$seu_barcode)), 
+    message(cat("  CBs remaining: ", length(unique(reads$seu_barcode)), 
                 ", including ", 
                 as.numeric(unique(reads$seu_barcode) %in% colnames(seu) %>% table())[2], 
                 " (", format(round(100*(as.numeric(unique(reads$seu_barcode) %in% colnames(seu) %>% table())[2]/length(unique(reads$seu_barcode))), 2), nsmall = 1), 
@@ -228,7 +228,7 @@ HLA_Matrix <- function(reads, seu, hla_recip = character(), hla_donor = characte
               ", including ", as.numeric(reads$seu_barcode %in% colnames(seu) %>% table())[2],
               " (", format(round(100*(as.numeric(reads$seu_barcode %in% colnames(seu) %>% table())[2]/nrow(reads)), 2), nsmall = 1),
               "%) belonging to Cells found in Seurat object", sep = ""))
-  message(cat("Unique Cell Barcodes (CB): ", length(unique(reads$seu_barcode)), 
+  message(cat("  CBs remaining: ", length(unique(reads$seu_barcode)), 
               ", including ", 
               as.numeric(unique(reads$seu_barcode) %in% colnames(seu) %>% table())[2], 
               " (", format(round(100*(as.numeric(unique(reads$seu_barcode) %in% colnames(seu) %>% table())[2]/length(unique(reads$seu_barcode))), 2), nsmall = 1), 
@@ -244,7 +244,7 @@ HLA_Matrix <- function(reads, seu, hla_recip = character(), hla_donor = characte
               ", including ", as.numeric(reads$seu_barcode %in% colnames(seu) %>% table())[2],
               " (", format(round(100*(as.numeric(reads$seu_barcode %in% colnames(seu) %>% table())[2]/nrow(reads)), 2), nsmall = 1),
               "%) belonging to Cells found in Seurat object", sep = ""))
-  message(cat("Unique Cell Barcodes (CB): ", length(unique(reads$seu_barcode)), 
+  message(cat("  CBs remaining: ", length(unique(reads$seu_barcode)), 
               ", including ", 
               as.numeric(unique(reads$seu_barcode) %in% colnames(seu) %>% table())[2], 
               " (", format(round(100*(as.numeric(unique(reads$seu_barcode) %in% colnames(seu) %>% table())[2]/length(unique(reads$seu_barcode))), 2), nsmall = 1), 
@@ -267,7 +267,7 @@ HLA_Matrix <- function(reads, seu, hla_recip = character(), hla_donor = characte
                 ", including ", as.numeric(reads$seu_barcode %in% colnames(seu) %>% table())[2],
                 " (", format(round(100*(as.numeric(reads$seu_barcode %in% colnames(seu) %>% table())[2]/nrow(reads)), 2), nsmall = 1),
                 "%) belonging to Cells found in Seurat object", sep = ""))
-    message(cat("Unique Cell Barcodes (CB): ", length(unique(reads$seu_barcode)), 
+    message(cat("  CBs remaining: ", length(unique(reads$seu_barcode)), 
                 ", including ", 
                 as.numeric(unique(reads$seu_barcode) %in% colnames(seu) %>% table())[2], 
                 " (", format(round(100*(as.numeric(unique(reads$seu_barcode) %in% colnames(seu) %>% table())[2]/length(unique(reads$seu_barcode))), 2), nsmall = 1), 
@@ -323,7 +323,7 @@ HLA_Matrix <- function(reads, seu, hla_recip = character(), hla_donor = characte
                 ", including ", as.numeric(reads$seu_barcode %in% colnames(seu) %>% table())[2],
                 " (", format(round(100*(as.numeric(reads$seu_barcode %in% colnames(seu) %>% table())[2]/nrow(reads)), 2), nsmall = 1),
                 "%) belonging to Cells found in Seurat object", sep = ""))
-    message(cat("Unique Cell Barcodes (CB): ", length(unique(reads$seu_barcode)), 
+    message(cat("  CBs remaining): ", length(unique(reads$seu_barcode)), 
                 ", including ", 
                 as.numeric(unique(reads$seu_barcode) %in% colnames(seu) %>% table())[2], 
                 " (", format(round(100*(as.numeric(unique(reads$seu_barcode) %in% colnames(seu) %>% table())[2]/length(unique(reads$seu_barcode))), 2), nsmall = 1), 
@@ -368,7 +368,7 @@ HLA_Matrix <- function(reads, seu, hla_recip = character(), hla_donor = characte
                 ", including ", as.numeric(reads$seu_barcode %in% colnames(seu) %>% table())[2],
                 " (", format(round(100*(as.numeric(reads$seu_barcode %in% colnames(seu) %>% table())[2]/nrow(reads)), 2), nsmall = 1),
                 "%) belonging to Cells found in Seurat object", sep = ""))
-    message(cat("Unique Cell Barcodes (CB): ", length(unique(reads$seu_barcode)), 
+    message(cat("  CBs remaining: ", length(unique(reads$seu_barcode)), 
                 ", including ", 
                 as.numeric(unique(reads$seu_barcode) %in% colnames(seu) %>% table())[2], 
                 " (", format(round(100*(as.numeric(unique(reads$seu_barcode) %in% colnames(seu) %>% table())[2]/length(unique(reads$seu_barcode))), 2), nsmall = 1), 
@@ -420,7 +420,7 @@ HLA_Matrix <- function(reads, seu, hla_recip = character(), hla_donor = characte
                 ", including ", as.numeric(reads$seu_barcode %in% colnames(seu) %>% table())[2],
                 " (", format(round(100*(as.numeric(reads$seu_barcode %in% colnames(seu) %>% table())[2]/nrow(reads)), 2), nsmall = 1),
                 "%) belonging to Cells found in Seurat object", sep = ""))
-    message(cat("Unique Cell Barcodes (CB): ", length(unique(reads$seu_barcode)), 
+    message(cat("  CBs remaining: ", length(unique(reads$seu_barcode)), 
                 ", including ", 
                 as.numeric(unique(reads$seu_barcode) %in% colnames(seu) %>% table())[2], 
                 " (", format(round(100*(as.numeric(unique(reads$seu_barcode) %in% colnames(seu) %>% table())[2]/length(unique(reads$seu_barcode))), 2), nsmall = 1), 
