@@ -120,15 +120,15 @@ HLA_Matrix <- function(reads, seu, hla_recip = character(), hla_donor = characte
   } 
   ## Estimating number of reads and number of CBs
   reads$seu_barcode <- paste0(reads$samp,"_",reads$CB,"-1")
-  message(cat("\n  Number of reads in count file: ", nrow(reads), 
+  message(cat("\n  Reads in count file: ", nrow(reads), 
               ", including ", as.numeric(reads$seu_barcode %in% colnames(seu) %>% table())[2],
               " (", format(round(100*(as.numeric(reads$seu_barcode %in% colnames(seu) %>% table())[2]/nrow(reads)), 2), nsmall = 1),
-              "%) belonging to Cell Barcodes found in the Seurat object", sep = ""))
-  message(cat("  Number of unique Cell Barcodes: ", length(unique(reads$seu_barcode)), 
+              "%) belonging to Cells found in Seurat object", sep = ""))
+  message(cat("  Unique Cell Barcodes (CB): ", length(unique(reads$seu_barcode)), 
               ", including ", 
               as.numeric(unique(reads$seu_barcode) %in% colnames(seu) %>% table())[2], 
               " (", format(round(100*(as.numeric(unique(reads$seu_barcode) %in% colnames(seu) %>% table())[2]/length(colnames(seu))), 2), nsmall = 1), 
-              "%) found among the ", length(colnames(seu)), " Cells in the Seurat object", sep = ""))
+              "%) found among the ", length(colnames(seu)), " Cells in Seurat object", sep = ""))
   ## Remove low quality reads based on minimap2 tags
   if (QC_mm2) {
     message(cat("\nRemoving low quality reads based on minimap2 tags"))
@@ -139,6 +139,15 @@ HLA_Matrix <- function(reads, seu, hla_recip = character(), hla_donor = characte
   } else {
     reads <- reads[order(reads$gene0), ]
   }
+  message(cat("\n  Reads remaining: ", nrow(reads), 
+              ", including ", as.numeric(reads$seu_barcode %in% colnames(seu) %>% table())[2],
+              " (", format(round(100*(as.numeric(reads$seu_barcode %in% colnames(seu) %>% table())[2]/nrow(reads)), 2), nsmall = 1),
+              "%) belonging to Cells found in Seurat object", sep = ""))
+  message(cat("  CBs remaining: ", length(unique(reads$seu_barcode)), 
+              ", including ", 
+              as.numeric(unique(reads$seu_barcode) %in% colnames(seu) %>% table())[2], 
+              " (", format(round(100*(as.numeric(unique(reads$seu_barcode) %in% colnames(seu) %>% table())[2]/length(colnames(seu))), 2), nsmall = 1), 
+              "%) found among the ", length(colnames(seu)), " Cells in Seurat object", sep = ""))
   ## see if more than 1 allele are present per umi at a time
   # count all the problematic CB:UMIs for which a molecular swap is suspected
   reads$mol_swap <- NA
