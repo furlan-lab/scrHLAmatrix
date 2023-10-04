@@ -169,7 +169,7 @@ HLA_Matrix <- function(reads, seu, hla_recip = character(), hla_donor = characte
   #   scale_x_continuous(name = "Rank", n.breaks = 8) +
   #   theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))
   # print(g)
-  message(cat("\nEstimating Molecular Swap (excluding single-occurring UMIs where molecular swap cannot be estimated)"))
+  message(cat("\nEstimating Molecular Swap (excluding unduplicated UMIs where molecular swap cannot be estimated)"))
   pb <- txtProgressBar(min = 0, max = length(reads), style = 3, char = "=")
   for(j in 1:length(reads)){
     reads[[j]]$mol_swap <- ifelse(length(unique(reads[[j]]$gene)) > 1, 
@@ -411,7 +411,6 @@ HLA_Matrix <- function(reads, seu, hla_recip = character(), hla_donor = characte
     reads <-  do.call("rbind", reads)
     row.names(reads)<-NULL
     alleles <- unique(reads$gene0) %>% sort()
-    reads <- with(reads, split(reads, list(seu_barcode=seu_barcode)))
     message(cat("  Reads remaining: ", nrow(reads), 
                 ", including ", as.numeric(reads$seu_barcode %in% colnames(seu) %>% table())[2],
                 " (", format(round(100*(as.numeric(reads$seu_barcode %in% colnames(seu) %>% table())[2]/nrow(reads)), 2), nsmall = 1),
@@ -421,6 +420,7 @@ HLA_Matrix <- function(reads, seu, hla_recip = character(), hla_donor = characte
                 as.numeric(unique(reads$seu_barcode) %in% colnames(seu) %>% table())[2], 
                 " (", format(round(100*(as.numeric(unique(reads$seu_barcode) %in% colnames(seu) %>% table())[2]/length(colnames(seu))), 2), nsmall = 1), 
                 "%) matching the ", length(colnames(seu)), " Cells in Seurat object", sep = ""))
+    reads <- with(reads, split(reads, list(seu_barcode=seu_barcode)))
   }
   ## Matrix formation
   # matrix
