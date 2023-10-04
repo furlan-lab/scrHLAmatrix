@@ -128,7 +128,7 @@ HLA_Matrix <- function(reads, seu, hla_recip = character(), hla_donor = characte
               ", including ", 
               as.numeric(unique(reads$seu_barcode) %in% colnames(seu) %>% table())[2], 
               " (", format(round(100*(as.numeric(unique(reads$seu_barcode) %in% colnames(seu) %>% table())[2]/length(colnames(seu))), 2), nsmall = 1), 
-              "%) found among the ", length(colnames(seu)), " Cells in Seurat object", sep = ""))
+              "%) matching the ", length(colnames(seu)), " Cells in Seurat object", sep = ""))
   ## Remove low quality reads based on minimap2 tags
   if (QC_mm2) {
     message(cat("\nRemoving low quality reads based on minimap2 tags"))
@@ -136,18 +136,18 @@ HLA_Matrix <- function(reads, seu, hla_recip = character(), hla_donor = characte
     reads <- pbmclapply(reads, function(df){df[df$s1 > s1_belowmax*max(df$s1) & df$AS > AS_belowmax*max(df$AS) & df$NM <= NM_thresh & df$de <= de_thresh,]}, mc.cores = multi_thread)
     reads <-  do.call("rbind", reads)
     row.names(reads)<-NULL
+    message(cat("  Reads remaining: ", nrow(reads), 
+                ", including ", as.numeric(reads$seu_barcode %in% colnames(seu) %>% table())[2],
+                " (", format(round(100*(as.numeric(reads$seu_barcode %in% colnames(seu) %>% table())[2]/nrow(reads)), 2), nsmall = 1),
+                "%) belonging to Cells found in Seurat object", sep = ""))
+    message(cat("  CBs remaining: ", length(unique(reads$seu_barcode)), 
+                ", including ", 
+                as.numeric(unique(reads$seu_barcode) %in% colnames(seu) %>% table())[2], 
+                " (", format(round(100*(as.numeric(unique(reads$seu_barcode) %in% colnames(seu) %>% table())[2]/length(colnames(seu))), 2), nsmall = 1), 
+                "%) matching the ", length(colnames(seu)), " Cells in Seurat object", sep = ""))
   } else {
     reads <- reads[order(reads$gene0), ]
   }
-  message(cat("\n  Reads remaining: ", nrow(reads), 
-              ", including ", as.numeric(reads$seu_barcode %in% colnames(seu) %>% table())[2],
-              " (", format(round(100*(as.numeric(reads$seu_barcode %in% colnames(seu) %>% table())[2]/nrow(reads)), 2), nsmall = 1),
-              "%) belonging to Cells found in Seurat object", sep = ""))
-  message(cat("  CBs remaining: ", length(unique(reads$seu_barcode)), 
-              ", including ", 
-              as.numeric(unique(reads$seu_barcode) %in% colnames(seu) %>% table())[2], 
-              " (", format(round(100*(as.numeric(unique(reads$seu_barcode) %in% colnames(seu) %>% table())[2]/length(colnames(seu))), 2), nsmall = 1), 
-              "%) found among the ", length(colnames(seu)), " Cells in Seurat object", sep = ""))
   ## see if more than 1 allele are present per umi at a time
   # count all the problematic CB:UMIs for which a molecular swap is suspected
   reads$mol_swap <- NA
@@ -221,6 +221,19 @@ HLA_Matrix <- function(reads, seu, hla_recip = character(), hla_donor = characte
   # Applying the function
   message(cat("\nCorrecting Molecular Swap: keeping the reads per UMI with the HLA allele having the highest statistical probability"))
   reads <- pbmclapply(reads, keep_one, mc.cores = multi_thread)
+  v1 <- lapply(reads, nrow) %>% unlist() %>% na.omit() %>% sum()
+  v2 <- lapply(1:length(reads), function(x) as.numeric(reads[[x]]$seu_barcode %in% colnames(seu) %>% table())[2]) %>% unlist() %>% na.omit() %>% sum()
+  message(cat("  Reads remaining: ", v1, 
+              ", including ", v2,
+              " (", format(round(100*(v2/v1), 2), nsmall = 1),
+              "%) belonging to Cells found in Seurat object", sep = ""))
+  v1 <- lapply(1:length(reads), function(x) length(unique(reads[[x]]$seu_barcode))) %>% unlist() %>% na.omit() %>% sum()
+  v2 <- lapply(1:length(reads), function(x) as.numeric(unique(reads[[x]]$seu_barcode) %in% colnames(seu) %>% table())[2]) %>% unlist %>% na.omit() %>% sum()
+  message(cat("  CBs remaining: ", v1, 
+              ", including ", 
+              v2, 
+              " (", format(round(100*(v2/length(colnames(seu))), 2), nsmall = 1), 
+              "%) matching the ", length(colnames(seu)), " Cells in Seurat object", sep = ""))
   ## Performing Dedup
   message(cat("\nPerforming Dedup on UMIs: removing PCR duplicates"))
   reads <- pbmclapply(reads, function(df){df[1,]}, mc.cores = multi_thread)
