@@ -8,7 +8,7 @@ map_HLA_clusters(
   reads.list,
   cluster_coordinates,
   CB_rev_com = FALSE,
-  parallelize = TRUE
+  parallelize = FALSE
 )
 }
 \arguments{
@@ -18,7 +18,7 @@ map_HLA_clusters(
 
 \item{CB_rev_com}{is a logical, called TRUE if the need to obtained the reverse complement of Cell Barcodes (CBs) is desired; default is FALSE.}
 
-\item{parallelize}{is a logical, called TRUE if using parallel processing (multi-threading) is desired; default is TRUE.}
+\item{parallelize}{is a logical, called TRUE if using parallel processing (multi-threading) is desired; default is FALSE.}
 }
 \value{
 a large list containing scrHLAtag count file(s) including columns for CB, UMI, and HLA alleles, with the addition of HLA_clusters

@@ -19,7 +19,7 @@ HLA_clusters(
   AS_belowmax = 0.85,
   NM_thresh = 15,
   de_thresh = 0.015,
-  parallelize = TRUE,
+  parallelize = FALSE,
   pt_size = 0.5,
   ...
 )
@@ -53,7 +53,7 @@ HLA_clusters(
 
 \item{de_thresh}{is the gap-compressed per-base sequence divergence in the minimap2 alignment at or below which the quality of the read is acceptable; the number is between 0 and 1, and default is 0.015.}
 
-\item{parallelize}{is a logical, called TRUE if using parallel processing (multi-threading) is desired; default is TRUE.}
+\item{parallelize}{is a logical, called TRUE if using parallel processing (multi-threading) is desired; default is FALSE.}
 
 \item{pt_size}{is a number, the size of the geometric point displayed by ggplot2.}
 

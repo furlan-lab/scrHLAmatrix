@@ -12,7 +12,7 @@
 #' @param AS_belowmax  is a proportion (0 to 1) of the maximum value (best quality) of the minimap2 'AS' tag above which the quality of the read is acceptable; default at 0.85 of the max AS score.
 #' @param NM_thresh  is the number of mismatches and gaps in the minimap2 alignment at or below which the quality of the read is acceptable; default is 15.
 #' @param de_thresh  is the gap-compressed per-base sequence divergence in the minimap2 alignment at or below which the quality of the read is acceptable; the number is between 0 and 1, and default is 0.015.
-#' @param parallelize  is a logical, called TRUE if using parallel processing (multi-threading) is desired; default is TRUE.
+#' @param parallelize  is a logical, called TRUE if using parallel processing (multi-threading) is desired; default is FALSE.
 #' @param CB_rev_com  is a logical, called TRUE if the need to obtained the reverse complement of Cell Barcodes (CBs) is desired; default is FALSE. 
 #' @param stat_display  is a logical, called TRUE if the display of read numbers and unique barcode numbers is desired at each step of the process; will require additional computations which may noticeably slow down the function; default is FALSE. 
 #' @param Ct  is the count threshold for the PCR copies of UMIs to retain; default is 0.
@@ -46,7 +46,7 @@
 #' HLA_Matrix(reads = cts[["mRNA"]], seu = your_Seurat_obj, hla_recip = c("A*24:02:01", "DRB1*04:01:01", "DRB4*01:03:02"), hla_donor = c("A*33:03:01", "B*42:01:01"))
 #' @export
 
-HLA_Matrix <- function(reads, seu, hla_recip = character(), hla_donor = character(), QC_mm2 = TRUE, res_conflict_per_gene = TRUE, LD_correct = TRUE, remove_alleles = character(), s1_belowmax = 0.75, AS_belowmax = 0.85, NM_thresh = 15, de_thresh = 0.015, parallelize = TRUE, CB_rev_com = FALSE, stat_display = FALSE, Ct = 0) {
+HLA_Matrix <- function(reads, seu, hla_recip = character(), hla_donor = character(), QC_mm2 = TRUE, res_conflict_per_gene = TRUE, LD_correct = TRUE, remove_alleles = character(), s1_belowmax = 0.75, AS_belowmax = 0.85, NM_thresh = 15, de_thresh = 0.015, parallelize = FALSE, CB_rev_com = FALSE, stat_display = FALSE, Ct = 0) {
   s <- Sys.time()
   #message(cat(format(s, "%F %H:%M:%S")))
   ## check Seurat object
@@ -284,7 +284,6 @@ HLA_Matrix <- function(reads, seu, hla_recip = character(), hla_donor = characte
         format(round(100*(as.numeric(unique(reads$seu_barcode) %in% colnames(seu) %>% table())[2]/length(colnames(seu))), 2), nsmall = 1), "%)", sep = ""))
     }
   }
-  # alleles <- unique(reads$gene0) %>% sort() 
   # split by Seurat barcode
   reads <- with(reads, split(reads, list(seu_barcode=seu_barcode)))
   # detect HLA conflicts (i.e. donor-spec and recipient-spec HLA in the same barcode)
@@ -331,7 +330,6 @@ HLA_Matrix <- function(reads, seu, hla_recip = character(), hla_donor = characte
     if (stat_display) {
       reads <-  do.call("rbind", reads)
       row.names(reads)<-NULL
-      # alleles <- unique(reads$gene0) %>% sort() 
       message(cat("  Reads remaining: ", nrow(reads), 
         ", including ", as.numeric(reads$seu_barcode %in% colnames(seu) %>% table())[2],
         " (", format(round(100*(as.numeric(reads$seu_barcode %in% colnames(seu) %>% table())[2]/nrow(reads)), 2), nsmall = 1),
@@ -378,10 +376,9 @@ HLA_Matrix <- function(reads, seu, hla_recip = character(), hla_donor = characte
     }
     # Applying the function
     message(cat("\nResolving per-HLA Genotype Conflicts: assuming each cell has a max of 2 genotypes per HLA gene and keeping those with the most counts"))
-    reads <- pbmclapply(reads, keep_two, mc.cores = multi_thread)
+    reads <- pbmcapply::pbmclapply(reads, keep_two, mc.cores = multi_thread)
     reads <-  do.call("rbind", reads)
     row.names(reads)<-NULL
-    # alleles <- unique(reads$gene0) %>% sort() 
     if (stat_display) {
       message(cat("  Reads remaining: ", nrow(reads), 
         ", including ", as.numeric(reads$seu_barcode %in% colnames(seu) %>% table())[2],
@@ -399,11 +396,11 @@ HLA_Matrix <- function(reads, seu, hla_recip = character(), hla_donor = characte
   ## Linkage Diseqilibrium correction in the DR region
   if (LD_correct) {
     message(cat("\nLinkage Disequilibrium Correction in the HLA-DR locus: assuming strong LD in
-            the DR1  subregion haplotype: DRB1*01 and *10 in LD with DRB6 and DRB9
-            the DR51 subregion haplotype: DRB1*15 and *16 in LD with DRB6, DRB5, and DRB9
-            the DR52 subregion haplotype: DRB1*03, *11, *12, *13, and *14 in LD with DRB2, DRB3, and DRB9
-            the DR8  subregion haplotype: DRB1*08 in LD with DRB9
-            the DR53 subregion haplotype: DRB1*04, *07, and *09 in LD with DRB7, DRB8, DRB4, and DRB9"))
+  the DR1  subregion haplotype: DRB1*01 and *10 in LD with DRB6 and DRB9
+  the DR51 subregion haplotype: DRB1*15 and *16 in LD with DRB6, DRB5, and DRB9
+  the DR52 subregion haplotype: DRB1*03, *11, *12, *13, and *14 in LD with DRB2, DRB3, and DRB9
+  the DR8  subregion haplotype: DRB1*08 in LD with DRB9
+  the DR53 subregion haplotype: DRB1*04, *07, and *09 in LD with DRB7, DRB8, DRB4, and DRB9"))
     LD <- function(df) {
       ld <- list(
         DR1 = c("DRB1-01", "DRB1-10"),
@@ -436,7 +433,6 @@ HLA_Matrix <- function(reads, seu, hla_recip = character(), hla_donor = characte
     if (stat_display) {
       reads <-  do.call("rbind", reads)
       row.names(reads)<-NULL
-      # alleles <- unique(reads$gene0) %>% sort()
       message(cat("  Reads remaining: ", nrow(reads), 
         ", including ", as.numeric(reads$seu_barcode %in% colnames(seu) %>% table())[2],
         " (", format(round(100*(as.numeric(reads$seu_barcode %in% colnames(seu) %>% table())[2]/nrow(reads)), 2), nsmall = 1),
@@ -452,9 +448,9 @@ HLA_Matrix <- function(reads, seu, hla_recip = character(), hla_donor = characte
   }
   ## Matrix formation
   # matrix
-  alleles <- pbmcapply::pbmclapply(1:length(reads), function(x) reads[[x]]$gene0, mc.cores = multi_thread) %>% unlist() %>% na.omit() %>% unique() %>% sort()
-  HLA.matrix <- matrix(0, nrow = length(alleles), ncol = length(reads), dimnames = list(alleles, names(reads)))
   message(cat("\nCreating the HLA Count Matrix compatible with the Seurat object"))
+  alleles <- mclapply(1:length(reads), function(x) reads[[x]]$gene0, mc.cores = multi_thread) %>% unlist() %>% na.omit() %>% unique() %>% sort()
+  HLA.matrix <- matrix(0, nrow = length(alleles), ncol = length(reads), dimnames = list(alleles, names(reads)))
   pb <- txtProgressBar(min = 0, max = length(reads), style = 3, char = "=")
   for (i in 1:length(reads)) {
     counts <- table(reads[[i]]$gene0)
@@ -498,7 +494,7 @@ HLA_Matrix <- function(reads, seu, hla_recip = character(), hla_donor = characte
 #' @param AS_belowmax  is a proportion (0 to 1) of the maximum value (best quality) of the minimap2 'AS' tag above which the quality of the read is acceptable; default at 0.85 of the max AS score.
 #' @param NM_thresh  is the number of mismatches and gaps in the minimap2 alignment at or below which the quality of the read is acceptable; default is 15.
 #' @param de_thresh  is the gap-compressed per-base sequence divergence in the minimap2 alignment at or below which the quality of the read is acceptable; the number is between 0 and 1, and default is 0.015.
-#' @param parallelize  is a logical, called TRUE if using parallel processing (multi-threading) is desired; default is TRUE.
+#' @param parallelize  is a logical, called TRUE if using parallel processing (multi-threading) is desired; default is FALSE.
 #' @param pt_size  is a number, the size of the geometric point displayed by ggplot2. 
 #' @param ...  arguments passed onto uwot::umap()
 #' @import stringr
@@ -531,7 +527,7 @@ HLA_Matrix <- function(reads, seu, hla_recip = character(), hla_donor = characte
 #' HLA_clusters(reads = cts[["mRNA"]], k = 2, seu = your_Seurat_Obj, geno_metadata_id = "geno", hla_with_counts_above = 5, CBs_with_counts_above = 35)
 #' @export
 
-HLA_clusters <- function(reads, k = 2, seu = NULL, CB_rev_com = FALSE, geno_metadata_id = NULL, hla_with_counts_above = 0, CBs_with_counts_above = 0, match_CB_with_seu = TRUE, umap_first_n_PCs = 25, QC_mm2 = TRUE, s1_belowmax = 0.75, AS_belowmax = 0.85, NM_thresh = 15, de_thresh = 0.015, parallelize = TRUE, pt_size = 0.5, ...) {
+HLA_clusters <- function(reads, k = 2, seu = NULL, CB_rev_com = FALSE, geno_metadata_id = NULL, hla_with_counts_above = 0, CBs_with_counts_above = 0, match_CB_with_seu = TRUE, umap_first_n_PCs = 25, QC_mm2 = TRUE, s1_belowmax = 0.75, AS_belowmax = 0.85, NM_thresh = 15, de_thresh = 0.015, parallelize = FALSE, pt_size = 0.5, ...) {
   ## parallelize
   if (parallelize) {
     multi_thread <- parallel::detectCores()
@@ -658,7 +654,7 @@ HLA_clusters <- function(reads, k = 2, seu = NULL, CB_rev_com = FALSE, geno_meta
 #' @param reads.list  is a scrHLAtag count file (or a list of scrHLAtag count files) including columns for CB, UMI, and HLA alleles (https://github.com/furlan-lab/scrHLAtag).
 #' @param cluster_coordinates  is the UMAP coordinates dataframe with HLA clustering information (found by the 'HLA_clusters()' function) from which clusters are extracted and mapped into the scrHLAtag count files by matching Cell Barcodes. Currently the barcode format supported is: SAMPLE_AATGCTTGGTCCATTA-1
 #' @param CB_rev_com  is a logical, called TRUE if the need to obtained the reverse complement of Cell Barcodes (CBs) is desired; default is FALSE.
-#' @param parallelize  is a logical, called TRUE if using parallel processing (multi-threading) is desired; default is TRUE.
+#' @param parallelize  is a logical, called TRUE if using parallel processing (multi-threading) is desired; default is FALSE.
 #' @import stringr
 #' @return a large list containing scrHLAtag count file(s) including columns for CB, UMI, and HLA alleles, with the addition of HLA_clusters
 #' @examples
@@ -681,7 +677,7 @@ HLA_clusters <- function(reads, k = 2, seu = NULL, CB_rev_com = FALSE, geno_meta
 #' map_HLA_clusters(reads.list = cts, k = 2, cluster_coordinates = UMAP_dataframe_from_HLA_clusters_function)
 #' @export
 
-map_HLA_clusters <- function(reads.list, cluster_coordinates, CB_rev_com = FALSE, parallelize = TRUE) {
+map_HLA_clusters <- function(reads.list, cluster_coordinates, CB_rev_com = FALSE, parallelize = FALSE) {
   ## parallelize
   if (parallelize) {
     multi_thread <- parallel::detectCores()
