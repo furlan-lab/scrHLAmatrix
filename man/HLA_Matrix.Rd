@@ -19,6 +19,7 @@ HLA_Matrix(
   de_thresh = 0.015,
   parallelize = TRUE,
   CB_rev_com = FALSE,
+  stat_display = FALSE,
   Ct = 0
 )
 }
@@ -50,6 +51,8 @@ HLA_Matrix(
 \item{parallelize}{is a logical, called TRUE if using parallel processing (multi-threading) is desired; default is TRUE.}
 
 \item{CB_rev_com}{is a logical, called TRUE if the need to obtained the reverse complement of Cell Barcodes (CBs) is desired; default is FALSE.}
+
+\item{stat_display}{is a logical, called TRUE if the display of read numbers and unique barcode numbers is desired at each step of the process; will require additional computations which may noticeably slow down the function; default is FALSE.}
 
 \item{Ct}{is the count threshold for the PCR copies of UMIs to retain; default is 0.}
 }

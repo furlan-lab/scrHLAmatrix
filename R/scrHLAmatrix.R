@@ -14,6 +14,7 @@
 #' @param de_thresh  is the gap-compressed per-base sequence divergence in the minimap2 alignment at or below which the quality of the read is acceptable; the number is between 0 and 1, and default is 0.015.
 #' @param parallelize  is a logical, called TRUE if using parallel processing (multi-threading) is desired; default is TRUE.
 #' @param CB_rev_com  is a logical, called TRUE if the need to obtained the reverse complement of Cell Barcodes (CBs) is desired; default is FALSE. 
+#' @param stat_display  is a logical, called TRUE if the display of read numbers and unique barcode numbers is desired at each step of the process; will require additional computations which may noticeably slow down the function; default is FALSE. 
 #' @param Ct  is the count threshold for the PCR copies of UMIs to retain; default is 0.
 #' @import stringr
 #' @import pbmcapply
@@ -45,9 +46,9 @@
 #' HLA_Matrix(reads = cts[["mRNA"]], seu = your_Seurat_obj, hla_recip = c("A*24:02:01", "DRB1*04:01:01", "DRB4*01:03:02"), hla_donor = c("A*33:03:01", "B*42:01:01"))
 #' @export
 
-HLA_Matrix <- function(reads, seu, hla_recip = character(), hla_donor = character(), QC_mm2 = TRUE, res_conflict_per_gene = TRUE, LD_correct = TRUE, remove_alleles = character(), s1_belowmax = 0.75, AS_belowmax = 0.85, NM_thresh = 15, de_thresh = 0.015, parallelize = TRUE, CB_rev_com = FALSE, Ct = 0) {
+HLA_Matrix <- function(reads, seu, hla_recip = character(), hla_donor = character(), QC_mm2 = TRUE, res_conflict_per_gene = TRUE, LD_correct = TRUE, remove_alleles = character(), s1_belowmax = 0.75, AS_belowmax = 0.85, NM_thresh = 15, de_thresh = 0.015, parallelize = TRUE, CB_rev_com = FALSE, stat_display = FALSE, Ct = 0) {
   s <- Sys.time()
-  message(cat(format(s, "%F %H:%M:%S")))
+  #message(cat(format(s, "%F %H:%M:%S")))
   ## check Seurat object
   if (class(seu) != "Seurat") {
     stop("Single-cell dataset container must be of class 'Seurat'")
@@ -137,16 +138,18 @@ HLA_Matrix <- function(reads, seu, hla_recip = character(), hla_donor = characte
     reads <- pbmclapply(reads, function(df){df[df$s1 > s1_belowmax*max(df$s1) & df$AS > AS_belowmax*max(df$AS) & df$NM <= NM_thresh & df$de <= de_thresh,]}, mc.cores = multi_thread)
     reads <-  do.call("rbind", reads)
     row.names(reads)<-NULL
-    message(cat("  Reads remaining: ", nrow(reads), 
-                ", including ", as.numeric(reads$seu_barcode %in% colnames(seu) %>% table())[2],
-                " (", format(round(100*(as.numeric(reads$seu_barcode %in% colnames(seu) %>% table())[2]/nrow(reads)), 2), nsmall = 1),
-                "%) belonging to Cells found in Seurat object", sep = ""))
-    message(cat("  CBs remaining: ", length(unique(reads$seu_barcode)), 
-                ", including ", 
-                as.numeric(unique(reads$seu_barcode) %in% colnames(seu) %>% table())[2], 
-                " (", format(round(100*(as.numeric(unique(reads$seu_barcode) %in% colnames(seu) %>% table())[2]/length(unique(reads$seu_barcode))), 2), nsmall = 1), 
-                "%) matching the ", length(colnames(seu)), " Cells in Seurat object (match rate ",
-                format(round(100*(as.numeric(unique(reads$seu_barcode) %in% colnames(seu) %>% table())[2]/length(colnames(seu))), 2), nsmall = 1), "%)", sep = ""))
+    if (stat_display) {
+      message(cat("  Reads remaining: ", nrow(reads), 
+                  ", including ", as.numeric(reads$seu_barcode %in% colnames(seu) %>% table())[2],
+                  " (", format(round(100*(as.numeric(reads$seu_barcode %in% colnames(seu) %>% table())[2]/nrow(reads)), 2), nsmall = 1),
+                  "%) belonging to Cells found in Seurat object", sep = ""))
+      message(cat("  CBs remaining: ", length(unique(reads$seu_barcode)), 
+                  ", including ", 
+                  as.numeric(unique(reads$seu_barcode) %in% colnames(seu) %>% table())[2], 
+                  " (", format(round(100*(as.numeric(unique(reads$seu_barcode) %in% colnames(seu) %>% table())[2]/length(unique(reads$seu_barcode))), 2), nsmall = 1), 
+                  "%) matching the ", length(colnames(seu)), " Cells in Seurat object (match rate ",
+                  format(round(100*(as.numeric(unique(reads$seu_barcode) %in% colnames(seu) %>% table())[2]/length(colnames(seu))), 2), nsmall = 1), "%)", sep = ""))
+    }
   } else {
     reads <- reads[order(reads$gene0), ]
   }
@@ -197,10 +200,10 @@ HLA_Matrix <- function(reads, seu, hla_recip = character(), hla_donor = characte
   intraclass_swap_rate<- mol_swap_rate_per_read - class_swap_rate_per_read
   intraclass_swap_rate
   message(cat("\n  intra-class molecular swap rate per UMI ", 
-            format(round(100*intraclass_swap_rate, 3), nsmall = 1),
-            "% of Cells\n  inter-class molecular swap rate per UMI ",
-            format(round(100*class_swap_rate_per_read, 3), nsmall = 1),
-            "% of Cells", sep = ""))  
+    format(round(100*intraclass_swap_rate, 3), nsmall = 1),
+    "% of Cells\n  inter-class molecular swap rate per UMI ",
+    format(round(100*class_swap_rate_per_read, 3), nsmall = 1),
+    "% of Cells", sep = ""))  
   ## Count Threshold 'Ct' above which the count of UMI copies becomes acceptable  
   if (Ct > 0) {
     reads <- reads[sapply(reads, nrow) > Ct]
@@ -223,34 +226,38 @@ HLA_Matrix <- function(reads, seu, hla_recip = character(), hla_donor = characte
   # Applying the function
   message(cat("\nCorrecting Molecular Swap: keeping the reads per UMI with the HLA allele having the highest statistical probability"))
   reads <- pbmclapply(reads, keep_one, mc.cores = multi_thread)
-  reads <-  do.call("rbind", reads)
-  row.names(reads)<-NULL
-  message(cat("  Reads remaining: ", nrow(reads), 
-              ", including ", as.numeric(reads$seu_barcode %in% colnames(seu) %>% table())[2],
-              " (", format(round(100*(as.numeric(reads$seu_barcode %in% colnames(seu) %>% table())[2]/nrow(reads)), 2), nsmall = 1),
-              "%) belonging to Cells found in Seurat object", sep = ""))
-  message(cat("  CBs remaining: ", length(unique(reads$seu_barcode)), 
-              ", including ", 
-              as.numeric(unique(reads$seu_barcode) %in% colnames(seu) %>% table())[2], 
-              " (", format(round(100*(as.numeric(unique(reads$seu_barcode) %in% colnames(seu) %>% table())[2]/length(unique(reads$seu_barcode))), 2), nsmall = 1), 
-              "%) matching the ", length(colnames(seu)), " Cells in Seurat object (match rate ",
-              format(round(100*(as.numeric(unique(reads$seu_barcode) %in% colnames(seu) %>% table())[2]/length(colnames(seu))), 2), nsmall = 1), "%)", sep = ""))
+  if (stat_display) {
+    reads <-  do.call("rbind", reads)
+    row.names(reads)<-NULL
+    message(cat("  Reads remaining: ", nrow(reads), 
+      ", including ", as.numeric(reads$seu_barcode %in% colnames(seu) %>% table())[2],
+      " (", format(round(100*(as.numeric(reads$seu_barcode %in% colnames(seu) %>% table())[2]/nrow(reads)), 2), nsmall = 1),
+      "%) belonging to Cells found in Seurat object", sep = ""))
+    message(cat("  CBs remaining: ", length(unique(reads$seu_barcode)), 
+      ", including ", 
+      as.numeric(unique(reads$seu_barcode) %in% colnames(seu) %>% table())[2], 
+      " (", format(round(100*(as.numeric(unique(reads$seu_barcode) %in% colnames(seu) %>% table())[2]/length(unique(reads$seu_barcode))), 2), nsmall = 1), 
+      "%) matching the ", length(colnames(seu)), " Cells in Seurat object (match rate ",
+      format(round(100*(as.numeric(unique(reads$seu_barcode) %in% colnames(seu) %>% table())[2]/length(colnames(seu))), 2), nsmall = 1), "%)", sep = ""))
+    reads <- with(reads, split(reads, list(cbumi=cbumi))) 
+  }
   ## Performing Dedup
   message(cat("\nPerforming Dedup on UMIs: removing PCR duplicates"))
-  reads <- with(reads, split(reads, list(cbumi=cbumi))) 
   reads <- pbmclapply(reads, function(df){df[1,]}, mc.cores = multi_thread)
   reads <-  do.call("rbind", reads)
   row.names(reads)<-NULL
-  message(cat("  Reads remaining after Dedup: ", nrow(reads), 
-              ", including ", as.numeric(reads$seu_barcode %in% colnames(seu) %>% table())[2],
-              " (", format(round(100*(as.numeric(reads$seu_barcode %in% colnames(seu) %>% table())[2]/nrow(reads)), 2), nsmall = 1),
-              "%) belonging to Cells found in Seurat object", sep = ""))
-  message(cat("  CBs remaining: ", length(unique(reads$seu_barcode)), 
-              ", including ", 
-              as.numeric(unique(reads$seu_barcode) %in% colnames(seu) %>% table())[2], 
-              " (", format(round(100*(as.numeric(unique(reads$seu_barcode) %in% colnames(seu) %>% table())[2]/length(unique(reads$seu_barcode))), 2), nsmall = 1), 
-              "%) matching the ", length(colnames(seu)), " Cells in Seurat object (match rate ",
-              format(round(100*(as.numeric(unique(reads$seu_barcode) %in% colnames(seu) %>% table())[2]/length(colnames(seu))), 2), nsmall = 1), "%)", sep = ""))
+  if (stat_display) {
+    message(cat("  Reads remaining after Dedup: ", nrow(reads), 
+      ", including ", as.numeric(reads$seu_barcode %in% colnames(seu) %>% table())[2],
+      " (", format(round(100*(as.numeric(reads$seu_barcode %in% colnames(seu) %>% table())[2]/nrow(reads)), 2), nsmall = 1),
+      "%) belonging to Cells found in Seurat object", sep = ""))
+    message(cat("  CBs remaining: ", length(unique(reads$seu_barcode)), 
+      ", including ", 
+      as.numeric(unique(reads$seu_barcode) %in% colnames(seu) %>% table())[2], 
+      " (", format(round(100*(as.numeric(unique(reads$seu_barcode) %in% colnames(seu) %>% table())[2]/length(unique(reads$seu_barcode))), 2), nsmall = 1), 
+      "%) matching the ", length(colnames(seu)), " Cells in Seurat object (match rate ",
+      format(round(100*(as.numeric(unique(reads$seu_barcode) %in% colnames(seu) %>% table())[2]/length(colnames(seu))), 2), nsmall = 1), "%)", sep = ""))
+  }
   ## Clean-up HLA conflicts per CB
   message(cat("\nDonor-v-Recipient Genotype Conflict: assuming a cell cannot have both recipient and donor-origin HLA allele"))
   # remove obsolete cols and add Seurat barcode
@@ -264,18 +271,20 @@ HLA_Matrix <- function(reads, seu, hla_recip = character(), hla_donor = characte
     message(cat("\nRemoving the following alleles from the counts file: ", remove_alleles, sep = ""))
     remove_alleles <- remove_alleles %>% gsub(special, "-", .)
     reads <- reads[-which(reads$gene0 %in% remove_alleles),]
-    message(cat("  Reads remaining: ", nrow(reads), 
-                ", including ", as.numeric(reads$seu_barcode %in% colnames(seu) %>% table())[2],
-                " (", format(round(100*(as.numeric(reads$seu_barcode %in% colnames(seu) %>% table())[2]/nrow(reads)), 2), nsmall = 1),
-                "%) belonging to Cells found in Seurat object", sep = ""))
-    message(cat("  CBs remaining: ", length(unique(reads$seu_barcode)), 
-                ", including ", 
-                as.numeric(unique(reads$seu_barcode) %in% colnames(seu) %>% table())[2], 
-                " (", format(round(100*(as.numeric(unique(reads$seu_barcode) %in% colnames(seu) %>% table())[2]/length(unique(reads$seu_barcode))), 2), nsmall = 1), 
-                "%) matching the ", length(colnames(seu)), " Cells in Seurat object (match rate ",
-                format(round(100*(as.numeric(unique(reads$seu_barcode) %in% colnames(seu) %>% table())[2]/length(colnames(seu))), 2), nsmall = 1), "%)", sep = ""))
+    if (stat_display) {
+      message(cat("  Reads remaining: ", nrow(reads), 
+        ", including ", as.numeric(reads$seu_barcode %in% colnames(seu) %>% table())[2],
+        " (", format(round(100*(as.numeric(reads$seu_barcode %in% colnames(seu) %>% table())[2]/nrow(reads)), 2), nsmall = 1),
+        "%) belonging to Cells found in Seurat object", sep = ""))
+      message(cat("  CBs remaining: ", length(unique(reads$seu_barcode)), 
+        ", including ", 
+        as.numeric(unique(reads$seu_barcode) %in% colnames(seu) %>% table())[2], 
+        " (", format(round(100*(as.numeric(unique(reads$seu_barcode) %in% colnames(seu) %>% table())[2]/length(unique(reads$seu_barcode))), 2), nsmall = 1), 
+        "%) matching the ", length(colnames(seu)), " Cells in Seurat object (match rate ",
+        format(round(100*(as.numeric(unique(reads$seu_barcode) %in% colnames(seu) %>% table())[2]/length(colnames(seu))), 2), nsmall = 1), "%)", sep = ""))
+    }
   }
-  alleles <- unique(reads$gene0) %>% sort() 
+  # alleles <- unique(reads$gene0) %>% sort() 
   # split by Seurat barcode
   reads <- with(reads, split(reads, list(seu_barcode=seu_barcode)))
   # detect HLA conflicts (i.e. donor-spec and recipient-spec HLA in the same barcode)
@@ -312,27 +321,35 @@ HLA_Matrix <- function(reads, seu, hla_recip = character(), hla_donor = characte
   }
   if (hla_conflict_rate == 0) {
     message(cat("\nResolving Donor-v-Recipient Genotype Conflicts: no conflicts to resolve"))
-    reads <-  do.call("rbind", reads)
-    row.names(reads)<-NULL
+    if (stat_display) {
+      reads <-  do.call("rbind", reads)
+      row.names(reads)<-NULL
+    }
   } else {
     message(cat("\nResolving Donor-v-Recipient Genotype Conflicts:\n  keeping either donor-specific or recipient specific HLA-associated UMIs, based on their count difference per Cell"))
     reads <- pbmclapply(reads, remove_conflict, recip = hla_recip, donor = hla_donor, mc.cores = multi_thread)
-    reads <-  do.call("rbind", reads)
-    row.names(reads)<-NULL
-    alleles <- unique(reads$gene0) %>% sort() 
-    message(cat("  Reads remaining: ", nrow(reads), 
-                ", including ", as.numeric(reads$seu_barcode %in% colnames(seu) %>% table())[2],
-                " (", format(round(100*(as.numeric(reads$seu_barcode %in% colnames(seu) %>% table())[2]/nrow(reads)), 2), nsmall = 1),
-                "%) belonging to Cells found in Seurat object", sep = ""))
-    message(cat("  CBs remaining): ", length(unique(reads$seu_barcode)), 
-                ", including ", 
-                as.numeric(unique(reads$seu_barcode) %in% colnames(seu) %>% table())[2], 
-                " (", format(round(100*(as.numeric(unique(reads$seu_barcode) %in% colnames(seu) %>% table())[2]/length(unique(reads$seu_barcode))), 2), nsmall = 1), 
-                "%) matching the ", length(colnames(seu)), " Cells in Seurat object (match rate ",
-                format(round(100*(as.numeric(unique(reads$seu_barcode) %in% colnames(seu) %>% table())[2]/length(colnames(seu))), 2), nsmall = 1), "%)", sep = ""))
+    if (stat_display) {
+      reads <-  do.call("rbind", reads)
+      row.names(reads)<-NULL
+      # alleles <- unique(reads$gene0) %>% sort() 
+      message(cat("  Reads remaining: ", nrow(reads), 
+        ", including ", as.numeric(reads$seu_barcode %in% colnames(seu) %>% table())[2],
+        " (", format(round(100*(as.numeric(reads$seu_barcode %in% colnames(seu) %>% table())[2]/nrow(reads)), 2), nsmall = 1),
+        "%) belonging to Cells found in Seurat object", sep = ""))
+      message(cat("  CBs remaining): ", length(unique(reads$seu_barcode)), 
+        ", including ", 
+        as.numeric(unique(reads$seu_barcode) %in% colnames(seu) %>% table())[2], 
+        " (", format(round(100*(as.numeric(unique(reads$seu_barcode) %in% colnames(seu) %>% table())[2]/length(unique(reads$seu_barcode))), 2), nsmall = 1), 
+        "%) matching the ", length(colnames(seu)), " Cells in Seurat object (match rate ",
+        format(round(100*(as.numeric(unique(reads$seu_barcode) %in% colnames(seu) %>% table())[2]/length(colnames(seu))), 2), nsmall = 1), "%)", sep = ""))
+    }
   }
   ## Resolving per gene conflicts
   if (res_conflict_per_gene) {
+    if (!stat_display) {
+      reads <-  do.call("rbind", reads)
+      row.names(reads)<-NULL
+    }
     reads$cb_hla <- paste0(reads$CB,"_",reads$hla)
     reads <- with(reads, split(reads, list(cb_hla=cb_hla)))
     keep_two <- function(df) {
@@ -362,22 +379,24 @@ HLA_Matrix <- function(reads, seu, hla_recip = character(), hla_donor = characte
     # Applying the function
     message(cat("\nResolving per-HLA Genotype Conflicts: assuming each cell has a max of 2 genotypes per HLA gene and keeping those with the most counts"))
     reads <- pbmclapply(reads, keep_two, mc.cores = multi_thread)
-    reads <-  do.call("rbind", reads)
-    row.names(reads)<-NULL
-    alleles <- unique(reads$gene0) %>% sort() 
-    message(cat("  Reads remaining: ", nrow(reads), 
-                ", including ", as.numeric(reads$seu_barcode %in% colnames(seu) %>% table())[2],
-                " (", format(round(100*(as.numeric(reads$seu_barcode %in% colnames(seu) %>% table())[2]/nrow(reads)), 2), nsmall = 1),
-                "%) belonging to Cells found in Seurat object", sep = ""))
-    message(cat("  CBs remaining: ", length(unique(reads$seu_barcode)), 
-                ", including ", 
-                as.numeric(unique(reads$seu_barcode) %in% colnames(seu) %>% table())[2], 
-                " (", format(round(100*(as.numeric(unique(reads$seu_barcode) %in% colnames(seu) %>% table())[2]/length(unique(reads$seu_barcode))), 2), nsmall = 1), 
-                "%) matching the ", length(colnames(seu)), " Cells in Seurat object (match rate ",
-                format(round(100*(as.numeric(unique(reads$seu_barcode) %in% colnames(seu) %>% table())[2]/length(colnames(seu))), 2), nsmall = 1), "%)", sep = ""))
+    if (stat_display) {
+      reads <-  do.call("rbind", reads)
+      row.names(reads)<-NULL
+      # alleles <- unique(reads$gene0) %>% sort() 
+      message(cat("  Reads remaining: ", nrow(reads), 
+        ", including ", as.numeric(reads$seu_barcode %in% colnames(seu) %>% table())[2],
+        " (", format(round(100*(as.numeric(reads$seu_barcode %in% colnames(seu) %>% table())[2]/nrow(reads)), 2), nsmall = 1),
+        "%) belonging to Cells found in Seurat object", sep = ""))
+      message(cat("  CBs remaining: ", length(unique(reads$seu_barcode)), 
+        ", including ", 
+        as.numeric(unique(reads$seu_barcode) %in% colnames(seu) %>% table())[2], 
+        " (", format(round(100*(as.numeric(unique(reads$seu_barcode) %in% colnames(seu) %>% table())[2]/length(unique(reads$seu_barcode))), 2), nsmall = 1), 
+        "%) matching the ", length(colnames(seu)), " Cells in Seurat object (match rate ",
+        format(round(100*(as.numeric(unique(reads$seu_barcode) %in% colnames(seu) %>% table())[2]/length(colnames(seu))), 2), nsmall = 1), "%)", sep = ""))
+      reads <- with(reads, split(reads, list(seu_barcode=seu_barcode)))
+    }
   }
   ## Linkage Diseqilibrium correction in the DR region
-  reads <- with(reads, split(reads, list(seu_barcode=seu_barcode)))
   if (LD_correct) {
     message(cat("\nLinkage Disequilibrium Correction in the HLA-DR locus: assuming strong LD in
             the DR1  subregion haplotype: DRB1*01 and *10 in LD with DRB6 and DRB9
@@ -414,23 +433,26 @@ HLA_Matrix <- function(reads, seu, hla_recip = character(), hla_donor = characte
       return(df)
     }    
     reads <- pbmcapply::pbmclapply(reads, LD, mc.cores = multi_thread)
-    reads <-  do.call("rbind", reads)
-    row.names(reads)<-NULL
-    alleles <- unique(reads$gene0) %>% sort()
-    message(cat("  Reads remaining: ", nrow(reads), 
-                ", including ", as.numeric(reads$seu_barcode %in% colnames(seu) %>% table())[2],
-                " (", format(round(100*(as.numeric(reads$seu_barcode %in% colnames(seu) %>% table())[2]/nrow(reads)), 2), nsmall = 1),
-                "%) belonging to Cells found in Seurat object", sep = ""))
-    message(cat("  CBs remaining: ", length(unique(reads$seu_barcode)), 
-                ", including ", 
-                as.numeric(unique(reads$seu_barcode) %in% colnames(seu) %>% table())[2], 
-                " (", format(round(100*(as.numeric(unique(reads$seu_barcode) %in% colnames(seu) %>% table())[2]/length(unique(reads$seu_barcode))), 2), nsmall = 1), 
-                "%) matching the ", length(colnames(seu)), " Cells in Seurat object (match rate ",
-                format(round(100*(as.numeric(unique(reads$seu_barcode) %in% colnames(seu) %>% table())[2]/length(colnames(seu))), 2), nsmall = 1), "%)", sep = ""))
-    reads <- with(reads, split(reads, list(seu_barcode=seu_barcode)))
+    if (stat_display) {
+      reads <-  do.call("rbind", reads)
+      row.names(reads)<-NULL
+      # alleles <- unique(reads$gene0) %>% sort()
+      message(cat("  Reads remaining: ", nrow(reads), 
+        ", including ", as.numeric(reads$seu_barcode %in% colnames(seu) %>% table())[2],
+        " (", format(round(100*(as.numeric(reads$seu_barcode %in% colnames(seu) %>% table())[2]/nrow(reads)), 2), nsmall = 1),
+        "%) belonging to Cells found in Seurat object", sep = ""))
+      message(cat("  CBs remaining: ", length(unique(reads$seu_barcode)), 
+        ", including ", 
+        as.numeric(unique(reads$seu_barcode) %in% colnames(seu) %>% table())[2], 
+        " (", format(round(100*(as.numeric(unique(reads$seu_barcode) %in% colnames(seu) %>% table())[2]/length(unique(reads$seu_barcode))), 2), nsmall = 1), 
+        "%) matching the ", length(colnames(seu)), " Cells in Seurat object (match rate ",
+        format(round(100*(as.numeric(unique(reads$seu_barcode) %in% colnames(seu) %>% table())[2]/length(colnames(seu))), 2), nsmall = 1), "%)", sep = ""))
+      reads <- with(reads, split(reads, list(seu_barcode=seu_barcode)))
+    }
   }
   ## Matrix formation
   # matrix
+  alleles <- pbmcapply::pbmclapply(1:length(reads), function(x) reads[[x]]$gene0, mc.cores = multi_thread) %>% unlist() %>% na.omit() %>% unique() %>% sort()
   HLA.matrix <- matrix(0, nrow = length(alleles), ncol = length(reads), dimnames = list(alleles, names(reads)))
   message(cat("\nCreating the HLA Count Matrix compatible with the Seurat object"))
   pb <- txtProgressBar(min = 0, max = length(reads), style = 3, char = "=")
@@ -454,7 +476,8 @@ HLA_Matrix <- function(reads, seu, hla_recip = character(), hla_donor = characte
   HLA.matrix <- as.matrix(t(HLA.matrix))
   HLA.matrix <- Matrix(HLA.matrix,sparse = T)
   HLA <- CreateAssayObject(counts = HLA.matrix)
-  message(cat("\nDone!!  ", format(Sys.time(), "%F %H:%M:%S"), " (runtime: ", difftime(Sys.time(), s, units = "min") %>% as.numeric() %>% abs(), " min)", sep = ""))
+  #message(cat("\nDone!!  ", format(Sys.time(), "%F %H:%M:%S"), " (runtime: ", difftime(Sys.time(), s, units = "min") %>% as.numeric() %>% abs(), " min)", sep = ""))
+  message(cat("\nDone!! (runtime: ", difftime(Sys.time(), s, units = "min") %>% as.numeric() %>% abs(), " min)", sep = ""))
   return(HLA)
 }
 

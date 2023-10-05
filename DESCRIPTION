@@ -1,21 +1,14 @@
 Package: scrHLAmatrix
 Type: Package
-Title: Operating on scrHLAtag output for Molecular Swap Cleanup, Dedup, Allele Conflict Correction, and Seurat-compatible Matrix
-Version: 0.5.3
-Date: 2023-10-04
+Title: Operating on scrHLAtag output to Determine HLA genotypes of the entity(ies) forming the barcoded cells, and to Correct/Deduplicate HLA genotyping reads, before finally Summarizing them into Seurat-compatible Matrices
+Version: 0.5.4
+Date: 2023-10-05
 Author: Sami B. Kanaan
 Maintainer: Sami B. Kanaan <kanaan.sb@outlook.com>
-Description: This package includes the function "HLA_Matrix" which takes as input: 
+Description: The functions in this package take as input: 
   1) the scrHLAtag count file including columns for CB, UMI, and HLA alleles (https://github.com/furlan-lab/scrHLAtag); and 
   2) the Seurat object associated with the scrHLAtag count file (https://satijalab.org/seurat/index.html). 
-  scrHLAtag must be run on the BAM file(s) from the "corrected" (not the "dedup") step that has been processed using the single cell IsoSeq3 pipeline (https://github.com/PacificBiosciences/IsoSeq). "HLA_Matrix" will then: 
-  1) Estimate the PCR duplication rate within UMIs; 
-  2) Estimate molecular swap per UMI with the assumption that a particular UMI could only carry a single mapped molecule (HLA allele), and if more than one molecule are present these are PCR artifacts; 
-  3) Correct Molecular Swap by keeping the copies per UMI with the highest occuring HLA allele; 
-  4) Perform Dedup, which is removing PCR duplicates and reducing each UMI (now associated with a single molecule) to a single line; 
-  5) Estimate conflicting HLA when alleles from a donor source and a recipient source are known and both occuring within the same Cell Barcode; 
-  then, correct this conflict by assuming a cell cannot have both recipient and donor-origin HLA allele, keeping only the most occuring; 
-  6) Create the HLA Count Matrix compatible with associated the Seurat object. 
+  scrHLAtag must be run on the BAM file(s) from the "corrected" (not the "dedup") step that has been processed using the single cell IsoSeq3 pipeline (https://github.com/PacificBiosciences/IsoSeq).  
 License: MIT
 Encoding: UTF-8
 Imports: stringr, stats, pbmcapply, parallel, Matrix, magrittr, htmltools, ggplot2, Seurat, dplyr, cowplot
