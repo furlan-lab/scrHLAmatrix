@@ -379,10 +379,10 @@ HLA_Matrix <- function(reads, seu, hla_recip = character(), hla_donor = characte
     # Applying the function
     message(cat("\nResolving per-HLA Genotype Conflicts: assuming each cell has a max of 2 genotypes per HLA gene and keeping those with the most counts"))
     reads <- pbmclapply(reads, keep_two, mc.cores = multi_thread)
+    reads <-  do.call("rbind", reads)
+    row.names(reads)<-NULL
+    # alleles <- unique(reads$gene0) %>% sort() 
     if (stat_display) {
-      reads <-  do.call("rbind", reads)
-      row.names(reads)<-NULL
-      # alleles <- unique(reads$gene0) %>% sort() 
       message(cat("  Reads remaining: ", nrow(reads), 
         ", including ", as.numeric(reads$seu_barcode %in% colnames(seu) %>% table())[2],
         " (", format(round(100*(as.numeric(reads$seu_barcode %in% colnames(seu) %>% table())[2]/nrow(reads)), 2), nsmall = 1),
@@ -393,8 +393,8 @@ HLA_Matrix <- function(reads, seu, hla_recip = character(), hla_donor = characte
         " (", format(round(100*(as.numeric(unique(reads$seu_barcode) %in% colnames(seu) %>% table())[2]/length(unique(reads$seu_barcode))), 2), nsmall = 1), 
         "%) matching the ", length(colnames(seu)), " Cells in Seurat object (match rate ",
         format(round(100*(as.numeric(unique(reads$seu_barcode) %in% colnames(seu) %>% table())[2]/length(colnames(seu))), 2), nsmall = 1), "%)", sep = ""))
-      reads <- with(reads, split(reads, list(seu_barcode=seu_barcode)))
     }
+    reads <- with(reads, split(reads, list(seu_barcode=seu_barcode)))
   }
   ## Linkage Diseqilibrium correction in the DR region
   if (LD_correct) {
