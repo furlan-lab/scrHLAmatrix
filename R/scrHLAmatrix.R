@@ -160,7 +160,7 @@ HLA_Matrix <- function(reads, seu, hla_recip = character(), hla_donor = characte
   reads$mol_swap <- as.factor(reads$mol_swap)
   reads$class_swap <- NA
   reads$class_swap <- as.factor(reads$class_swap)  
-  # split,   this is computationally heavy (about 10min for 10M rows)
+  # split
   reads <- with(reads, split(reads, list(cbumi=cbumi))) 
   if (UMI_dupl_display) {
     message(cat("\nEstimating UMI duplication rate"))
@@ -173,7 +173,7 @@ HLA_Matrix <- function(reads, seu, hla_recip = character(), hla_donor = characte
       #geom_smooth(size=2, method = "gam")+
       geom_line()+
       scale_y_log10(name = "PCR copies per UMI")+
-      scale_x_continuous(name = "Rank", n.breaks = 8) +
+      scale_x_continuous(name = "Rank (nth UMI)", n.breaks = 8) +
       theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))
     print(g)
   }
