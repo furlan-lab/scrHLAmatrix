@@ -149,12 +149,12 @@ HLA_Matrix <- function(reads, seu, hla_recip = character(), hla_donor = characte
     message(cat("\nEstimating UMI duplication rate"))
     n_umi<-pbmclapply(reads, nrow, mc.cores = multi_thread) %>% unlist()
     umi_counts<- data.frame(n_umi)
+    umi_counts$dummy <- 1 #had to add this dummy var for the code to work, removed later
     umi_counts <- umi_counts[order(umi_counts$n_umi),]
     row.names(umi_counts)<- NULL
     umi_counts$rank <- row.names(umi_counts) %>% as.numeric()
-    umi_counts <- as.data.frame(umi_counts)
-    umi_counts$dummy <- 1
-    g <- ggplot(umi_counts, aes(x= as.numeric(row.names(umi_counts)), y=n_umi, group= dummy))+
+    umi_counts$dummy <- NULL
+    g <- ggplot(umi_counts, aes(x= rank, y=n_umi))+
       #geom_smooth(size=2, method = "gam")+
       geom_line()+
       scale_y_log10(name = "PCR copies per UMI")+
