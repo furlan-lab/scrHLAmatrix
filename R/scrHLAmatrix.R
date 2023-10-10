@@ -153,7 +153,7 @@ HLA_Matrix <- function(reads, seu, hla_recip = character(), hla_donor = characte
     row.names(umi_counts)<- NULL
     umi_counts$rank <- row.names(umi_counts) %>% as.numeric()
     umi_counts$dummy <- 1
-    g <- ggplot(umi_counts, aes(x= as.numeric(rank), y=n_umi, group= dummy))+
+    g <- ggplot(umi_counts, aes(x= as.numeric(row.names(umi_counts)), y=n_umi, group= dummy))+
       #geom_smooth(size=2, method = "gam")+
       geom_line()+
       scale_y_log10(name = "PCR copies per UMI")+
