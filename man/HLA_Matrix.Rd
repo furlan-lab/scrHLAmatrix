@@ -21,6 +21,7 @@ HLA_Matrix(
   CB_rev_com = FALSE,
   stat_display = FALSE,
   UMI_dupl_display = TRUE,
+  return_stats = FALSE,
   Ct = 0
 )
 }
@@ -56,6 +57,8 @@ HLA_Matrix(
 \item{stat_display}{is a logical, called TRUE if the display of read numbers and unique barcode numbers is desired at each step of the process; will require additional computations which may noticeably slow down the function; default is FALSE.}
 
 \item{UMI_dupl_display}{is a logical, called TRUE if the display of the plot estimating the UMI duplication rate is desired while the function continues running; default is TRUE.}
+
+\item{return_stats}{is a logical, when TRUE returns step-by-step read statistics and UMI duplication rate in a list of dataframes and plot, in addition to the Seurat-compatible count matrix; defualt is FALSE.}
 
 \item{Ct}{is the count threshold for the PCR copies of UMIs to retain; default is 0.}
 }
