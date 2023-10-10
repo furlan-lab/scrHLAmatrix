@@ -552,10 +552,10 @@ HLA_Matrix <- function(reads, seu, hla_recip = character(), hla_donor = characte
   e <- difftime(Sys.time(), s, units = "sec") %>% as.numeric() %>% abs()
   message(cat("\nDone!! (runtime: ", format(as.POSIXlt(e, origin = "1970-01-01", tz = "UTC"), "%H:%M:%S", tz = "UTC"), ")", sep = ""))
   if (return_stats & UMI_dupl_display) {
-    return(list(matrix = HLA, counts_per_step = stats_df, umi_dupl_counts = umi_counts, umi_dupl_plot = g))
+    return(list(matrix = HLA, per_step_stats = stats_df, umi_dupl_counts = umi_counts, umi_dupl_plot = g))
   } else {
     if (return_stats) {
-      return(list(matrix = HLA, counts_per_step = stats_df))
+      return(list(matrix = HLA, per_step_stats = stats_df))
     } else {
       return(HLA)
     }
