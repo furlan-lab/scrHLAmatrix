@@ -142,15 +142,18 @@ HLA_Matrix <- function(reads, seu, hla_recip = character(), hla_donor = characte
                                  cb_seu_match_rate = as.numeric(unique(reads$seu_barcode) %in% colnames(seu) %>% table())[2]/length(colnames(seu)), 
                                  step = "1_raw_reads")) 
   }
+  message(cat("Available reads per gene:"))
+  print(table(reads$hla, useNA = "ifany"))
   if (UMI_dupl_display) {
     reads <- with(reads, split(reads, list(cbumi=cbumi))) 
     message(cat("\nEstimating UMI duplication rate"))
     n_umi<-pbmclapply(reads, nrow, mc.cores = multi_thread) %>% unlist()
     umi_counts<- data.frame(n_umi)
-    umi_counts$dummy <- 1
     umi_counts <- umi_counts[order(umi_counts$n_umi),]
     row.names(umi_counts)<- NULL
-    g <- ggplot(umi_counts, aes(x= as.numeric(row.names(umi_counts)), y=n_umi, group= dummy))+
+    umi_counts$rank <- row.names(umi_counts)
+    umi_counts$dummy <- 1
+    g <- ggplot(umi_counts, aes(x= as.numeric(rank), y=n_umi, group= dummy))+
       #geom_smooth(size=2, method = "gam")+
       geom_line()+
       scale_y_log10(name = "PCR copies per UMI")+
@@ -160,8 +163,6 @@ HLA_Matrix <- function(reads, seu, hla_recip = character(), hla_donor = characte
     reads <-  do.call("rbind", reads)
     row.names(reads)<-NULL
   }
-  message(cat("Available reads per gene:"))
-  print(table(reads$hla, useNA = "ifany"))
   ## Remove low quality reads based on minimap2 tags
   if (QC_mm2) {
     message(cat("\nRemoving low quality reads based on minimap2 tags"))
