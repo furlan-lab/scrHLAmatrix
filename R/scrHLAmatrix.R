@@ -140,7 +140,7 @@ HLA_Matrix <- function(reads, seu, hla_recip = character(), hla_donor = characte
                                  cbs_found = as.numeric(unique(reads$seu_barcode) %in% colnames(seu) %>% table())[2], 
                                  cbs_seu = length(colnames(seu)), 
                                  cb_seu_match_rate = as.numeric(unique(reads$seu_barcode) %in% colnames(seu) %>% table())[2]/length(colnames(seu)), 
-                                 step = "1_raw_reads")) 
+                                 step = "0_raw_reads")) 
   }
   message(cat("Available reads per gene:"))
   print(table(reads$hla, useNA = "ifany"))
@@ -189,7 +189,7 @@ HLA_Matrix <- function(reads, seu, hla_recip = character(), hla_donor = characte
                                    cbs_found = as.numeric(unique(reads$seu_barcode) %in% colnames(seu) %>% table())[2], 
                                    cbs_seu = length(colnames(seu)), 
                                    cb_seu_match_rate = as.numeric(unique(reads$seu_barcode) %in% colnames(seu) %>% table())[2]/length(colnames(seu)), 
-                                   step = "2_qc_mm2"))
+                                   step = "1_qc_mm2"))
     }
   } else {
     reads <- reads[order(reads$gene0), ]
@@ -274,7 +274,7 @@ HLA_Matrix <- function(reads, seu, hla_recip = character(), hla_donor = characte
                                    cbs_found = as.numeric(unique(reads$seu_barcode) %in% colnames(seu) %>% table())[2], 
                                    cbs_seu = length(colnames(seu)), 
                                    cb_seu_match_rate = as.numeric(unique(reads$seu_barcode) %in% colnames(seu) %>% table())[2]/length(colnames(seu)), 
-                                   step = "3_mol_swap"))
+                                   step = "2_mol_swap"))
     reads <- with(reads, split(reads, list(cbumi=cbumi))) 
   }
   ## Performing Dedup
@@ -300,7 +300,7 @@ HLA_Matrix <- function(reads, seu, hla_recip = character(), hla_donor = characte
                                    cbs_found = as.numeric(unique(reads$seu_barcode) %in% colnames(seu) %>% table())[2], 
                                    cbs_seu = length(colnames(seu)), 
                                    cb_seu_match_rate = as.numeric(unique(reads$seu_barcode) %in% colnames(seu) %>% table())[2]/length(colnames(seu)), 
-                                   step = "4_dedup"))
+                                   step = "3_dedup"))
   }
   ## Clean-up HLA conflicts per CB
   message(cat("\nDonor-v-Recipient Genotype Conflict: assuming a cell cannot have both recipient and donor-origin HLA allele"))
@@ -333,7 +333,7 @@ HLA_Matrix <- function(reads, seu, hla_recip = character(), hla_donor = characte
                                    cbs_found = as.numeric(unique(reads$seu_barcode) %in% colnames(seu) %>% table())[2], 
                                    cbs_seu = length(colnames(seu)), 
                                    cb_seu_match_rate = as.numeric(unique(reads$seu_barcode) %in% colnames(seu) %>% table())[2]/length(colnames(seu)), 
-                                   step = "5_rmv_alleles"))
+                                   step = "4_rmv_alleles"))
     }
   }
   # split by Seurat barcode
@@ -399,7 +399,7 @@ HLA_Matrix <- function(reads, seu, hla_recip = character(), hla_donor = characte
                                    cbs_found = as.numeric(unique(reads$seu_barcode) %in% colnames(seu) %>% table())[2], 
                                    cbs_seu = length(colnames(seu)), 
                                    cb_seu_match_rate = as.numeric(unique(reads$seu_barcode) %in% colnames(seu) %>% table())[2]/length(colnames(seu)), 
-                                   step = "6_dn_rp_conflict"))
+                                   step = "5_dn_rp_conflict"))
     }
   }
   ## Resolving per gene conflicts
@@ -457,7 +457,7 @@ HLA_Matrix <- function(reads, seu, hla_recip = character(), hla_donor = characte
                                    cbs_found = as.numeric(unique(reads$seu_barcode) %in% colnames(seu) %>% table())[2], 
                                    cbs_seu = length(colnames(seu)), 
                                    cb_seu_match_rate = as.numeric(unique(reads$seu_barcode) %in% colnames(seu) %>% table())[2]/length(colnames(seu)), 
-                                   step = "7_per_gene_conflict"))
+                                   step = "6_per_gene_conflict"))
     }
     reads <- with(reads, split(reads, list(seu_barcode=seu_barcode)))
   }
@@ -518,7 +518,7 @@ HLA_Matrix <- function(reads, seu, hla_recip = character(), hla_donor = characte
                                    cbs_found = as.numeric(unique(reads$seu_barcode) %in% colnames(seu) %>% table())[2], 
                                    cbs_seu = length(colnames(seu)), 
                                    cb_seu_match_rate = as.numeric(unique(reads$seu_barcode) %in% colnames(seu) %>% table())[2]/length(colnames(seu)), 
-                                   step = "8_ld_correct"))
+                                   step = "7_ld_correct"))
       reads <- with(reads, split(reads, list(seu_barcode=seu_barcode)))
     }
   }
