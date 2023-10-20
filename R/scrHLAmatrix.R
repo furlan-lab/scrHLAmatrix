@@ -27,6 +27,7 @@
 #' @import ggplot2
 #' @import Seurat
 #' @import dplyr
+#' @import data.table
 #' @return an Assay type matrix
 #' @examples
 #' samples <- c("AML_101_BM", "AML_101_34")
@@ -51,6 +52,8 @@
 HLA_Matrix <- function(reads, seu, hla_recip = character(), hla_donor = character(), QC_mm2 = TRUE, res_conflict_per_gene = TRUE, LD_correct = TRUE, remove_alleles = character(), s1_belowmax = 0.75, AS_belowmax = 0.85, NM_thresh = 15, de_thresh = 0.015, parallelize = FALSE, CB_rev_com = FALSE, stat_display = FALSE, UMI_dupl_display = TRUE, return_stats = FALSE, Ct = 0) {
   s <- Sys.time()
   #message(cat(format(s, "%F %H:%M:%S")))
+  reads <- as.data.table(reads)
+  message(cat("Note: Currently the Seurat Barcode (i.e. Seurat colnames or Cells) supported format is: SAMPLE_AATGCTTGGTCCATTA-1"))
   ## check Seurat object
   if (class(seu) != "Seurat") {
     stop("Single-cell dataset container must be of class 'Seurat'")
@@ -116,8 +119,8 @@ HLA_Matrix <- function(reads, seu, hla_recip = character(), hla_donor = characte
   ## Reverse Complement the CB
   if (CB_rev_com) {
     message(cat("\nConverting Cell Barcodes to their reverse complements"))
-    # reads$CB <- pbmclapply(reads$CB, function(x) as.character(Biostrings::reverseComplement(DNAString(x))), mc.cores = multi_thread) %>% unlist() # slow
-    reads$CB <- pbmclapply(reads$CB, function(x) intToUtf8(rev(utf8ToInt(chartr('ATGC', 'TACG', x)))), mc.cores = multi_thread) %>% unlist()        # fast
+    # reads$CB <- pbmcapply::pbmclapply(reads$CB, function(x) as.character(Biostrings::reverseComplement(DNAString(x))), mc.cores = multi_thread) %>% unlist() # slow
+    reads$CB <- pbmcapply::pbmclapply(reads$CB, function(x) intToUtf8(rev(utf8ToInt(chartr('ATGC', 'TACG', x)))), mc.cores = multi_thread) %>% unlist()        # fast
   } 
   ## Estimating number of reads and number of CBs
   reads$seu_barcode <- paste0(reads$samp,"_",reads$CB,"-1")
@@ -145,9 +148,10 @@ HLA_Matrix <- function(reads, seu, hla_recip = character(), hla_donor = characte
   message(cat("Available reads per gene:"))
   print(table(reads$hla, useNA = "ifany"))
   if (UMI_dupl_display) {
-    reads <- with(reads, split(reads, list(cbumi=cbumi))) 
     message(cat("\nEstimating UMI duplication rate"))
-    n_umi<-pbmclapply(reads, nrow, mc.cores = multi_thread) %>% unlist()
+    reads <- reads[, .(list(.SD)), by = cbumi]
+    reads <- pbmcapply::pbmclapply(reads$V1, as.data.frame, mc.cores = multi_thread)
+    n_umi <- pbmcapply::pbmclapply(reads, nrow, mc.cores = multi_thread) %>% unlist()
     umi_counts<- data.frame(n_umi)
     umi_counts$dummy <- 1 #had to add this dummy var for the code to work, removed later
     umi_counts <- umi_counts[order(umi_counts$n_umi),]
@@ -161,15 +165,16 @@ HLA_Matrix <- function(reads, seu, hla_recip = character(), hla_donor = characte
       scale_x_continuous(name = "Rank (nth UMI)", n.breaks = 8) +
       theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))
     print(g)
-    reads <-  do.call("rbind", reads)
+    reads <- data.table::rbindlist(reads)
     row.names(reads)<-NULL
   }
   ## Remove low quality reads based on minimap2 tags
   if (QC_mm2) {
     message(cat("\nRemoving low quality reads based on minimap2 tags"))
-    reads <- with(reads, split(reads, list(gene0=gene0)))
-    reads <- pbmclapply(reads, function(df){df[df$s1 > s1_belowmax*max(df$s1) & df$AS > AS_belowmax*max(df$AS) & df$NM <= NM_thresh & df$de <= de_thresh,]}, mc.cores = multi_thread)
-    reads <-  do.call("rbind", reads)
+    reads <- reads[, .(list(.SD)), by = gene0]
+    reads <- pbmcapply::pbmclapply(reads$V1, as.data.frame, mc.cores = multi_thread)
+    reads <- pbmcapply::pbmclapply(reads, function(df){df[df$s1 > s1_belowmax*max(df$s1) & df$AS > AS_belowmax*max(df$AS) & df$NM <= NM_thresh & df$de <= de_thresh,]}, mc.cores = multi_thread)
+    reads <- data.table::rbindlist(reads)
     row.names(reads)<-NULL
     if (stat_display) {
       message(cat("  Reads remaining: ", nrow(reads), 
@@ -201,8 +206,9 @@ HLA_Matrix <- function(reads, seu, hla_recip = character(), hla_donor = characte
   reads$class_swap <- NA
   reads$class_swap <- as.factor(reads$class_swap)  
   # split
-  reads <- with(reads, split(reads, list(cbumi=cbumi))) 
   message(cat("\nEstimating Molecular Swap (excluding unduplicated UMIs where molecular swap cannot be estimated)"))
+  reads <- reads[, .(list(.SD)), by = cbumi]
+  reads <- pbmcapply::pbmclapply(reads$V1, as.data.frame, mc.cores = multi_thread)
   pb <- txtProgressBar(min = 0, max = length(reads), style = 3, char = "=")
   for(j in 1:length(reads)){
     reads[[j]]$mol_swap <- ifelse(length(unique(reads[[j]]$gene)) > 1, 
@@ -253,9 +259,9 @@ HLA_Matrix <- function(reads, seu, hla_recip = character(), hla_donor = characte
   }
   # Applying the function
   message(cat("\nCorrecting Molecular Swap: keeping the reads per UMI with the HLA allele having the highest statistical probability"))
-  reads <- pbmclapply(reads, keep_one, mc.cores = multi_thread)
+  reads <- pbmcapply::pbmclapply(reads, keep_one, mc.cores = multi_thread)
   if (stat_display) {
-    reads <-  do.call("rbind", reads)
+    reads <- data.table::rbindlist(reads)
     row.names(reads)<-NULL
     message(cat("  Reads remaining: ", nrow(reads), 
       ", including ", as.numeric(reads$seu_barcode %in% colnames(seu) %>% table())[2],
@@ -275,12 +281,13 @@ HLA_Matrix <- function(reads, seu, hla_recip = character(), hla_donor = characte
                                    cbs_seu = length(colnames(seu)), 
                                    cb_seu_match_rate = as.numeric(unique(reads$seu_barcode) %in% colnames(seu) %>% table())[2]/length(colnames(seu)), 
                                    step = "2_mol_swap"))
-    reads <- with(reads, split(reads, list(cbumi=cbumi))) 
+    reads <- reads[, .(list(.SD)), by = cbumi]
+    reads <- pbmcapply::pbmclapply(reads$V1, as.data.frame, mc.cores = multi_thread)
   }
   ## Performing Dedup
   message(cat("\nPerforming Dedup on UMIs: removing PCR duplicates"))
-  reads <- pbmclapply(reads, function(df){df[1,]}, mc.cores = multi_thread)
-  reads <-  do.call("rbind", reads)
+  reads <- pbmcapply::pbmclapply(reads, function(df){df[1,]}, mc.cores = multi_thread)
+  reads <- data.table::rbindlist(reads)
   row.names(reads)<-NULL
   if (stat_display) {
     message(cat("  Reads remaining after Dedup: ", nrow(reads), 
@@ -337,7 +344,8 @@ HLA_Matrix <- function(reads, seu, hla_recip = character(), hla_donor = characte
     }
   }
   # split by Seurat barcode
-  reads <- with(reads, split(reads, list(seu_barcode=seu_barcode)))
+  reads <- reads[, .(list(.SD)), by = seu_barcode]
+  reads <- pbmcapply::pbmclapply(reads$V1, as.data.frame, mc.cores = multi_thread)
   # detect HLA conflicts (i.e. donor-spec and recipient-spec HLA in the same barcode)
   pb <- txtProgressBar(min = 0, max = length(reads), style = 3, char = "=")
   for(j in 1:length(reads)){
@@ -373,14 +381,14 @@ HLA_Matrix <- function(reads, seu, hla_recip = character(), hla_donor = characte
   if (hla_conflict_rate == 0) {
     message(cat("\nResolving Donor-v-Recipient Genotype Conflicts: no conflicts to resolve"))
     if (stat_display) {
-      reads <-  do.call("rbind", reads)
+      reads <- data.table::rbindlist(reads)
       row.names(reads)<-NULL
     }
   } else {
     message(cat("\nResolving Donor-v-Recipient Genotype Conflicts:\n  keeping either donor-specific or recipient specific HLA-associated UMIs, based on their count difference per Cell"))
-    reads <- pbmclapply(reads, remove_conflict, recip = hla_recip, donor = hla_donor, mc.cores = multi_thread)
+    reads <- pbmcapply::pbmclapply(reads, remove_conflict, recip = hla_recip, donor = hla_donor, mc.cores = multi_thread)
     if (stat_display) {
-      reads <-  do.call("rbind", reads)
+      reads <- data.table::rbindlist(reads)
       row.names(reads)<-NULL
       message(cat("  Reads remaining: ", nrow(reads), 
         ", including ", as.numeric(reads$seu_barcode %in% colnames(seu) %>% table())[2],
@@ -405,11 +413,13 @@ HLA_Matrix <- function(reads, seu, hla_recip = character(), hla_donor = characte
   ## Resolving per gene conflicts
   if (res_conflict_per_gene) {
     if (!stat_display) {
-      reads <-  do.call("rbind", reads)
+      reads <- data.table::rbindlist(reads)
       row.names(reads)<-NULL
     }
+    message(cat("\nResolving per-HLA Genotype Conflicts: assuming each cell has a max of 2 genotypes per HLA gene and keeping those with the most counts"))
     reads$cb_hla <- paste0(reads$CB,"_",reads$hla)
-    reads <- with(reads, split(reads, list(cb_hla=cb_hla)))
+    reads <- reads[, .(list(.SD)), by = cb_hla]
+    reads <- pbmcapply::pbmclapply(reads$V1, as.data.frame, mc.cores = multi_thread)
     keep_two <- function(df) {
       n_hla <- table(df$gene0)
       if (length(n_hla) > 2) {
@@ -435,9 +445,8 @@ HLA_Matrix <- function(reads, seu, hla_recip = character(), hla_donor = characte
       return(df)
     }
     # Applying the function
-    message(cat("\nResolving per-HLA Genotype Conflicts: assuming each cell has a max of 2 genotypes per HLA gene and keeping those with the most counts"))
     reads <- pbmcapply::pbmclapply(reads, keep_two, mc.cores = multi_thread)
-    reads <-  do.call("rbind", reads)
+    reads <- data.table::rbindlist(reads)
     row.names(reads)<-NULL
     if (stat_display) {
       message(cat("  Reads remaining: ", nrow(reads), 
@@ -459,7 +468,8 @@ HLA_Matrix <- function(reads, seu, hla_recip = character(), hla_donor = characte
                                    cb_seu_match_rate = as.numeric(unique(reads$seu_barcode) %in% colnames(seu) %>% table())[2]/length(colnames(seu)), 
                                    step = "6_per_gene_conflict"))
     }
-    reads <- with(reads, split(reads, list(seu_barcode=seu_barcode)))
+    reads <- reads[, .(list(.SD)), by = seu_barcode]
+    reads <- pbmcapply::pbmclapply(reads$V1, as.data.frame, mc.cores = multi_thread)
   }
   ## Linkage Diseqilibrium correction in the DR region
   if (LD_correct) {
@@ -499,7 +509,7 @@ HLA_Matrix <- function(reads, seu, hla_recip = character(), hla_donor = characte
     }    
     reads <- pbmcapply::pbmclapply(reads, LD, mc.cores = multi_thread)
     if (stat_display) {
-      reads <-  do.call("rbind", reads)
+      reads <- data.table::rbindlist(reads)
       row.names(reads)<-NULL
       message(cat("  Reads remaining: ", nrow(reads), 
         ", including ", as.numeric(reads$seu_barcode %in% colnames(seu) %>% table())[2],
@@ -519,7 +529,8 @@ HLA_Matrix <- function(reads, seu, hla_recip = character(), hla_donor = characte
                                    cbs_seu = length(colnames(seu)), 
                                    cb_seu_match_rate = as.numeric(unique(reads$seu_barcode) %in% colnames(seu) %>% table())[2]/length(colnames(seu)), 
                                    step = "7_ld_correct"))
-      reads <- with(reads, split(reads, list(seu_barcode=seu_barcode)))
+      reads <- reads[, .(list(.SD)), by = seu_barcode]
+      reads <- pbmcapply::pbmclapply(reads$V1, as.data.frame, mc.cores = multi_thread)
     }
   }
   ## Matrix formation
@@ -591,6 +602,7 @@ HLA_Matrix <- function(reads, seu, hla_recip = character(), hla_donor = characte
 #' @import ggplot2
 #' @import Seurat
 #' @import dplyr
+#' @import data.table
 #' @return a large list containing DataFrame with UMAP coordinates and ggplot of HLA clusters
 #' @examples
 #' samples <- c("AML_101_BM", "AML_101_34")
@@ -620,19 +632,21 @@ HLA_clusters <- function(reads, k = 2, seu = NULL, CB_rev_com = FALSE, geno_meta
   } else {
     multi_thread <- 1
   }
+  reads <- as.data.table(reads)
   ## Remove low quality reads based on minimap2 tags
   if (QC_mm2) {
     message(cat("\nRemoving low quality reads based on minimap2 tags"))
-    reads <- with(reads, split(reads, list(gene=gene)))
-    reads <- pbmclapply(reads, function(df){df[df$s1 > s1_belowmax*max(df$s1) & df$AS > AS_belowmax*max(df$AS) & df$NM <= NM_thresh & df$de <= de_thresh,]}, mc.cores = multi_thread)
-    reads <-  do.call("rbind", reads)
+    reads <- reads[, .(list(.SD)), by = gene]
+    reads <- pbmcapply::pbmclapply(reads$V1, as.data.frame, mc.cores = multi_thread)
+    reads <- pbmcapply::pbmclapply(reads, function(df){df[df$s1 > s1_belowmax*max(df$s1) & df$AS > AS_belowmax*max(df$AS) & df$NM <= NM_thresh & df$de <= de_thresh,]}, mc.cores = multi_thread)
+    reads <- data.table::rbindlist(reads)
     row.names(reads)<-NULL
   } 
   ## Reverse Complement the CB
   if (CB_rev_com) {
     message(cat("\nConverting Cell Barcodes to their reverse complements"))
-    # reads$CB <- pbmclapply(reads$CB, function(x) as.character(Biostrings::reverseComplement(DNAString(x))), mc.cores = multi_thread) %>% unlist() # slow
-    reads$CB <- pbmclapply(reads$CB, function(x) intToUtf8(rev(utf8ToInt(chartr('ATGC', 'TACG', x)))), mc.cores = multi_thread) %>% unlist()        # fast
+    # reads$CB <- pbmcapply::pbmclapply(reads$CB, function(x) as.character(Biostrings::reverseComplement(DNAString(x))), mc.cores = multi_thread) %>% unlist() # slow
+    reads$CB <- pbmcapply::pbmclapply(reads$CB, function(x) intToUtf8(rev(utf8ToInt(chartr('ATGC', 'TACG', x)))), mc.cores = multi_thread) %>% unlist()        # fast
   }  
   ## the 3-field level resolution of HLA is actually 2-field for MICA and MICB. must fix this glitch:
   special <- "[-_*|?.+$^]"
@@ -657,10 +671,10 @@ HLA_clusters <- function(reads, k = 2, seu = NULL, CB_rev_com = FALSE, geno_meta
   ## Matrix formation
   alleles <- unique(reads$gene) %>% sort()
   reads$seu_barcode <- paste0(reads$samp,"_",reads$CB,"-1")
-  reads <- with(reads, split(reads, list(seu_barcode=seu_barcode)))
-  # matrix
-  HLA.matrix <- matrix(0, nrow = length(alleles), ncol = length(reads), dimnames = list(alleles, names(reads)))
   message(cat("\nCreating an HLA Count Matrix"))
+  reads <- reads[, .(list(.SD)), by = seu_barcode]
+  reads <- pbmcapply::pbmclapply(reads$V1, as.data.frame, mc.cores = multi_thread)
+  HLA.matrix <- matrix(0, nrow = length(alleles), ncol = length(reads), dimnames = list(alleles, names(reads)))
   pb <- txtProgressBar(min = 0, max = length(reads), style = 3, char = "=")
   for (i in 1:length(reads)) {
     counts <- table(reads[[i]]$gene)
@@ -676,6 +690,7 @@ HLA_clusters <- function(reads, k = 2, seu = NULL, CB_rev_com = FALSE, geno_meta
     part_HLA<- HLA.matrix
   } else {
     if (class(seu) == "Seurat") {
+      message(cat("\nNote: Currently the Seurat Barcode (i.e. Seurat colnames or Cells) supported format is: SAMPLE_AATGCTTGGTCCATTA-1"))
       if(match_CB_with_seu) {
         part_HLA<- HLA.matrix[,colnames(HLA.matrix) %in% Cells(seu)]
       } else {
@@ -782,7 +797,7 @@ map_HLA_clusters <- function(reads.list, cluster_coordinates, CB_rev_com = FALSE
     for (i in 1:length(reads.list)) {
       reads.list[[i]]$hla_clusters <- NA
       reads.list[[i]]$hla_clusters <- cluster_coordinates$hla_clusters[
-        match(paste0(reads.list[[i]]$samp,"_",pbmclapply(reads.list[[i]]$CB, function(x) intToUtf8(rev(utf8ToInt(chartr('ATGC', 'TACG', x)))), mc.cores = multi_thread) %>% unlist(),"-1"), 
+        match(paste0(reads.list[[i]]$samp,"_",pbmcapply::pbmclapply(reads.list[[i]]$CB, function(x) intToUtf8(rev(utf8ToInt(chartr('ATGC', 'TACG', x)))), mc.cores = multi_thread) %>% unlist(),"-1"), 
               rownames(cluster_coordinates))
       ]
     }
