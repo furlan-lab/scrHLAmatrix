@@ -27,7 +27,6 @@
 #' @import ggplot2
 #' @import Seurat
 #' @import dplyr
-#' @import data.table
 #' @return an Assay type matrix
 #' @examples
 #' samples <- c("AML_101_BM", "AML_101_34")
@@ -53,7 +52,6 @@ HLA_Matrix <- function(reads, seu, hla_recip = character(), hla_donor = characte
   s <- Sys.time()
   #message(cat(format(s, "%F %H:%M:%S")))
   reads <- as.data.table(reads)
-  message(cat("Note: Currently the Seurat Barcode (i.e. Seurat colnames or Cells) supported format is: SAMPLE_AATGCTTGGTCCATTA-1"))
   ## check Seurat object
   if (class(seu) != "Seurat") {
     stop("Single-cell dataset container must be of class 'Seurat'")
@@ -147,6 +145,7 @@ HLA_Matrix <- function(reads, seu, hla_recip = character(), hla_donor = characte
   }
   message(cat("Available reads per gene:"))
   print(table(reads$hla, useNA = "ifany"))
+  message(cat("Note: Currently the Seurat Barcode (i.e. Seurat colnames or Cells) supported format is: SAMPLE_AATGCTTGGTCCATTA-1"))
   if (UMI_dupl_display) {
     message(cat("\nEstimating UMI duplication rate"))
     reads <- reads[, .(list(.SD)), by = cbumi]
@@ -602,7 +601,6 @@ HLA_Matrix <- function(reads, seu, hla_recip = character(), hla_donor = characte
 #' @import ggplot2
 #' @import Seurat
 #' @import dplyr
-#' @import data.table
 #' @return a large list containing DataFrame with UMAP coordinates and ggplot of HLA clusters
 #' @examples
 #' samples <- c("AML_101_BM", "AML_101_34")
