@@ -243,7 +243,7 @@ time2 <- difftime(Sys.time(), time1, units = "sec") %>% as.numeric() %>% abs()
 message(cat("\nsplit (runtime: ", format(as.POSIXlt(time2, origin = "1970-01-01", tz = "UTC"), "%H:%M:%S", tz = "UTC"), ")", sep = ""))    
   pb <- txtProgressBar(min = 0, max = length(reads), style = 3, char = "=")
   for(j in 1:length(reads)){
-    reads[[j]]$mol_swap <- ifelse(length(unique(reads[[j]]$gene)) > 1, 
+    reads[[j]]$mol_swap <- ifelse(length(unique(reads[[j]]$gene0)) > 1, 
                                       reads[[j]]$mol_swap <- "yes",
                                       reads[[j]]$mol_swap <- "no")
     setTxtProgressBar(pb, j)
@@ -291,7 +291,10 @@ message(cat("\nsplit (runtime: ", format(as.POSIXlt(time2, origin = "1970-01-01"
   }
   # Applying the function
   message(cat("\nCorrecting Molecular Swap: keeping the reads per UMI with the HLA allele having the highest statistical probability"))
+time1 <- Sys.time()
   reads <- pbmcapply::pbmclapply(reads, keep_one, mc.cores = multi_thread)
+time2 <- difftime(Sys.time(), time1, units = "sec") %>% as.numeric() %>% abs()
+message(cat("\npbmclapply runtime: ", format(as.POSIXlt(time2, origin = "1970-01-01", tz = "UTC"), "%H:%M:%S", tz = "UTC"), ")", sep = ""))  
   if (stat_display) {
 time1 <- Sys.time() 
     reads <- data.table::rbindlist(reads)
