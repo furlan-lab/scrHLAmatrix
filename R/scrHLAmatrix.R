@@ -145,11 +145,9 @@ HLA_Matrix <- function(reads, seu, hla_recip = character(), hla_donor = characte
   message(cat("Available reads per gene:"))
   print(table(reads$hla, useNA = "ifany"))
   message(cat("Note: Currently the Seurat Barcode (i.e. Seurat colnames or Cells) supported format is: SAMPLE_AATGCTTGGTCCATTA-1"))
-  reads <- as.data.table(reads)
   if (UMI_dupl_display) {
     message(cat("\nEstimating UMI duplication rate"))
-    reads <- reads[, .(list(.SD = .SD)), by = cbumi]
-    reads <- pbmcapply::pbmclapply(reads$V1, as.data.frame, mc.cores = multi_thread)
+    reads <- split(setDT(reads), by = "cbumi")
     n_umi <- pbmcapply::pbmclapply(reads, nrow, mc.cores = multi_thread) %>% unlist()
     umi_counts<- data.frame(n_umi)
     umi_counts$dummy <- 1 #had to add this dummy var for the code to work, removed later
@@ -170,8 +168,7 @@ HLA_Matrix <- function(reads, seu, hla_recip = character(), hla_donor = characte
   ## Remove low quality reads based on minimap2 tags
   if (QC_mm2) {
     message(cat("\nRemoving low quality reads based on minimap2 tags"))
-    reads <- reads[, .(list(.SD)), by = gene0]
-    reads <- pbmcapply::pbmclapply(reads$V1, as.data.frame, mc.cores = multi_thread)
+    reads <- split(setDT(reads), by = "gene0")
     reads <- pbmcapply::pbmclapply(reads, function(df){df[df$s1 > s1_belowmax*max(df$s1) & df$AS > AS_belowmax*max(df$AS) & df$NM <= NM_thresh & df$de <= de_thresh,]}, mc.cores = multi_thread)
     reads <- data.table::rbindlist(reads)
     row.names(reads)<-NULL
@@ -206,8 +203,7 @@ HLA_Matrix <- function(reads, seu, hla_recip = character(), hla_donor = characte
   reads$class_swap <- as.factor(reads$class_swap)  
   # split
   message(cat("\nEstimating Molecular Swap (excluding unduplicated UMIs where molecular swap cannot be estimated)"))
-  reads <- reads[, .(list(.SD)), by = cbumi]
-  reads <- pbmcapply::pbmclapply(reads$V1, as.data.frame, mc.cores = multi_thread)
+  reads <- split(setDT(reads), by = "cbumi")
   pb <- txtProgressBar(min = 0, max = length(reads), style = 3, char = "=")
   for(j in 1:length(reads)){
     reads[[j]]$mol_swap <- ifelse(length(unique(reads[[j]]$gene)) > 1, 
@@ -280,8 +276,7 @@ HLA_Matrix <- function(reads, seu, hla_recip = character(), hla_donor = characte
                                    cbs_seu = length(colnames(seu)), 
                                    cb_seu_match_rate = as.numeric(unique(reads$seu_barcode) %in% colnames(seu) %>% table())[2]/length(colnames(seu)), 
                                    step = "2_mol_swap"))
-    reads <- reads[, .(list(.SD)), by = cbumi]
-    reads <- pbmcapply::pbmclapply(reads$V1, as.data.frame, mc.cores = multi_thread)
+    reads <- split(setDT(reads), by = "cbumi")
   }
   ## Performing Dedup
   message(cat("\nPerforming Dedup on UMIs: removing PCR duplicates"))
@@ -343,8 +338,7 @@ HLA_Matrix <- function(reads, seu, hla_recip = character(), hla_donor = characte
     }
   }
   # split by Seurat barcode
-  reads <- reads[, .(list(.SD)), by = seu_barcode]
-  reads <- pbmcapply::pbmclapply(reads$V1, as.data.frame, mc.cores = multi_thread)
+  reads <- split(setDT(reads), by = "seu_barcode")
   # detect HLA conflicts (i.e. donor-spec and recipient-spec HLA in the same barcode)
   pb <- txtProgressBar(min = 0, max = length(reads), style = 3, char = "=")
   for(j in 1:length(reads)){
@@ -417,8 +411,7 @@ HLA_Matrix <- function(reads, seu, hla_recip = character(), hla_donor = characte
     }
     message(cat("\nResolving per-HLA Genotype Conflicts: assuming each cell has a max of 2 genotypes per HLA gene and keeping those with the most counts"))
     reads$cb_hla <- paste0(reads$CB,"_",reads$hla)
-    reads <- reads[, .(list(.SD)), by = cb_hla]
-    reads <- pbmcapply::pbmclapply(reads$V1, as.data.frame, mc.cores = multi_thread)
+    reads <- split(setDT(reads), by = "cb_hla")
     keep_two <- function(df) {
       n_hla <- table(df$gene0)
       if (length(n_hla) > 2) {
@@ -467,8 +460,7 @@ HLA_Matrix <- function(reads, seu, hla_recip = character(), hla_donor = characte
                                    cb_seu_match_rate = as.numeric(unique(reads$seu_barcode) %in% colnames(seu) %>% table())[2]/length(colnames(seu)), 
                                    step = "6_per_gene_conflict"))
     }
-    reads <- reads[, .(list(.SD)), by = seu_barcode]
-    reads <- pbmcapply::pbmclapply(reads$V1, as.data.frame, mc.cores = multi_thread)
+    reads <- split(setDT(reads), by = "seu_barcode")
   }
   ## Linkage Diseqilibrium correction in the DR region
   if (LD_correct) {
@@ -528,8 +520,7 @@ HLA_Matrix <- function(reads, seu, hla_recip = character(), hla_donor = characte
                                    cbs_seu = length(colnames(seu)), 
                                    cb_seu_match_rate = as.numeric(unique(reads$seu_barcode) %in% colnames(seu) %>% table())[2]/length(colnames(seu)), 
                                    step = "7_ld_correct"))
-      reads <- reads[, .(list(.SD)), by = seu_barcode]
-      reads <- pbmcapply::pbmclapply(reads$V1, as.data.frame, mc.cores = multi_thread)
+      reads <- split(setDT(reads), by = "seu_barcode")
     }
   }
   ## Matrix formation
@@ -630,12 +621,10 @@ HLA_clusters <- function(reads, k = 2, seu = NULL, CB_rev_com = FALSE, geno_meta
   } else {
     multi_thread <- 1
   }
-  reads <- as.data.table(reads)
   ## Remove low quality reads based on minimap2 tags
   if (QC_mm2) {
     message(cat("\nRemoving low quality reads based on minimap2 tags"))
-    reads <- reads[, .(list(.SD)), by = gene]
-    reads <- pbmcapply::pbmclapply(reads$V1, as.data.frame, mc.cores = multi_thread)
+    reads <- split(setDT(reads), by = "gene")
     reads <- pbmcapply::pbmclapply(reads, function(df){df[df$s1 > s1_belowmax*max(df$s1) & df$AS > AS_belowmax*max(df$AS) & df$NM <= NM_thresh & df$de <= de_thresh,]}, mc.cores = multi_thread)
     reads <- data.table::rbindlist(reads)
     row.names(reads)<-NULL
@@ -670,8 +659,7 @@ HLA_clusters <- function(reads, k = 2, seu = NULL, CB_rev_com = FALSE, geno_meta
   alleles <- unique(reads$gene) %>% sort()
   reads$seu_barcode <- paste0(reads$samp,"_",reads$CB,"-1")
   message(cat("\nCreating an HLA Count Matrix"))
-  reads <- reads[, .(list(.SD)), by = seu_barcode]
-  reads <- pbmcapply::pbmclapply(reads$V1, as.data.frame, mc.cores = multi_thread)
+  reads <- split(setDT(reads), by = "seu_barcode")
   HLA.matrix <- matrix(0, nrow = length(alleles), ncol = length(reads), dimnames = list(alleles, names(reads)))
   pb <- txtProgressBar(min = 0, max = length(reads), style = 3, char = "=")
   for (i in 1:length(reads)) {
