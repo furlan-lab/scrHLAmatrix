@@ -51,7 +51,6 @@
 HLA_Matrix <- function(reads, seu, hla_recip = character(), hla_donor = character(), QC_mm2 = TRUE, res_conflict_per_gene = TRUE, LD_correct = TRUE, remove_alleles = character(), s1_belowmax = 0.75, AS_belowmax = 0.85, NM_thresh = 15, de_thresh = 0.015, parallelize = FALSE, CB_rev_com = FALSE, stat_display = FALSE, UMI_dupl_display = TRUE, return_stats = FALSE, Ct = 0) {
   s <- Sys.time()
   #message(cat(format(s, "%F %H:%M:%S")))
-  reads <- as.data.table(reads)
   ## check Seurat object
   if (class(seu) != "Seurat") {
     stop("Single-cell dataset container must be of class 'Seurat'")
@@ -146,6 +145,7 @@ HLA_Matrix <- function(reads, seu, hla_recip = character(), hla_donor = characte
   message(cat("Available reads per gene:"))
   print(table(reads$hla, useNA = "ifany"))
   message(cat("Note: Currently the Seurat Barcode (i.e. Seurat colnames or Cells) supported format is: SAMPLE_AATGCTTGGTCCATTA-1"))
+  reads <- as.data.table(reads)
   if (UMI_dupl_display) {
     message(cat("\nEstimating UMI duplication rate"))
     reads <- reads[, .(list(.SD)), by = cbumi]
