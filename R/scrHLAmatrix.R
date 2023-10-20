@@ -276,6 +276,7 @@ message(cat("\nsplit (runtime: ", format(as.POSIXlt(time2, origin = "1970-01-01"
   }
   ## Function to keep the most occurring HLA when more than 1 HLA is present per cb:umi
   keep_one <- function(df) {
+    df <- setDF(df)
     n_hla <- table(df$gene0)
     if (length(n_hla) > 1) {
       most_hla <- names(which(n_hla==max(n_hla)))
