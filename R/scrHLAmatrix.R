@@ -148,7 +148,7 @@ HLA_Matrix <- function(reads, seu, hla_recip = character(), hla_donor = characte
   reads <- as.data.table(reads)
   if (UMI_dupl_display) {
     message(cat("\nEstimating UMI duplication rate"))
-    reads <- reads[, .(list(.SD)), by = cbumi]
+    reads <- reads[, .(list(.SD = .SD)), by = cbumi]
     reads <- pbmcapply::pbmclapply(reads$V1, as.data.frame, mc.cores = multi_thread)
     n_umi <- pbmcapply::pbmclapply(reads, nrow, mc.cores = multi_thread) %>% unlist()
     umi_counts<- data.frame(n_umi)
