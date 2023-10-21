@@ -220,10 +220,10 @@ HLA_Matrix <- function(reads, seu, hla_recip = character(), hla_donor = characte
   reads <- reads[, !(colnames(reads) %in% c("NM", "AS", "s1", "de")), drop = F]
   ## see if more than 1 allele are present per umi at a time
   # count all the problematic CB:UMIs for which a molecular swap is suspected
-  reads$mol_swap <- factor()
-  #reads$mol_swap <- as.factor(reads$mol_swap)
-  reads$class_swap <- factor()
-  #reads$class_swap <- as.factor(reads$class_swap)  
+  reads$mol_swap <- NA
+  reads$mol_swap <- as.factor(reads$mol_swap)
+  reads$class_swap <- NA
+  reads$class_swap <- as.factor(reads$class_swap)  
   # split
   message(cat("\nEstimating Molecular Swap (excluding unduplicated UMIs where molecular swap cannot be estimated)"))   
   reads <- split(data.table::setDT(reads), by = "cbumi") 
