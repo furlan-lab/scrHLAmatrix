@@ -159,7 +159,7 @@ HLA_Matrix <- function(reads, seu, hla_recip = character(), hla_donor = characte
   if (UMI_dupl_display) {
     message(cat("\nEstimating UMI duplication rate"))
 time1 <- Sys.time()
-    reads <- split(setDT(reads), by = "cbumi")
+    reads <- split(data.table::setDT(reads), by = "cbumi")
 time2 <- difftime(Sys.time(), time1, units = "sec") %>% as.numeric() %>% abs()
 message(cat("\nsplit (runtime: ", format(as.POSIXlt(time2, origin = "1970-01-01", tz = "UTC"), "%H:%M:%S", tz = "UTC"), ")", sep = ""))
     n_umi <- pbmcapply::pbmclapply(reads, nrow, mc.cores = multi_thread) %>% unlist()
@@ -190,7 +190,7 @@ message(cat("\nrecombine (runtime: ", format(as.POSIXlt(time2, origin = "1970-01
   if (QC_mm2) {
     message(cat("\nRemoving low quality reads based on minimap2 tags"))
 time1 <- Sys.time()    
-    reads <- split(setDT(reads), by = "gene0")
+    reads <- split(data.table::setDT(reads), by = "gene0")
 time2 <- difftime(Sys.time(), time1, units = "sec") %>% as.numeric() %>% abs()
 message(cat("\nsplit (runtime: ", format(as.POSIXlt(time2, origin = "1970-01-01", tz = "UTC"), "%H:%M:%S", tz = "UTC"), ")", sep = ""))    
     reads <- pbmcapply::pbmclapply(reads, function(df){df[df$s1 > s1_belowmax*max(df$s1) & df$AS > AS_belowmax*max(df$AS) & df$NM <= NM_thresh & df$de <= de_thresh,]}, mc.cores = multi_thread)
@@ -238,11 +238,12 @@ message(cat("\nrecombine (runtime: ", format(as.POSIXlt(time2, origin = "1970-01
   # split
   message(cat("\nEstimating Molecular Swap (excluding unduplicated UMIs where molecular swap cannot be estimated)"))
 time1 <- Sys.time()    
-  reads <- split(setDT(reads), by = "cbumi")
+  reads <- split(data.table::setDT(reads), by = "cbumi")
 time2 <- difftime(Sys.time(), time1, units = "sec") %>% as.numeric() %>% abs()
 message(cat("\nsplit (runtime: ", format(as.POSIXlt(time2, origin = "1970-01-01", tz = "UTC"), "%H:%M:%S", tz = "UTC"), ")", sep = ""))    
-  pb <- txtProgressBar(min = 0, max = length(reads), style = 3, char = "=")
+  pb <- pbmcapply::progressBar(min = 0, max = length(reads), style = "ETA", char = "=")
   for(j in 1:length(reads)){
+    reads[[j]] <- data.table::setDF(reads[[j]])
     reads[[j]]$mol_swap <- ifelse(length(unique(reads[[j]]$gene0)) > 1, 
                                       reads[[j]]$mol_swap <- "yes",
                                       reads[[j]]$mol_swap <- "no")
@@ -276,7 +277,6 @@ message(cat("\nsplit (runtime: ", format(as.POSIXlt(time2, origin = "1970-01-01"
   }
   ## Function to keep the most occurring HLA when more than 1 HLA is present per cb:umi
   keep_one <- function(df) {
-    df <- setDF(df)
     n_hla <- table(df$gene0)
     if (length(n_hla) > 1) {
       most_hla <- names(which(n_hla==max(n_hla)))
@@ -326,13 +326,17 @@ message(cat("\nrecombine (runtime: ", format(as.POSIXlt(time2, origin = "1970-01
                                  cb_seu_match_rate = ureads_in_seu/n_cells, 
                                  step = "2_mol_swap"))
 time1 <- Sys.time()     
-    reads <- split(setDT(reads), by = "cbumi")
+    reads <- split(data.table::setDT(reads), by = "cbumi")
 time2 <- difftime(Sys.time(), time1, units = "sec") %>% as.numeric() %>% abs()
 message(cat("\nsplit (runtime: ", format(as.POSIXlt(time2, origin = "1970-01-01", tz = "UTC"), "%H:%M:%S", tz = "UTC"), ")", sep = ""))     
   }
   ## Performing Dedup
   message(cat("\nPerforming Dedup on UMIs: removing PCR duplicates"))
-  reads <- pbmcapply::pbmclapply(reads, function(df){df[1,]}, mc.cores = multi_thread)
+  reads <- pbmcapply::pbmclapply(reads, function(df){
+    df <- data.table::setDF(df)
+    df <- df[1,]
+    return(df)
+  }, mc.cores = multi_thread)
 time1 <- Sys.time()   
   reads <- data.table::rbindlist(reads)
 time2 <- difftime(Sys.time(), time1, units = "sec") %>% as.numeric() %>% abs()
@@ -402,10 +406,11 @@ message(cat("\nrecombine (runtime: ", format(as.POSIXlt(time2, origin = "1970-01
     }
   }
   # split by Seurat barcode
-  reads <- split(setDT(reads), by = "seu_barcode")
+  reads <- split(data.table::setDT(reads), by = "seu_barcode")
   # detect HLA conflicts (i.e. donor-spec and recipient-spec HLA in the same barcode)
-  pb <- txtProgressBar(min = 0, max = length(reads), style = 3, char = "=")
+  pb <- pbmcapply::progressBar(min = 0, max = length(reads), style = "ETA", char = "=")
   for(j in 1:length(reads)){
+    reads[[j]] <- data.table::setDF(reads[[j]])
     reads[[j]]$hla_conflict <- ifelse(any(reads[[j]]$gene0 %in% hla_recip) & any(reads[[j]]$gene0 %in% hla_donor),
                                              reads[[j]]$hla_conflict <- "yes",
                                              reads[[j]]$hla_conflict <- "no")
@@ -481,8 +486,9 @@ message(cat("\nrecombine (runtime: ", format(as.POSIXlt(time2, origin = "1970-01
     message(cat("\nResolving per-HLA Genotype Conflicts: assuming each cell has a max of 2 genotypes per HLA gene and keeping those with the most counts"))
     reads$cb_hla <- paste0(reads$CB,"_",reads$hla)
     reads$CB <- NULL # no longer needed
-    reads <- split(setDT(reads), by = "cb_hla")
+    reads <- split(data.table::setDT(reads), by = "cb_hla")
     keep_two <- function(df) {
+      df <- data.table::setDF(df)
       n_hla <- table(df$gene0)
       if (length(n_hla) > 2) {
         max1 <- names(which(n_hla==max(n_hla))) %>% suppressWarnings()
@@ -535,7 +541,7 @@ message(cat("\nrecombine (runtime: ", format(as.POSIXlt(time2, origin = "1970-01
                                    cb_seu_match_rate = ureads_in_seu/n_cells,
                                    step = "6_per_gene_conflict"))
     }
-    reads <- split(setDT(reads), by = "seu_barcode")
+    reads <- split(data.table::setDT(reads), by = "seu_barcode")
   }
   ## Linkage Diseqilibrium correction in the DR region
   if (LD_correct) {
@@ -546,6 +552,7 @@ message(cat("\nrecombine (runtime: ", format(as.POSIXlt(time2, origin = "1970-01
   the DR8  subregion haplotype: DRB1*08 in LD with DRB9
   the DR53 subregion haplotype: DRB1*04, *07, and *09 in LD with DRB7, DRB8, DRB4, and DRB9"))
     LD <- function(df) {
+      df <- data.table::setDF(df)
       ld <- list(
         DR1 = c("DRB1-01", "DRB1-10"),
         DR51 = c("DRB1-15", "DRB1-16"),
@@ -600,7 +607,8 @@ message(cat("\nrecombine (runtime: ", format(as.POSIXlt(time2, origin = "1970-01
                                    cbs_seu = n_cells, 
                                    cb_seu_match_rate = ureads_in_seu/n_cells,
                                    step = "7_ld_correct"))
-      reads <- split(setDT(reads), by = "seu_barcode")
+      reads <- split(data.table::setDT(reads), by = "seu_barcode")
+      reads <- pbmcapply::mclapply(reads, data.table::setDF, mc.cores = multi_thread)
     }
   }
   ## Matrix formation
@@ -608,7 +616,7 @@ message(cat("\nrecombine (runtime: ", format(as.POSIXlt(time2, origin = "1970-01
   message(cat("\nCreating the HLA Count Matrix compatible with the Seurat object"))
   alleles <- mclapply(1:length(reads), function(x) reads[[x]]$gene0, mc.cores = multi_thread) %>% unlist() %>% na.omit() %>% unique() %>% sort()
   HLA.matrix <- matrix(0, nrow = length(alleles), ncol = length(reads), dimnames = list(alleles, names(reads)))
-  pb <- txtProgressBar(min = 0, max = length(reads), style = 3, char = "=")
+  pb <- pbmcapply::progressBar(min = 0, max = length(reads), style = "ETA", char = "=")
   for (i in 1:length(reads)) {
     counts <- table(reads[[i]]$gene0)
     HLA.matrix[, i] <- counts[alleles]
@@ -704,7 +712,8 @@ HLA_clusters <- function(reads, k = 2, seu = NULL, CB_rev_com = FALSE, geno_meta
   ## Remove low quality reads based on minimap2 tags
   if (QC_mm2) {
     message(cat("\nRemoving low quality reads based on minimap2 tags"))
-    reads <- split(setDT(reads), by = "gene")
+    reads <- split(data.table::setDT(reads), by = "gene")
+    reads <- pbmcapply::mclapply(reads, data.table::setDF, mc.cores = multi_thread)
     reads <- pbmcapply::pbmclapply(reads, function(df){df[df$s1 > s1_belowmax*max(df$s1) & df$AS > AS_belowmax*max(df$AS) & df$NM <= NM_thresh & df$de <= de_thresh,]}, mc.cores = multi_thread)
     reads <- data.table::rbindlist(reads)
     row.names(reads)<-NULL
@@ -739,9 +748,10 @@ HLA_clusters <- function(reads, k = 2, seu = NULL, CB_rev_com = FALSE, geno_meta
   alleles <- unique(reads$gene) %>% sort()
   reads$seu_barcode <- paste0(reads$samp,"_",reads$CB,"-1")
   message(cat("\nCreating an HLA Count Matrix"))
-  reads <- split(setDT(reads), by = "seu_barcode")
+  reads <- split(data.table::setDT(reads), by = "seu_barcode")
+  reads <- pbmcapply::pbmclapply(reads, data.table::setDF, mc.cores = multi_thread)
   HLA.matrix <- matrix(0, nrow = length(alleles), ncol = length(reads), dimnames = list(alleles, names(reads)))
-  pb <- txtProgressBar(min = 0, max = length(reads), style = 3, char = "=")
+  pb <- pbmcapply::progressBar(min = 0, max = length(reads), style = "ETA", char = "=")
   for (i in 1:length(reads)) {
     counts <- table(reads[[i]]$gene)
     HLA.matrix[, i] <- counts[alleles]
