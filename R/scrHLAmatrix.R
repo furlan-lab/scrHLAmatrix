@@ -153,18 +153,16 @@ HLA_Matrix <- function(reads, seu, hla_recip = character(), hla_donor = characte
                                cb_seu_match_rate = ureads_in_seu/n_cells, 
                                step = "0_raw_reads"))
   }
+  message(cat("Note: Currently the Seurat Barcode (i.e. Seurat colnames or Cells) supported format is: SAMPLE_AATGCTTGGTCCATTA-1"))
   message(cat("Available reads per gene:"))
   print(table(reads$hla, useNA = "ifany"))
-  message(cat("Note: Currently the Seurat Barcode (i.e. Seurat colnames or Cells) supported format is: SAMPLE_AATGCTTGGTCCATTA-1"))
   if (UMI_dupl_display) {
     message(cat("\nEstimating UMI duplication rate"))
-time1 <- Sys.time()
     reads <- split(data.table::setDT(reads), by = "cbumi")
-time2 <- difftime(Sys.time(), time1, units = "sec") %>% as.numeric() %>% abs()
-message(cat("\nsplit (runtime: ", format(as.POSIXlt(time2, origin = "1970-01-01", tz = "UTC"), "%H:%M:%S", tz = "UTC"), ")", sep = ""))
+    reads <- parallel::mclapply(reads, data.table::setDF, mc.cores = multi_thread)
     n_umi <- pbmcapply::pbmclapply(reads, nrow, mc.cores = multi_thread) %>% unlist()
     umi_counts<- data.frame(n_umi)
-    umi_counts$dummy <- 1 #had to add this dummy var for the code to work, removed later
+    umi_counts$dummy <- 1 #had to add this dummy var for the code to work, removed later; can also use drop = F in next line
     umi_counts <- umi_counts[order(umi_counts$n_umi),]
     row.names(umi_counts)<- NULL
     umi_counts$rank <- row.names(umi_counts) %>% as.numeric()
@@ -175,11 +173,8 @@ message(cat("\nsplit (runtime: ", format(as.POSIXlt(time2, origin = "1970-01-01"
       scale_y_log10(name = "PCR copies per UMI")+
       scale_x_continuous(name = "Rank (nth UMI)", n.breaks = 8) +
       theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))
-    print(g)
-time1 <- Sys.time()    
+    print(g)  
     reads <- data.table::rbindlist(reads)
-time2 <- difftime(Sys.time(), time1, units = "sec") %>% as.numeric() %>% abs()
-message(cat("\nrecombine (runtime: ", format(as.POSIXlt(time2, origin = "1970-01-01", tz = "UTC"), "%H:%M:%S", tz = "UTC"), ")", sep = ""))
     row.names(reads)<-NULL
   }
   ## Remove low quality reads based on minimap2 tags
@@ -188,16 +183,10 @@ message(cat("\nrecombine (runtime: ", format(as.POSIXlt(time2, origin = "1970-01
     QC_mm2 <- FALSE
   }
   if (QC_mm2) {
-    message(cat("\nRemoving low quality reads based on minimap2 tags"))
-time1 <- Sys.time()    
-    reads <- split(data.table::setDT(reads), by = "gene0")
-time2 <- difftime(Sys.time(), time1, units = "sec") %>% as.numeric() %>% abs()
-message(cat("\nsplit (runtime: ", format(as.POSIXlt(time2, origin = "1970-01-01", tz = "UTC"), "%H:%M:%S", tz = "UTC"), ")", sep = ""))    
-    reads <- pbmcapply::pbmclapply(reads, function(df){df[df$s1 > s1_belowmax*max(df$s1) & df$AS > AS_belowmax*max(df$AS) & df$NM <= NM_thresh & df$de <= de_thresh,]}, mc.cores = multi_thread)
-time1 <- Sys.time()     
-    reads <- data.table::rbindlist(reads)
-time2 <- difftime(Sys.time(), time1, units = "sec") %>% as.numeric() %>% abs()
-message(cat("\nrecombine (runtime: ", format(as.POSIXlt(time2, origin = "1970-01-01", tz = "UTC"), "%H:%M:%S", tz = "UTC"), ")", sep = ""))    
+    message(cat("\nRemoving low quality reads based on minimap2 tags"))   
+    reads <- split(data.table::setDT(reads), by = "gene0")   
+    reads <- pbmcapply::pbmclapply(reads, function(df){df[df$s1 > s1_belowmax*max(df$s1) & df$AS > AS_belowmax*max(df$AS) & df$NM <= NM_thresh & df$de <= de_thresh,]}, mc.cores = multi_thread)    
+    reads <- data.table::rbindlist(reads) 
     row.names(reads)<-NULL
     if (stat_display) {
       reads_in_seu <- as.numeric(reads$seu_barcode %in% colnames(seu) %>% table())[2]
@@ -231,16 +220,13 @@ message(cat("\nrecombine (runtime: ", format(as.POSIXlt(time2, origin = "1970-01
   reads <- reads[, !(colnames(reads) %in% c("NM", "AS", "s1", "de")), drop = F]
   ## see if more than 1 allele are present per umi at a time
   # count all the problematic CB:UMIs for which a molecular swap is suspected
-  reads$mol_swap <- NA
-  reads$mol_swap <- as.factor(reads$mol_swap)
-  reads$class_swap <- NA
-  reads$class_swap <- as.factor(reads$class_swap)  
+  reads$mol_swap <- factor()
+  #reads$mol_swap <- as.factor(reads$mol_swap)
+  reads$class_swap <- factor()
+  #reads$class_swap <- as.factor(reads$class_swap)  
   # split
-  message(cat("\nEstimating Molecular Swap (excluding unduplicated UMIs where molecular swap cannot be estimated)"))
-time1 <- Sys.time()    
-  reads <- split(data.table::setDT(reads), by = "cbumi")
-time2 <- difftime(Sys.time(), time1, units = "sec") %>% as.numeric() %>% abs()
-message(cat("\nsplit (runtime: ", format(as.POSIXlt(time2, origin = "1970-01-01", tz = "UTC"), "%H:%M:%S", tz = "UTC"), ")", sep = ""))    
+  message(cat("\nEstimating Molecular Swap (excluding unduplicated UMIs where molecular swap cannot be estimated)"))   
+  reads <- split(data.table::setDT(reads), by = "cbumi") 
   pb <- pbmcapply::progressBar(min = 0, max = length(reads), style = "ETA", char = "=")
   for(j in 1:length(reads)){
     reads[[j]] <- data.table::setDF(reads[[j]])
@@ -292,15 +278,9 @@ message(cat("\nsplit (runtime: ", format(as.POSIXlt(time2, origin = "1970-01-01"
   }
   # Applying the function
   message(cat("\nCorrecting Molecular Swap: keeping the reads per UMI with the HLA allele having the highest statistical probability"))
-time1 <- Sys.time()
-  reads <- pbmcapply::pbmclapply(reads, keep_one, mc.cores = multi_thread)
-time2 <- difftime(Sys.time(), time1, units = "sec") %>% as.numeric() %>% abs()
-message(cat("\npbmclapply runtime: ", format(as.POSIXlt(time2, origin = "1970-01-01", tz = "UTC"), "%H:%M:%S", tz = "UTC"), ")", sep = ""))  
+  reads <- pbmcapply::pbmclapply(reads, keep_one, mc.cores = multi_thread) 
   if (stat_display) {
-time1 <- Sys.time() 
-    reads <- data.table::rbindlist(reads)
-time2 <- difftime(Sys.time(), time1, units = "sec") %>% as.numeric() %>% abs()
-message(cat("\nrecombine (runtime: ", format(as.POSIXlt(time2, origin = "1970-01-01", tz = "UTC"), "%H:%M:%S", tz = "UTC"), ")", sep = ""))       
+    reads <- data.table::rbindlist(reads)      
     row.names(reads)<-NULL
     reads_in_seu  <- as.numeric(reads$seu_barcode %in% colnames(seu) %>% table())[2]
     ureads_in_seu <- as.numeric(unique(reads$seu_barcode) %in% colnames(seu) %>% table())[2]
@@ -324,11 +304,8 @@ message(cat("\nrecombine (runtime: ", format(as.POSIXlt(time2, origin = "1970-01
                                  cbs_found = ureads_in_seu, 
                                  cbs_seu = n_cells, 
                                  cb_seu_match_rate = ureads_in_seu/n_cells, 
-                                 step = "2_mol_swap"))
-time1 <- Sys.time()     
-    reads <- split(data.table::setDT(reads), by = "cbumi")
-time2 <- difftime(Sys.time(), time1, units = "sec") %>% as.numeric() %>% abs()
-message(cat("\nsplit (runtime: ", format(as.POSIXlt(time2, origin = "1970-01-01", tz = "UTC"), "%H:%M:%S", tz = "UTC"), ")", sep = ""))     
+                                 step = "2_mol_swap"))     
+    reads <- split(data.table::setDT(reads), by = "cbumi") 
   }
   ## Performing Dedup
   message(cat("\nPerforming Dedup on UMIs: removing PCR duplicates"))
@@ -337,10 +314,7 @@ message(cat("\nsplit (runtime: ", format(as.POSIXlt(time2, origin = "1970-01-01"
     df <- df[1,]
     return(df)
   }, mc.cores = multi_thread)
-time1 <- Sys.time()   
-  reads <- data.table::rbindlist(reads)
-time2 <- difftime(Sys.time(), time1, units = "sec") %>% as.numeric() %>% abs()
-message(cat("\nrecombine (runtime: ", format(as.POSIXlt(time2, origin = "1970-01-01", tz = "UTC"), "%H:%M:%S", tz = "UTC"), ")", sep = ""))   
+  reads <- data.table::rbindlist(reads)  
   row.names(reads)<-NULL
   if (stat_display) {
     reads_in_seu <- as.numeric(reads$seu_barcode %in% colnames(seu) %>% table())[2]
@@ -608,7 +582,7 @@ message(cat("\nrecombine (runtime: ", format(as.POSIXlt(time2, origin = "1970-01
                                    cb_seu_match_rate = ureads_in_seu/n_cells,
                                    step = "7_ld_correct"))
       reads <- split(data.table::setDT(reads), by = "seu_barcode")
-      reads <- pbmcapply::mclapply(reads, data.table::setDF, mc.cores = multi_thread)
+      reads <- parallel::mclapply(reads, data.table::setDF, mc.cores = multi_thread)
     }
   }
   ## Matrix formation
@@ -713,7 +687,7 @@ HLA_clusters <- function(reads, k = 2, seu = NULL, CB_rev_com = FALSE, geno_meta
   if (QC_mm2) {
     message(cat("\nRemoving low quality reads based on minimap2 tags"))
     reads <- split(data.table::setDT(reads), by = "gene")
-    reads <- pbmcapply::mclapply(reads, data.table::setDF, mc.cores = multi_thread)
+    reads <- parallel::mclapply(reads, data.table::setDF, mc.cores = multi_thread)
     reads <- pbmcapply::pbmclapply(reads, function(df){df[df$s1 > s1_belowmax*max(df$s1) & df$AS > AS_belowmax*max(df$AS) & df$NM <= NM_thresh & df$de <= de_thresh,]}, mc.cores = multi_thread)
     reads <- data.table::rbindlist(reads)
     row.names(reads)<-NULL
@@ -749,7 +723,7 @@ HLA_clusters <- function(reads, k = 2, seu = NULL, CB_rev_com = FALSE, geno_meta
   reads$seu_barcode <- paste0(reads$samp,"_",reads$CB,"-1")
   message(cat("\nCreating an HLA Count Matrix"))
   reads <- split(data.table::setDT(reads), by = "seu_barcode")
-  reads <- pbmcapply::pbmclapply(reads, data.table::setDF, mc.cores = multi_thread)
+  reads <- parallel::mclapply(reads, data.table::setDF, mc.cores = multi_thread)
   HLA.matrix <- matrix(0, nrow = length(alleles), ncol = length(reads), dimnames = list(alleles, names(reads)))
   pb <- pbmcapply::progressBar(min = 0, max = length(reads), style = "ETA", char = "=")
   for (i in 1:length(reads)) {
