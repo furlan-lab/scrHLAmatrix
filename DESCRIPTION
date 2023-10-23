@@ -1,8 +1,8 @@
 Package: scrHLAmatrix
 Type: Package
 Title: Operating on scrHLAtag output to Determine HLA genotypes of the entity(ies) forming the barcoded cells, and to Correct/Deduplicate HLA genotyping reads, before finally Summarizing them into Seurat-compatible Matrices
-Version: 0.5.7
-Date: 2023-10-20
+Version: 0.5.8
+Date: 2023-10-23
 Author: Sami B. Kanaan
 Maintainer: Sami B. Kanaan <kanaan.sb@outlook.com>
 Description: The functions in this package take as input: 
@@ -11,7 +11,7 @@ Description: The functions in this package take as input:
   scrHLAtag must be run on the BAM file(s) from the "corrected" (not the "dedup") step that has been processed using the single cell IsoSeq3 pipeline (https://github.com/PacificBiosciences/IsoSeq).  
 License: MIT
 Encoding: UTF-8
-Imports: stringr, stats, pbmcapply, parallel, Matrix, magrittr, htmltools, ggplot2, Seurat, dplyr, cowplot
+Imports: stringr, stats, pbmcapply, parallel, Matrix, magrittr, htmltools, ggplot2, Seurat, dplyr, cowplot, Biostrings, data.table, stats, utils, IRanges, S4Vectors, uwot, graphics, gridExtra, tidyr, viridis, crayon
 RoxygenNote: 7.2.3
 Depends: 
     R (>= 2.10)

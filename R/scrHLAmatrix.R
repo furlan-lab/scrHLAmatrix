@@ -51,8 +51,16 @@
 HLA_Matrix <- function(reads, seu, hla_recip = character(), hla_donor = character(), QC_mm2 = TRUE, res_conflict_per_gene = TRUE, LD_correct = TRUE, remove_alleles = character(), s1_belowmax = 0.75, AS_belowmax = 0.85, NM_thresh = 15, de_thresh = 0.015, parallelize = FALSE, CB_rev_com = FALSE, stat_display = FALSE, UMI_dupl_display = TRUE, return_stats = FALSE, Ct = 0) {
   s <- Sys.time()
   #message(cat(format(s, "%F %H:%M:%S")))
+  n_reads <- nrow(reads)
+  if (n_reads > 1e+06) {
+    message(cat("\nLarge scrHLAtag count file detected (", n_reads, " rows counted); expect resource-demanding processing and long run times", sep = ""))
+    message(cat(crayon::green("Note: "), "Multi-threading errors had been more frequently experienced while running large count files; it is recommended to maintain 'parallelize = FALSE'", sep = ""))
+  }
   ## check Seurat object
-  if (class(seu) != "Seurat") {
+  if (class(seu) == "Seurat") {
+    message(cat("\nObject of class 'Seurat' detected"))
+    message(cat(crayon::green("Note: "), "Currently the Seurat Barcode (i.e. colnames or Cells) supported format is: SAMPLE_AATGCTTGGTCCATTA-1", sep = ""))
+  } else {
     stop("Single-cell dataset container must be of class 'Seurat'")
   }
   ## parallelize
@@ -83,7 +91,7 @@ HLA_Matrix <- function(reads, seu, hla_recip = character(), hla_donor = characte
     reads$leftover <- NULL
     reads$gene <- NULL
   } else {
-    stop("The HLA allele column is unrecognizable or has incorrect format. \nMake sure gene and allele are separated by standard nomenclature asterisk (or other special character).")
+    stop("The HLA allele column is unrecognizable or has incorrect format. \nMake sure gene and allele are separated by standard nomenclature asterisk (or other special character)")
   }
   reads$cbumi <- paste0(reads$CB, ":", reads$UMI)
   reads$UMI <- NULL # no longer needed 
@@ -93,14 +101,14 @@ HLA_Matrix <- function(reads, seu, hla_recip = character(), hla_donor = characte
   } else if (all(grepl("-", hla_recip))) {
     hla_recip <- hla_recip
   } else {
-    stop("Incorrect format for recipient-defined and/or donor-defined HLA alleles. \nMake sure gene and allele are separated by standard nomenclature asterisk (or other special character).")
+    stop("Incorrect format for recipient-defined and/or donor-defined HLA alleles. \nMake sure gene and allele are separated by standard nomenclature asterisk (or other special character)")
   }
   if (any(grepl(special, hla_donor))) {
     hla_donor <- gsub(special, "-", hla_donor)
   } else if (all(grepl("-", hla_donor))) {
     hla_donor <- hla_donor
   } else {
-    stop("Incorrect format for recipient-defined and/or donor-defined HLA alleles. \nMake sure gene and allele are separated by standard nomenclature asterisk (or other special character).")
+    stop("Incorrect format for recipient-defined and/or donor-defined HLA alleles. \nMake sure gene and allele are separated by standard nomenclature asterisk (or other special character)")
   }
   ## check class of 'Ct'
   if (class(Ct) != "integer"){
@@ -153,7 +161,6 @@ HLA_Matrix <- function(reads, seu, hla_recip = character(), hla_donor = characte
                                cb_seu_match_rate = ureads_in_seu/n_cells, 
                                step = "0_raw_reads"))
   }
-  message(cat("Note: Currently the Seurat Barcode (i.e. Seurat colnames or Cells) supported format is: SAMPLE_AATGCTTGGTCCATTA-1"))
   message(cat("Available reads per gene:"))
   print(table(reads$hla, useNA = "ifany"))
   if (UMI_dupl_display) {
@@ -179,7 +186,7 @@ HLA_Matrix <- function(reads, seu, hla_recip = character(), hla_donor = characte
   }
   ## Remove low quality reads based on minimap2 tags
   if (QC_mm2 & (!all(c("NM", "AS", "s1", "de") %in% colnames(reads))) ) {
-    message(cat("\nCannot remove low quality reads based on minimap2 tags: scrHLAtag output 'reads' dataframe must contain the mm2 columns 'NM', 'AS', 's1', and 'de'; continuing without mm2 QC. "))
+    message(cat("\nCannot remove low quality reads based on minimap2 tags: scrHLAtag output 'reads' dataframe must contain the mm2 columns 'NM', 'AS', 's1', and 'de'; ", crayon::red("continuing without mm2 QC"), sep = ""))
     QC_mm2 <- FALSE
   }
   if (QC_mm2) {
@@ -740,7 +747,8 @@ HLA_clusters <- function(reads, k = 2, seu = NULL, CB_rev_com = FALSE, geno_meta
     part_HLA<- HLA.matrix
   } else {
     if (class(seu) == "Seurat") {
-      message(cat("\nNote: Currently the Seurat Barcode (i.e. Seurat colnames or Cells) supported format is: SAMPLE_AATGCTTGGTCCATTA-1"))
+      message(cat("\nObject of class 'Seurat' detected"))
+      message(cat(crayon::green("Note: "), "Currently the Seurat Barcode (i.e. colnames or Cells) supported format is: SAMPLE_AATGCTTGGTCCATTA-1", sep = ""))
       if(match_CB_with_seu) {
         part_HLA<- HLA.matrix[,colnames(HLA.matrix) %in% Cells(seu)]
       } else {
@@ -843,11 +851,10 @@ map_HLA_clusters <- function(reads.list, cluster_coordinates, CB_rev_com = FALSE
     }
   }
   if (CB_rev_com) {
-    message(cat("\nConverting Cell Barcodes to their reverse complements"))
     for (i in 1:length(reads.list)) {
       reads.list[[i]]$hla_clusters <- NA
       reads.list[[i]]$hla_clusters <- cluster_coordinates$hla_clusters[
-        match(paste0(reads.list[[i]]$samp,"_",pbmcapply::pbmclapply(reads.list[[i]]$CB, function(x) intToUtf8(rev(utf8ToInt(chartr('ATGC', 'TACG', x)))), mc.cores = multi_thread) %>% unlist(),"-1"), 
+        match(paste0(reads.list[[i]]$samp,"_", parallel::mclapply(reads.list[[i]]$CB, function(x) intToUtf8(rev(utf8ToInt(chartr('ATGC', 'TACG', x)))), mc.cores = multi_thread) %>% unlist(),"-1"), 
               rownames(cluster_coordinates))
       ]
     }
