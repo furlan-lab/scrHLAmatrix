@@ -14,9 +14,7 @@
 #' @param de_thresh  is the gap-compressed per-base sequence divergence in the minimap2 alignment at or below which the quality of the read is acceptable; the number is between 0 and 1, and default is 0.015.
 #' @param parallelize  is a logical, called TRUE if using parallel processing (multi-threading) is desired; default is FALSE.
 #' @param CB_rev_com  is a logical, called TRUE if the need to obtained the reverse complement of Cell Barcodes (CBs) is desired; default is FALSE. 
-#' @param stat_display  is a logical, called TRUE if the display of read numbers and unique barcode numbers is desired at each step of the process; will require additional computations which may noticeably slow down the function; default is FALSE. 
-#' @param UMI_dupl_display  is a logical, called TRUE if the display of the plot estimating the UMI duplication rate is desired while the function continues running; default is TRUE.
-#' @param return_stats  is a logical, when TRUE returns step-by-step read statistics and UMI duplication rate in a list of dataframes and plot, in addition to the Seurat-compatible count matrix; defualt is FALSE.
+#' @param return_stats  is a logical, when TRUE returns step-by-step read statistics and UMI duplication rate in a list of dataframes and plot, in addition to the Seurat-compatible count matrix; will require additional computations which may noticeably slow down the function; defualt is FALSE.
 #' @param Ct  is the count threshold for the PCR copies of UMIs to retain; default is 0.
 #' @import stringr
 #' @import pbmcapply
@@ -48,7 +46,7 @@
 #' HLA_Matrix(reads = cts[["mRNA"]], seu = your_Seurat_obj, hla_recip = c("A*24:02:01", "DRB1*04:01:01", "DRB4*01:03:02"), hla_donor = c("A*33:03:01", "B*42:01:01"))
 #' @export
 
-HLA_Matrix <- function(reads, seu, hla_recip = character(), hla_donor = character(), QC_mm2 = TRUE, res_conflict_per_gene = TRUE, LD_correct = TRUE, remove_alleles = character(), s1_belowmax = 0.75, AS_belowmax = 0.85, NM_thresh = 15, de_thresh = 0.015, parallelize = FALSE, CB_rev_com = FALSE, stat_display = FALSE, UMI_dupl_display = TRUE, return_stats = FALSE, Ct = 0) {
+HLA_Matrix <- function(reads, seu, hla_recip = character(), hla_donor = character(), QC_mm2 = TRUE, res_conflict_per_gene = TRUE, LD_correct = TRUE, remove_alleles = character(), s1_belowmax = 0.75, AS_belowmax = 0.85, NM_thresh = 15, de_thresh = 0.015, parallelize = FALSE, CB_rev_com = FALSE, return_stats = FALSE, Ct = 0) {
   s <- Sys.time()
   #message(cat(format(s, "%F %H:%M:%S")))
   n_reads <- nrow(reads)
@@ -151,7 +149,7 @@ HLA_Matrix <- function(reads, seu, hla_recip = character(), hla_donor = characte
               " (", format(round(100*(ureads_in_seu/l_ureads_cb), 2), nsmall = 1), 
               "%) matching the ", n_cells, " Cells in Seurat object (match rate ",
               format(round(100*(ureads_in_seu/n_cells), 2), nsmall = 1), "%)", sep = ""))
-  if (stat_display) {
+  if (return_stats) {
   stats_df <- rbind(stats_df,
                     data.frame(reads = n_reads, 
                                reads_found = reads_in_seu, 
@@ -163,7 +161,7 @@ HLA_Matrix <- function(reads, seu, hla_recip = character(), hla_donor = characte
   }
   message(cat("Available reads per gene:"))
   print(table(reads$hla, useNA = "ifany"))
-  if (UMI_dupl_display) {
+  if (return_stats) {
     message(cat("\nEstimating UMI duplication rate"))
     reads <- split(data.table::setDT(reads), by = "cbumi")
     reads <- parallel::mclapply(reads, data.table::setDF, mc.cores = multi_thread)
@@ -195,7 +193,7 @@ HLA_Matrix <- function(reads, seu, hla_recip = character(), hla_donor = characte
     reads <- pbmcapply::pbmclapply(reads, function(df){df[df$s1 > s1_belowmax*max(df$s1) & df$AS > AS_belowmax*max(df$AS) & df$NM <= NM_thresh & df$de <= de_thresh,]}, mc.cores = multi_thread)    
     reads <- data.table::rbindlist(reads) 
     row.names(reads)<-NULL
-    if (stat_display) {
+    if (return_stats) {
       reads_in_seu <- as.numeric(reads$seu_barcode %in% colnames(seu) %>% table())[2]
       ureads_in_seu <- as.numeric(unique(reads$seu_barcode) %in% colnames(seu) %>% table())[2]
       l_ureads_cb <- length(unique(reads$seu_barcode))
@@ -286,7 +284,7 @@ HLA_Matrix <- function(reads, seu, hla_recip = character(), hla_donor = characte
   # Applying the function
   message(cat("\nCorrecting Molecular Swap: keeping the reads per UMI with the HLA allele having the highest statistical probability"))
   reads <- pbmcapply::pbmclapply(reads, keep_one, mc.cores = multi_thread) 
-  if (stat_display) {
+  if (return_stats) {
     reads <- data.table::rbindlist(reads)      
     row.names(reads)<-NULL
     reads_in_seu  <- as.numeric(reads$seu_barcode %in% colnames(seu) %>% table())[2]
@@ -323,7 +321,7 @@ HLA_Matrix <- function(reads, seu, hla_recip = character(), hla_donor = characte
   }, mc.cores = multi_thread)
   reads <- data.table::rbindlist(reads)  
   row.names(reads)<-NULL
-  if (stat_display) {
+  if (return_stats) {
     reads_in_seu <- as.numeric(reads$seu_barcode %in% colnames(seu) %>% table())[2]
     ureads_in_seu <- as.numeric(unique(reads$seu_barcode) %in% colnames(seu) %>% table())[2]
     l_ureads_cb <- length(unique(reads$seu_barcode))
@@ -360,7 +358,7 @@ HLA_Matrix <- function(reads, seu, hla_recip = character(), hla_donor = characte
     message(cat("\nRemoving the following alleles from the counts file: ", remove_alleles, sep = ""))
     remove_alleles <- remove_alleles %>% gsub(special, "-", .)
     reads <- reads[-which(reads$gene0 %in% remove_alleles),]
-    if (stat_display) {
+    if (return_stats) {
       reads_in_seu <- as.numeric(reads$seu_barcode %in% colnames(seu) %>% table())[2]
       ureads_in_seu <- as.numeric(unique(reads$seu_barcode) %in% colnames(seu) %>% table())[2]
       l_ureads_cb <- length(unique(reads$seu_barcode))
@@ -423,14 +421,14 @@ HLA_Matrix <- function(reads, seu, hla_recip = character(), hla_donor = characte
   }
   if (hla_conflict_rate == 0) {
     message(cat("\nResolving Donor-v-Recipient Genotype Conflicts: no conflicts to resolve"))
-    if (stat_display) {
+    if (return_stats) {
       reads <- data.table::rbindlist(reads)
       row.names(reads)<-NULL
     }
   } else {
     message(cat("\nResolving Donor-v-Recipient Genotype Conflicts:\n  keeping either donor-specific or recipient specific HLA-associated UMIs, based on their count difference per Cell"))
     reads <- pbmcapply::pbmclapply(reads, remove_conflict, recip = hla_recip, donor = hla_donor, mc.cores = multi_thread)
-    if (stat_display) {
+    if (return_stats) {
       reads <- data.table::rbindlist(reads)
       row.names(reads)<-NULL
       reads_in_seu  <- as.numeric(reads$seu_barcode %in% colnames(seu) %>% table())[2]
@@ -460,7 +458,7 @@ HLA_Matrix <- function(reads, seu, hla_recip = character(), hla_donor = characte
   }
   ## Resolving per gene conflicts
   if (res_conflict_per_gene) {
-    if (!stat_display) {
+    if (!return_stats) {
       reads <- data.table::rbindlist(reads)
       row.names(reads)<-NULL
     }
@@ -497,7 +495,7 @@ HLA_Matrix <- function(reads, seu, hla_recip = character(), hla_donor = characte
     reads <- pbmcapply::pbmclapply(reads, keep_two, mc.cores = multi_thread)
     reads <- data.table::rbindlist(reads)
     row.names(reads)<-NULL
-    if (stat_display) {
+    if (return_stats) {
       reads_in_seu  <- as.numeric(reads$seu_barcode %in% colnames(seu) %>% table())[2]
       ureads_in_seu <- as.numeric(unique(reads$seu_barcode) %in% colnames(seu) %>% table())[2]
       l_ureads_cb  <- length(unique(reads$seu_barcode))
@@ -562,7 +560,7 @@ HLA_Matrix <- function(reads, seu, hla_recip = character(), hla_donor = characte
       return(df)
     }    
     reads <- pbmcapply::pbmclapply(reads, LD, mc.cores = multi_thread)
-    if (stat_display) {
+    if (return_stats) {
       reads <- data.table::rbindlist(reads)
       row.names(reads)<-NULL
       reads_in_seu  <- as.numeric(reads$seu_barcode %in% colnames(seu) %>% table())[2]
@@ -621,14 +619,10 @@ HLA_Matrix <- function(reads, seu, hla_recip = character(), hla_donor = characte
   #message(cat("\nDone!!  ", format(Sys.time(), "%F %H:%M:%S"), " (runtime: ", difftime(Sys.time(), s, units = "min") %>% as.numeric() %>% abs(), " min)", sep = ""))
   e <- difftime(Sys.time(), s, units = "sec") %>% as.numeric() %>% abs()
   message(cat("\nDone!! (runtime: ", format(as.POSIXlt(e, origin = "1970-01-01", tz = "UTC"), "%H:%M:%S", tz = "UTC"), ")", sep = ""))
-  if (return_stats & UMI_dupl_display) {
+  if (return_stats) {
     return(list(matrix = HLA, per_step_stats = stats_df, umi_dupl_counts = umi_counts, umi_dupl_plot = g))
   } else {
-    if (return_stats) {
-      return(list(matrix = HLA, per_step_stats = stats_df))
-    } else {
-      return(HLA)
-    }
+    return(HLA)
   }
 }
 
