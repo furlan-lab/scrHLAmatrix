@@ -91,7 +91,7 @@ HLA_Matrix <- function(reads, seu, hla_recip = character(), hla_donor = characte
   } else {
     stop("The HLA allele column is unrecognizable or has incorrect format. \nMake sure gene and allele are separated by standard nomenclature asterisk (or other special character)")
   }
-  reads$cbumi <- paste0(reads$CB, ":", reads$UMI)
+  reads$cbumi <- stringr::str_c(reads$CB, ":", reads$UMI)
   reads$UMI <- NULL # no longer needed 
   ## check format of 'hla_recip' and 'hla_donor'
   if (any(grepl(special, hla_recip))) {
@@ -131,7 +131,7 @@ HLA_Matrix <- function(reads, seu, hla_recip = character(), hla_donor = characte
     reads$CB <- pbmcapply::pbmclapply(reads$CB, function(x) intToUtf8(rev(utf8ToInt(chartr('ATGC', 'TACG', x)))), mc.cores = multi_thread) %>% unlist()        # fast
   } 
   ## Estimating number of reads and number of CBs
-  reads$seu_barcode <- paste0(reads$samp,"_",reads$CB,"-1")
+  reads$seu_barcode <- stringr::str_c(reads$samp,"_",reads$CB,"-1")
   reads$samp <- NULL # no longer needed
   stats_df <- data.frame(reads = numeric(), reads_found = numeric(), cbs = numeric(), cbs_found = numeric(), cbs_seu = numeric(), cb_seu_match_rate = numeric(), step = character())
   reads_in_seu <- as.numeric(reads$seu_barcode %in% colnames(seu) %>% table())[2]
@@ -222,7 +222,7 @@ HLA_Matrix <- function(reads, seu, hla_recip = character(), hla_donor = characte
     reads <- reads[order(reads$gene0), ]
   }
   ## jettison unused mm2 columns
-  reads <- reads[, !(colnames(reads) %in% c("NM", "AS", "s1", "de")), drop = F]
+  reads <- reads[, !colnames(reads) %in% c("NM", "AS", "s1", "de")]
   ## see if more than 1 allele are present per umi at a time
   # count all the problematic CB:UMIs for which a molecular swap is suspected
   reads$mol_swap <- NA
@@ -252,11 +252,8 @@ HLA_Matrix <- function(reads, seu, hla_recip = character(), hla_donor = characte
   close(pb)
   # count the molecular swap rate 
   mol_swap_rate_per_read <- length(which(sapply(reads, function(df) "yes" %in% df$mol_swap))) / length(which(sapply(reads, function(df) nrow(df)>1)))
-  mol_swap_rate_per_read
   class_swap_rate_per_read<-length(which(sapply(reads, function(df) "yes" %in% df$class_swap))) / length(which(sapply(reads, function(df) nrow(df)>1)))
-  class_swap_rate_per_read
   intraclass_swap_rate<- mol_swap_rate_per_read - class_swap_rate_per_read
-  intraclass_swap_rate
   message(cat("\n  intra-class molecular swap rate per UMI ", 
     format(round(100*intraclass_swap_rate, 3), nsmall = 1),
     "% of Cells\n  inter-class molecular swap rate per UMI ",
@@ -284,6 +281,7 @@ HLA_Matrix <- function(reads, seu, hla_recip = character(), hla_donor = characte
   # Applying the function
   message(cat("\nCorrecting Molecular Swap: keeping the reads per UMI with the HLA allele having the highest statistical probability"))
   reads <- pbmcapply::pbmclapply(reads, keep_one, mc.cores = multi_thread) 
+  reads <- Filter(Negate(is.null), reads)
   if (return_stats) {
     reads <- data.table::rbindlist(reads)      
     row.names(reads)<-NULL
