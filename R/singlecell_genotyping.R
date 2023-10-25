@@ -67,7 +67,7 @@ HLA_alleles_per_CB <- function(reads, seu = NULL, CB_rev_com = FALSE, hla_with_c
       cl <- unique(reads$hla_clusters) %>% as.factor()
       #cl <- cl[!is.na(cl)]
       idx <- cluster_index
-      message(cat("\nClusters generated from HLA distribution per Cell Barcode in UMAP space detected! Number of Clusters: ", length(cl)))
+      message(cat("\nClusters generated from HLA distribution per Cell Barcode in UMAP space detected! Number of Clusters: ", length(levels(cl))))
       reads <- reads[reads$hla_clusters %in% levels(cl)[idx],]
     } else {
       warning("  Colname 'hla_clusters' not detected in counts data.\n  Did you analyze distribution of alleles per Cell Barcodes in UMAP space using 'HLA_clusters()', \n  then map the generated HLA Clusters back to your counts data using 'map_HLA_clusters()'?")
