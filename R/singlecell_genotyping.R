@@ -64,11 +64,11 @@ HLA_alleles_per_CB <- function(reads, seu = NULL, CB_rev_com = FALSE, hla_with_c
   ## if HLA clusters based on distribution on UMAP was analyzed, and visualizing top alleles per cluster is desired
   if (!is.null(cluster_index)) {
     if ("hla_clusters" %in% colnames(reads)) {
-      cl <- unique(reads$hla_clusters)
-      cl <- cl[!is.na(cl)]
+      cl <- unique(reads$hla_clusters) %>% as.factor()
+      #cl <- cl[!is.na(cl)]
       idx <- cluster_index
       message(cat("\nClusters generated from HLA distribution per Cell Barcode in UMAP space detected! Number of Clusters: ", length(cl)))
-      reads <- reads[reads$hla_clusters %in% cl[idx],]
+      reads <- reads[reads$hla_clusters %in% levels(cl)[idx],]
     } else {
       warning("  Colname 'hla_clusters' not detected in counts data.\n  Did you analyze distribution of alleles per Cell Barcodes in UMAP space using 'HLA_clusters()', \n  then map the generated HLA Clusters back to your counts data using 'map_HLA_clusters()'?")
     }
@@ -78,8 +78,9 @@ HLA_alleles_per_CB <- function(reads, seu = NULL, CB_rev_com = FALSE, hla_with_c
     message(cat("\nRemoving low quality reads based on minimap2 tags"))
     reads <- with(reads, split(reads, list(gene=gene)))
     reads <- pbmclapply(reads, function(df){df[df$s1 > s1_belowmax*max(df$s1) & df$AS > AS_belowmax*max(df$AS) & df$NM <= NM_thresh & df$de <= de_thresh,]}, mc.cores = multi_thread)
-    reads <-  do.call("rbind", reads)
+    reads <- data.table::rbindlist(reads)
     row.names(reads)<-NULL
+    reads <- setDF(reads)
   } 
   ## Reverse Complement the CB
   if (CB_rev_com) {
@@ -127,11 +128,12 @@ HLA_alleles_per_CB <- function(reads, seu = NULL, CB_rev_com = FALSE, hla_with_c
   ## Matrix formation
   alleles <- unique(reads$gene) %>% sort()
   reads$seu_barcode <- paste0(reads$samp,"_",reads$CB,"-1")
-  reads <- with(reads, split(reads, list(seu_barcode=seu_barcode)))
+  reads <- split(data.table::setDT(reads), by = "seu_barcode")
+  reads <- parallel::mclapply(reads, data.table::setDF, mc.cores = multi_thread)
   # matrix
   HLA.matrix <- matrix(0, nrow = length(alleles), ncol = length(reads), dimnames = list(alleles, names(reads)))
   message(cat("\nCreating an HLA Count Matrix"))
-  pb <- txtProgressBar(min = 0, max = length(reads), style = 3, char = "=")
+  pb <- pbmcapply::progressBar(min = 0, max = length(reads), style = "ETA", char = "=")
   for (i in 1:length(reads)) {
     counts <- table(reads[[i]]$gene)
     HLA.matrix[, i] <- counts[alleles]
@@ -235,6 +237,7 @@ HLA_alleles_per_CB <- function(reads, seu = NULL, CB_rev_com = FALSE, hla_with_c
   }
   if (default_theme) {
     plots <- c()
+    pb <- pbmcapply::progressBar(min = 0, max = length(unique(tab$hlagene)), style = "ETA", char = "=")
     for (j in 1:length(unique(tab$hlagene))) {
       t <- tab[tab$hlagene == unique(tab$hlagene)[j],]
       t <- t[order(-t$N),]
@@ -247,8 +250,9 @@ HLA_alleles_per_CB <- function(reads, seu = NULL, CB_rev_com = FALSE, hla_with_c
         scale_x_discrete(label=function(x) sub('...', '', x))+
         theme(text = element_text(size = 9),legend.position = "none",axis.title.x=element_blank(),axis.title.y=element_blank(),axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))
       plots<- c(plots,list(g))
+      setTxtProgressBar(pb, j)
     }
-    
+    close(pb)
     pl <- do.call("plot_grid", c(plots, align = "hv", ncol=floor(sqrt(length(plots)))))
     y.grob <- grid::textGrob("Cell Barcodes (n)", gp=grid::gpar(fontsize=9), rot=90)
     x.grob <- grid::textGrob("Top Genotype Combinations", gp=grid::gpar(fontsize=9))
@@ -261,6 +265,7 @@ HLA_alleles_per_CB <- function(reads, seu = NULL, CB_rev_com = FALSE, hla_with_c
     }
   } else {
     plots <- c()
+    pb <- pbmcapply::progressBar(min = 0, max = length(unique(tab$hlagene)), style = "ETA", char = "=")
     for (j in 1:length(unique(tab$hlagene))) {
       t <- tab[tab$hlagene == unique(tab$hlagene)[j],]
       t <- t[order(-t$N),]
@@ -273,7 +278,9 @@ HLA_alleles_per_CB <- function(reads, seu = NULL, CB_rev_com = FALSE, hla_with_c
         scale_x_discrete(label=function(x) sub('...', '', x))+
         theme(legend.position = "none",axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))
       plots<- c(plots,list(g))
+      setTxtProgressBar(pb, j)
     }
+    close(pb)
     message(cat("\nDone!!"))
     if (return_genotype_data) {
       return(list(Plots = plots, Genotype_data_per_CB = top2cb))
@@ -348,8 +355,9 @@ Top_HLA_list <- function(reads, seu = NULL, CB_rev_com = FALSE, hla_with_counts_
     message(cat("\nRemoving low quality reads based on minimap2 tags"))
     reads <- with(reads, split(reads, list(gene=gene)))
     reads <- pbmclapply(reads, function(df){df[df$s1 > s1_belowmax*max(df$s1) & df$AS > AS_belowmax*max(df$AS) & df$NM <= NM_thresh & df$de <= de_thresh,]}, mc.cores = multi_thread)
-    reads <-  do.call("rbind", reads)
+    reads <- data.table::rbindlist(reads)
     row.names(reads)<-NULL
+    reads <- setDF(reads)
   } 
   ## Reverse Complement the CB
   if (CB_rev_com) {
@@ -413,7 +421,7 @@ Top_HLA_list <- function(reads, seu = NULL, CB_rev_com = FALSE, hla_with_counts_
     reads[[m]]$seu_barcode <- paste0(reads[[m]]$samp,"_",reads[[m]]$CB,"-1")
     reads[[m]] <- with(reads[[m]], split(reads[[m]], list(seu_barcode=seu_barcode)))
     HLA.matrix <- matrix(0, nrow = length(alleles), ncol = length(reads[[m]]), dimnames = list(alleles, names(reads[[m]])))
-    pb <- txtProgressBar(min = 0, max = length(reads[[m]]), style = 3, char = "=")
+    pb <- pbmcapply::progressBar(min = 0, max = length(reads[[m]]), style = "ETA", char = "=")
     for (i in 1:length(reads[[m]])) {
       counts <- table(reads[[m]][[i]]$gene)
       HLA.matrix[, i] <- counts[alleles]
