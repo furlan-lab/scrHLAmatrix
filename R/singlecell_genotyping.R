@@ -70,7 +70,7 @@ HLA_alleles_per_CB <- function(reads, seu = NULL, CB_rev_com = FALSE, hla_with_c
       message(cat("\nClusters generated from HLA distribution per Cell Barcode in UMAP space detected! Number of Clusters: ", length(levels(cl))))
       reads <- reads[reads$hla_clusters %in% levels(cl)[idx],]
     } else {
-      warning("  Colname 'hla_clusters' not detected in counts data.\n  Did you analyze distribution of alleles per Cell Barcodes in UMAP space using 'HLA_clusters()', \n  then map the generated HLA Clusters back to your counts data using 'map_HLA_clusters()'?")
+      message(cat(crayon::red("Note: Colname 'hla_clusters' not detected in counts data.\n  Did you analyze distribution of alleles per Cell Barcodes in UMAP space using 'HLA_clusters()', \n  then map the generated HLA Clusters back to your counts data using 'map_HLA_clusters()'?")))
     }
   }  
   ## Remove low quality reads based on minimap2 tags
@@ -148,6 +148,8 @@ HLA_alleles_per_CB <- function(reads, seu = NULL, CB_rev_com = FALSE, hla_with_c
     part_HLA<- HLA.matrix
   } else {
     if (class(seu) == "Seurat") {
+      message(cat("\nObject of class 'Seurat' detected"))
+      message(cat(crayon::green("Note: "), "Currently the Seurat Barcode (i.e. colnames or Cells) supported format is: SAMPLE_AATGCTTGGTCCATTA-1", sep = ""))
       if(match_CB_with_seu) {
         part_HLA<- HLA.matrix[,colnames(HLA.matrix) %in% Cells(seu)]
       } else {
@@ -400,7 +402,7 @@ Top_HLA_list <- function(reads, seu = NULL, CB_rev_com = FALSE, hla_with_counts_
     reads$a <- NULL
   }
   if (!(field_resolution %in% c(1:3))) {
-    warning("HLA field resolution must be 1, 2, or 3 to take into consideration the first, the first two, or the first three field(s) of HLA designation.\nKeeping field resolution at 3 by default.")
+    message(cat(crayon::red("Note: HLA field resolution must be 1, 2, or 3 to take into consideration the first, the first two, or the first three field(s) of HLA designation.\nKeeping field resolution at 3 by default.")))
   }
   ## Matrix formation
   message(cat("\nCreating HLA Count Matrix(ces)"))
@@ -435,6 +437,8 @@ Top_HLA_list <- function(reads, seu = NULL, CB_rev_com = FALSE, hla_with_counts_
       part_HLA<- HLA.matrix
     } else {
       if (class(seu) == "Seurat") {
+        message(cat("\nObject of class 'Seurat' detected"))
+        message(cat(crayon::green("Note: "), "Currently the Seurat Barcode (i.e. colnames or Cells) supported format is: SAMPLE_AATGCTTGGTCCATTA-1", sep = ""))
         if(match_CB_with_seu) {
           part_HLA<- HLA.matrix[,colnames(HLA.matrix) %in% Cells(seu)]
         } else {
