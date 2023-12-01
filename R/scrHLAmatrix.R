@@ -344,8 +344,6 @@ HLA_Matrix <- function(reads, seu, hla_recip = character(), hla_donor = characte
                                  cb_seu_match_rate = ureads_in_seu/n_cells, 
                                  step = "3_dedup"))
   }
-  ## Clean-up HLA conflicts per CB
-  message(cat("\nDonor-v-Recipient Genotype Conflict: assuming a cell cannot have both recipient and donor-origin HLA allele"))
   # remove obsolete cols and add Seurat barcode
   reads$mol_swap <- NULL
   reads$class_swap <- NULL
@@ -353,7 +351,7 @@ HLA_Matrix <- function(reads, seu, hla_recip = character(), hla_donor = characte
   reads$hla_conflict <- as.factor(reads$hla_conflict)
   ## Remove undesired HLa alleles
   if (length(remove_alleles) > 0) {
-    message(cat("\nRemoving the following alleles from the counts file: ", remove_alleles, sep = ""))
+    message(cat("\nRemoving the following alleles from the counts file:", remove_alleles, sep = " "))
     remove_alleles <- remove_alleles %>% gsub(special, "-", .)
     reads <- reads[-which(reads$gene0 %in% remove_alleles),]
     if (return_stats) {
@@ -382,6 +380,8 @@ HLA_Matrix <- function(reads, seu, hla_recip = character(), hla_donor = characte
                                    step = "4_rmv_alleles"))
     }
   }
+  ## Clean-up HLA conflicts per CB
+  message(cat("\nDonor-v-Recipient Genotype Conflict: assuming a cell cannot have both recipient and donor-origin HLA allele"))
   # split by Seurat barcode
   reads <- split(data.table::setDT(reads), by = "seu_barcode")
   # detect HLA conflicts (i.e. donor-spec and recipient-spec HLA in the same barcode)
