@@ -353,7 +353,9 @@ HLA_Matrix <- function(reads, seu, hla_recip = character(), hla_donor = characte
   if (length(remove_alleles) > 0) {
     message(cat("\nRemoving the following alleles from the counts file:", remove_alleles, sep = " "))
     remove_alleles <- remove_alleles %>% gsub(special, "-", .)
-    reads <- reads[-which(reads$gene0 %in% remove_alleles),]
+    if (length(which(reads$gene0 %in% remove_alleles)) > 0) {
+      reads <- reads[-which(reads$gene0 %in% remove_alleles),]
+    }
     if (return_stats) {
       reads_in_seu <- as.numeric(reads$seu_barcode %in% colnames(seu) %>% table())[2]
       ureads_in_seu <- as.numeric(unique(reads$seu_barcode) %in% colnames(seu) %>% table())[2]
