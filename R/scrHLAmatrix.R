@@ -838,8 +838,8 @@ map_HLA_clusters <- function(reads.list, cluster_coordinates, CB_rev_com = FALSE
   if (class(reads.list) %in% c("data.frame", "data.table")) {
     reads.list <- list(reads.list=reads.list)
   } else {
-    if (!(sapply(reads.list, function(x) class(x)) %in% c("data.frame", "data.table") %>% all()) | class(reads.list) != "list") {
-      stop("The 'reads' object's class should be either a 'data.frame', a 'data.table', or a 'list' of the formers")
+    if (!(sapply(reads.list, function(x) class(x)) %in% list("data.frame", "data.table", c("data.table", "data.frame"), c("data.frame", "data.table")) %>% all()) | class(reads.list) != "list") {
+      stop("The class of 'reads.list' should be either a 'data.frame', a 'data.table', or a 'list' of the formers")
     }
   }
   if (CB_rev_com) {
