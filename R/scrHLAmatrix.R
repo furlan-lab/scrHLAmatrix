@@ -90,7 +90,7 @@ HLA_Matrix <- function(reads, seu, hla_recip = character(), hla_donor = characte
   } else {
     stop("The HLA allele column is unrecognizable or has incorrect format. \nMake sure gene and allele are separated by standard nomenclature asterisk (or other special character)")
   }
-  reads$cbumi <- stringr::str_c(read$samp, ":", reads$CB, ":", reads$UMI)
+  reads$cbumi <- stringr::str_c(reads$samp, ":", reads$CB, ":", reads$UMI)
   reads$UMI <- NULL # no longer needed 
   ## check format of 'hla_recip' and 'hla_donor'
   if (any(grepl(special, hla_recip))) {
