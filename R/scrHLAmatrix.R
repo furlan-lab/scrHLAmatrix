@@ -15,7 +15,6 @@
 #' @param parallelize  is a logical, called TRUE if using parallel processing (multi-threading) is desired; default is FALSE.
 #' @param CB_rev_com  is a logical, called TRUE if the need to obtained the reverse complement of Cell Barcodes (CBs) is desired; default is FALSE. 
 #' @param return_stats  is a logical, when TRUE returns step-by-step read statistics and UMI duplication rate in a list of dataframes and plot, in addition to the Seurat-compatible count matrix; will require additional computations which may noticeably slow down the function; defualt is FALSE.
-#' @param Ct  is the count threshold for the PCR copies of UMIs to retain; default is 0.
 #' @import stringr
 #' @import pbmcapply
 #' @import parallel
@@ -46,7 +45,7 @@
 #' HLA_Matrix(reads = cts[["mRNA"]], seu = your_Seurat_obj, hla_recip = c("A*24:02:01", "DRB1*04:01:01", "DRB4*01:03:02"), hla_donor = c("A*33:03:01", "B*42:01:01"))
 #' @export
 
-HLA_Matrix <- function(reads, seu, hla_recip = character(), hla_donor = character(), QC_mm2 = TRUE, res_conflict_per_gene = TRUE, LD_correct = TRUE, remove_alleles = character(), s1_belowmax = 0.75, AS_belowmax = 0.85, NM_thresh = 15, de_thresh = 0.015, parallelize = FALSE, CB_rev_com = FALSE, return_stats = FALSE, Ct = 0) {
+HLA_Matrix <- function(reads, seu, hla_recip = character(), hla_donor = character(), QC_mm2 = TRUE, res_conflict_per_gene = TRUE, LD_correct = TRUE, remove_alleles = character(), s1_belowmax = 0.75, AS_belowmax = 0.85, NM_thresh = 15, de_thresh = 0.015, parallelize = FALSE, CB_rev_com = FALSE, return_stats = FALSE) {
   s <- Sys.time()
   #message(cat(format(s, "%F %H:%M:%S")))
   n_reads <- nrow(reads)
@@ -91,7 +90,7 @@ HLA_Matrix <- function(reads, seu, hla_recip = character(), hla_donor = characte
   } else {
     stop("The HLA allele column is unrecognizable or has incorrect format. \nMake sure gene and allele are separated by standard nomenclature asterisk (or other special character)")
   }
-  reads$cbumi <- stringr::str_c(reads$CB, ":", reads$UMI)
+  reads$cbumi <- stringr::str_c(read$samp, ":", reads$CB, ":", reads$UMI)
   reads$UMI <- NULL # no longer needed 
   ## check format of 'hla_recip' and 'hla_donor'
   if (any(grepl(special, hla_recip))) {
@@ -107,12 +106,6 @@ HLA_Matrix <- function(reads, seu, hla_recip = character(), hla_donor = characte
     hla_donor <- hla_donor
   } else {
     stop("Incorrect format for recipient-defined and/or donor-defined HLA alleles. \nMake sure gene and allele are separated by standard nomenclature asterisk (or other special character)")
-  }
-  ## check class of 'Ct'
-  if (class(Ct) != "integer"){
-    if (class(Ct) != "numeric"){
-      stop("Count threshold 'Ct' must be numeric or integer")
-    }
   }
   ## check class of 'NM_thresh'
   if (class(NM_thresh) != "integer"){
@@ -259,10 +252,6 @@ HLA_Matrix <- function(reads, seu, hla_recip = character(), hla_donor = characte
     "% of Cells\n  inter-class molecular swap rate per UMI ",
     format(round(100*class_swap_rate_per_read, 3), nsmall = 1),
     "% of Cells", sep = ""))  
-  ## Count Threshold 'Ct' above which the count of UMI copies becomes acceptable  
-  if (Ct > 0) {
-    reads <- reads[sapply(reads, nrow) > Ct]
-  }
   ## Function to keep the most occurring HLA when more than 1 HLA is present per cb:umi
   keep_one <- function(df) {
     n_hla <- table(df$gene0)
