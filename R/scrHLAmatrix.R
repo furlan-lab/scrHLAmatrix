@@ -234,10 +234,11 @@ HLA_Matrix <- function(reads, seu, hla_recip = character(), hla_donor = characte
     setTxtProgressBar(pb, j)
   }
   close(pb)
-  cl1<-c("A" , "B" , "C", "E" , "F" , "G")
-  cl2<-c("DRA", "DRB1", "DRB3", "DRB4", "DRB5", "DQA1", "DQA2", "DQB1", "DQB2", "DPA1", "DPA2", "DPB1", "DPB2", "DMA", "DMB", "DOA", "DOB")
+  cl1<-c("A" , "B" , "C", "E" , "F" , "G", "H", "K", "Y", "J", "L", "N", "P", "S", "T", "U", "V", "W")
+  cl2<-c("DRA", "DRB1", "DRB2", "DRB3", "DRB4", "DRB5", "DRB6", "DRB7", "DRB8", "DRB9", "DQA1", "DQA2", "DQB1", "DQB2", "DPA1", "DPA2", "DPB1", "DPB2", "DMA", "DMB", "DOA", "DOB")
+  cl0<-c("HFE", "MICA", "MICB", "TAP1", "TAP2")
   for(j in 1:length(reads)){
-    reads[[j]]$class_swap <- ifelse(any(reads[[j]]$hla %in% cl1) & any(reads[[j]]$hla %in% cl2), 
+    reads[[j]]$class_swap <- ifelse((any(reads[[j]]$hla %in% cl1) & any(reads[[j]]$hla %in% cl2)) | (any(reads[[j]]$hla %in% cl1) & any(reads[[j]]$hla %in% cl0)) | (any(reads[[j]]$hla %in% cl2) & any(reads[[j]]$hla %in% cl0)), 
                                         reads[[j]]$class_swap <- "yes",
                                         reads[[j]]$class_swap <- "no")
     setTxtProgressBar(pb, j)
