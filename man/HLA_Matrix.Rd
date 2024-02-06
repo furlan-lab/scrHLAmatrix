@@ -13,10 +13,10 @@ HLA_Matrix(
   res_conflict_per_gene = TRUE,
   LD_correct = TRUE,
   remove_alleles = character(),
-  s1_belowmax = 0.75,
-  AS_belowmax = 0.85,
+  s1_belowmax = 0.8,
+  AS_belowmax = 0.8,
   NM_thresh = 15,
-  de_thresh = 0.015,
+  de_thresh = 0.01,
   parallelize = FALSE,
   CB_rev_com = FALSE,
   return_stats = FALSE

@@ -15,10 +15,10 @@ HLA_clusters(
   match_CB_with_seu = TRUE,
   umap_first_n_PCs = 25,
   QC_mm2 = TRUE,
-  s1_belowmax = 0.75,
-  AS_belowmax = 0.85,
+  s1_belowmax = 0.8,
+  AS_belowmax = 0.8,
   NM_thresh = 15,
-  de_thresh = 0.015,
+  de_thresh = 0.01,
   parallelize = FALSE,
   pt_size = 0.5,
   ...

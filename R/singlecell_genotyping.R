@@ -45,7 +45,7 @@
 #'   cts[[str_sub(strsplit(mol_info[i], "\\.")[[1]][1], start= -4)]] <- ctsu
 #'   rm(ctsu)
 #' }
-#' HLA_alleles_per_CB(reads = cts[["mRNA"]], seu = your_Seurat_Obj, hla_with_counts_above = 5, CBs_with_counts_above = 35)
+#' Top_HLA_plot_byCB(reads = cts[["mRNA"]], seu = your_Seurat_Obj, hla_with_counts_above = 5, CBs_with_counts_above = 35)
 #' # 
 #' # Note: if for a particular HLA, the alleles with the most counts are in a tie 
 #' # between 3 or more alleles in a particular Cell Barcode, we cannot know which 
@@ -53,7 +53,7 @@
 #' # there were no counts for that allele (all zeros).
 #' @export
 
-HLA_alleles_per_CB <- function(reads, seu = NULL, CB_rev_com = FALSE, hla_with_counts_above = 0, CBs_with_counts_above = 0, match_CB_with_seu = TRUE, cluster_index = NULL, top_hla = 10, field_resolution = 3, QC_mm2 = TRUE, s1_belowmax = 0.75, AS_belowmax = 0.85, NM_thresh = 15, de_thresh = 0.015, default_theme = TRUE, return_genotype_data = FALSE, parallelize = TRUE) {
+Top_HLA_plot_byCB <- function(reads, seu = NULL, CB_rev_com = FALSE, hla_with_counts_above = 0, CBs_with_counts_above = 0, match_CB_with_seu = TRUE, cluster_index = NULL, top_hla = 10, field_resolution = 3, QC_mm2 = TRUE, s1_belowmax = 0.8, AS_belowmax = 0.8, NM_thresh = 15, de_thresh = 0.01, default_theme = TRUE, return_genotype_data = FALSE, parallelize = TRUE) {
   ## parallelize
   if (parallelize) {
     multi_thread <- parallel::detectCores()
@@ -336,7 +336,7 @@ HLA_alleles_per_CB <- function(reads, seu = NULL, CB_rev_com = FALSE, hla_with_c
 #'   cts[[str_sub(strsplit(mol_info[i], "\\.")[[1]][1], start= -4)]] <- ctsu
 #'   rm(ctsu)
 #' }
-#' Top_HLA_list(reads = cts[["mRNA"]], seu = your_Seurat_Obj, hla_with_counts_above = 5, CBs_with_counts_above = 35, frac = 0.9, min_alleles_keep = 2)
+#' Top_HLA_list_byCB(reads = cts[["mRNA"]], seu = your_Seurat_Obj, hla_with_counts_above = 5, CBs_with_counts_above = 35, frac = 0.9, min_alleles_keep = 2)
 #' # 
 #' # Note: if for a particular HLA, the alleles with the most counts are in a tie 
 #' # between 3 or more alleles in a particular Cell Barcode, we cannot know which 
@@ -344,7 +344,7 @@ HLA_alleles_per_CB <- function(reads, seu = NULL, CB_rev_com = FALSE, hla_with_c
 #' # there were no counts for that allele (all zeros).
 #' @export
 
-Top_HLA_list <- function(reads, seu = NULL, CB_rev_com = FALSE, hla_with_counts_above = 0, CBs_with_counts_above = 0, match_CB_with_seu = TRUE, frac = 0.85, min_alleles_keep = 1, field_resolution = 3, QC_mm2 = TRUE, s1_belowmax = 0.75, AS_belowmax = 0.85, NM_thresh = 15, de_thresh = 0.015, parallelize = TRUE) {
+Top_HLA_list_byCB <- function(reads, seu = NULL, CB_rev_com = FALSE, hla_with_counts_above = 0, CBs_with_counts_above = 0, match_CB_with_seu = TRUE, frac = 0.85, min_alleles_keep = 1, field_resolution = 3, QC_mm2 = TRUE, s1_belowmax = 0.8, AS_belowmax = 0.8, NM_thresh = 15, de_thresh = 0.01, parallelize = TRUE) {
   ## parallelize
   if (parallelize) {
     multi_thread <- parallel::detectCores()
