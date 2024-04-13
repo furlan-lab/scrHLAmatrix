@@ -768,11 +768,9 @@ HLA_clusters <- function(reads, k = 2, seu = NULL, CB_rev_com = FALSE, geno_meta
   umapout<-uwot::umap(umat, verbose=T, ...)
   colnames(umapout)<-c("umap1", "umap2")
   umapout <- as.data.frame(umapout)
-  if (!is.null(seu)){
-    if (!is.null(geno_metadata_id)) {
-      umapout<-cbind(umapout, seu@meta.data[match(rownames(umapout), colnames(seu)),])
-      g0 <- ggplot(umapout, aes(x=umap1, y=umap2, color=!!sym(geno_metadata_id)))+geom_point(size=pt_size)#+scale_color_manual(values=pals::glasbey())+theme_bw()
-    }
+  if (!is.null(seu) & !is.null(geno_metadata_id)){
+    umapout<-cbind(umapout, seu@meta.data[match(rownames(umapout), colnames(seu)),])
+    g0 <- ggplot(umapout, aes(x=umap1, y=umap2, color=!!sym(geno_metadata_id)))+geom_point(size=pt_size)#+scale_color_manual(values=pals::glasbey())+theme_bw()
   }
   # ggplot(umapout, aes(x=umap1, y=umap2, color=celltype))+geom_point(size=0.25)+scale_color_manual(values=pals::glasbey())+theme_bw()
   # ggplot(umapout, aes(x=umap1, y=umap2, color=geno))+geom_point(size=0.5)+scale_color_manual(values=pals::glasbey())+theme_bw()
@@ -783,7 +781,7 @@ HLA_clusters <- function(reads, k = 2, seu = NULL, CB_rev_com = FALSE, geno_meta
   umapout$hla_clusters <- as.factor(umapout$hla_clusters)
   g <- ggplot(umapout, aes(x=umap1, y=umap2, color=hla_clusters))+geom_point(size=pt_size)#+scale_color_manual(values=pals::glasbey())+theme_bw()
   message(cat("\nDone!!"))
-  if (!is.null(seu)){
+  if (!is.null(seu) & !is.null(geno_metadata_id)){
     return(list(UMAP_coordinates = umapout, HLA_clusters_on_umap = g, genotype_on_umap = g0))
   } else {
     return(list(UMAP_coordinates = umapout, HLA_clusters_on_umap = g))

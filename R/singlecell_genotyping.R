@@ -283,7 +283,7 @@ Top_HLA_plot_byCB <- function(reads, seu = NULL, CB_rev_com = FALSE, hla_with_co
       setTxtProgressBar(pb, j)
     }
     close(pb)
-    message(cat("\nDone!!"))
+    message(cat("\nDone!!  you can display your plots by calling gridExtra::grid.arrange()"))
     if (return_genotype_data) {
       return(list(Plots = plots, Genotype_data_per_CB = top2cb))
     } else {
