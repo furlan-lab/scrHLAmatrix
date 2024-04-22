@@ -8,6 +8,7 @@ map_HLA_clusters(
   reads.list,
   cluster_coordinates,
   CB_rev_com = FALSE,
+  additional_col_id = NULL,
   parallelize = FALSE
 )
 }
@@ -17,6 +18,8 @@ map_HLA_clusters(
 \item{cluster_coordinates}{is the UMAP coordinates dataframe with HLA clustering information (found by the 'HLA_clusters()' function) from which clusters are extracted and mapped into the scrHLAtag count files by matching Cell Barcodes. Currently the barcode format supported is: SAMPLE_AATGCTTGGTCCATTA-1}
 
 \item{CB_rev_com}{is a logical, called TRUE if the need to obtained the reverse complement of Cell Barcodes (CBs) is desired; default is FALSE.}
+
+\item{additional_col_id}{is a character; if mapping of any additional column ID of the Seurat metadata collected in the 'cluster_coordinates' dataframe, to the scrHLAtag count files is desired. 'NULL' by default.}
 
 \item{parallelize}{is a logical, called TRUE if using parallel processing (multi-threading) is desired; default is FALSE.}
 }

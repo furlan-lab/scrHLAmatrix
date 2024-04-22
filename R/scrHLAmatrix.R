@@ -794,6 +794,7 @@ HLA_clusters <- function(reads, k = 2, seu = NULL, CB_rev_com = FALSE, geno_meta
 #' @param reads.list  is a scrHLAtag count file (or a list of scrHLAtag count files) including columns for CB, UMI, and HLA alleles (https://github.com/furlan-lab/scrHLAtag).
 #' @param cluster_coordinates  is the UMAP coordinates dataframe with HLA clustering information (found by the 'HLA_clusters()' function) from which clusters are extracted and mapped into the scrHLAtag count files by matching Cell Barcodes. Currently the barcode format supported is: SAMPLE_AATGCTTGGTCCATTA-1
 #' @param CB_rev_com  is a logical, called TRUE if the need to obtained the reverse complement of Cell Barcodes (CBs) is desired; default is FALSE.
+#' @param additional_col_id  is a character; if mapping of any additional column ID of the Seurat metadata collected in the 'cluster_coordinates' dataframe, to the scrHLAtag count files is desired. 'NULL' by default.
 #' @param parallelize  is a logical, called TRUE if using parallel processing (multi-threading) is desired; default is FALSE.
 #' @import stringr
 #' @return a large list containing scrHLAtag count file(s) including columns for CB, UMI, and HLA alleles, with the addition of HLA_clusters
@@ -817,7 +818,7 @@ HLA_clusters <- function(reads, k = 2, seu = NULL, CB_rev_com = FALSE, geno_meta
 #' map_HLA_clusters(reads.list = cts, k = 2, cluster_coordinates = UMAP_dataframe_from_HLA_clusters_function)
 #' @export
 
-map_HLA_clusters <- function(reads.list, cluster_coordinates, CB_rev_com = FALSE, parallelize = FALSE) {
+map_HLA_clusters <- function(reads.list, cluster_coordinates, CB_rev_com = FALSE, additional_col_id = NULL, parallelize = FALSE) {
   ## parallelize
   if (parallelize) {
     multi_thread <- parallel::detectCores()
@@ -834,6 +835,13 @@ map_HLA_clusters <- function(reads.list, cluster_coordinates, CB_rev_com = FALSE
   }
   if (CB_rev_com) {
     for (i in 1:length(reads.list)) {
+      if (!is.null(additional_col_id)) {
+        reads.list[[i]][, additional_col_id] <-  NA
+        reads.list[[i]][, additional_col_id] <- cluster_coordinates[, additional_col_id][
+          match(paste0(reads.list[[i]]$samp,"_", parallel::mclapply(reads.list[[i]]$CB, function(x) intToUtf8(rev(utf8ToInt(chartr('ATGC', 'TACG', x)))), mc.cores = multi_thread) %>% unlist(),"-1"), 
+                rownames(cluster_coordinates))
+        ]
+      }
       reads.list[[i]]$hla_clusters <- NA
       reads.list[[i]]$hla_clusters <- cluster_coordinates$hla_clusters[
         match(paste0(reads.list[[i]]$samp,"_", parallel::mclapply(reads.list[[i]]$CB, function(x) intToUtf8(rev(utf8ToInt(chartr('ATGC', 'TACG', x)))), mc.cores = multi_thread) %>% unlist(),"-1"), 
@@ -842,6 +850,13 @@ map_HLA_clusters <- function(reads.list, cluster_coordinates, CB_rev_com = FALSE
     }
   } else {
     for (i in 1:length(reads.list)) {
+      if (!is.null(additional_col_id)) {
+        reads.list[[i]][, additional_col_id] <-  NA
+        reads.list[[i]][, additional_col_id] <- cluster_coordinates[, additional_col_id][
+          match(paste0(reads.list[[i]]$samp,"_",reads.list[[i]]$CB,"-1"), 
+                rownames(cluster_coordinates))
+        ]
+      }
       reads.list[[i]]$hla_clusters <- NA
       reads.list[[i]]$hla_clusters <- cluster_coordinates$hla_clusters[
         match(paste0(reads.list[[i]]$samp,"_",reads.list[[i]]$CB,"-1"), 
