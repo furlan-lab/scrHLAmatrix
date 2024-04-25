@@ -37,7 +37,7 @@ Top_HLA_list_byCB(
 
 \item{frac}{is the fraction (0 to 1) of total reads for a particular HLA gene, which incorporates the highest ranking alleles of that gene in terms of number of reads; default at 0.85 .}
 
-\item{range_allele_scenarios}{is a numeric, a single number or range of numbers determining the minimum and maximum number of highest ranking allele genotype scenarios per cell to keep despite filtering by fraction 'frac'; default is c(1, 200).}
+\item{range_allele_scenarios}{is a numeric (single or range) determining the minimum and maximum number of highest ranking allele genotype scenarios per cell to keep if such number is beyond those limits when filtering by fraction 'frac'; default is c(1, 200).}
 
 \item{field_resolution}{is a numeric, to select the HLA nomenclature level of Field resolution, where 1, 2, or 3 will take into consideration the first, the first two, or the first three field(s) of HLA designation; default is 3.}
 
