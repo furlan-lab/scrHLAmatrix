@@ -283,7 +283,7 @@ Top_HLA_plot_byCB <- function(reads, seu = NULL, CB_rev_com = FALSE, hla_with_co
       setTxtProgressBar(pb, j)
     }
     close(pb)
-    message(cat("\nDone!!  you can display your plots by calling gridExtra::grid.arrange()"))
+    message(cat("\nDone!! you can display your plots by calling gridExtra::grid.arrange()"))
     if (return_genotype_data) {
       return(list(Plots = plots, Genotype_data_per_CB = top2cb))
     } else {
@@ -302,7 +302,7 @@ Top_HLA_plot_byCB <- function(reads, seu = NULL, CB_rev_com = FALSE, hla_with_co
 #' @param CBs_with_counts_above  is the number of total reads accross HLA alleles at or above which a CB is retained in the matrix. Note: at present, the function will make sure that number of CBs is equal or more than available HLA alleles in the matrix.
 #' @param match_CB_with_seu  is a logical, called TRUE if filtering CBs in the scrHLAtag count file with matching ones in the Seurat object is desired. 
 #' @param frac  is the fraction (0 to 1) of total reads for a particular HLA gene, which incorporates the highest ranking alleles of that gene in terms of number of reads; default at 0.85 .
-#' @param range_allele_scenarios  is a numeric, a single number or range of numbers determining the minimum and maximum number of highest ranking allele genotype scenarios per cell to keep despite filtering by fraction 'frac'; default is c(1, 50).
+#' @param range_allele_scenarios  is a numeric, a single number or range of numbers determining the minimum and maximum number of highest ranking allele genotype scenarios per cell to keep despite filtering by fraction 'frac'; default is c(1, 200).
 #' @param field_resolution  is a numeric, to select the HLA nomenclature level of Field resolution, where 1, 2, or 3 will take into consideration the first, the first two, or the first three field(s) of HLA designation; default is 3.
 #' @param QC_mm2  is a logical, called TRUE if removing low quality reads based on minimap2 tags is desired.
 #' @param s1_belowmax  is a proportion (0 to 1) of the maximum value (best quality) of the minimap2 's1' tag above which the quality of the read is acceptable; default at 0.75 of the max s1 score.
@@ -344,7 +344,7 @@ Top_HLA_plot_byCB <- function(reads, seu = NULL, CB_rev_com = FALSE, hla_with_co
 #' # there were no counts for that allele (all zeros).
 #' @export
 
-Top_HLA_list_byCB <- function(reads, seu = NULL, CB_rev_com = FALSE, hla_with_counts_above = 0, CBs_with_counts_above = 0, match_CB_with_seu = TRUE, frac = 0.85, range_allele_scenarios = c(1, 50), field_resolution = 3, QC_mm2 = TRUE, s1_belowmax = 0.8, AS_belowmax = 0.8, NM_thresh = 15, de_thresh = 0.01, parallelize = TRUE) {
+Top_HLA_list_byCB <- function(reads, seu = NULL, CB_rev_com = FALSE, hla_with_counts_above = 0, CBs_with_counts_above = 0, match_CB_with_seu = TRUE, frac = 0.85, range_allele_scenarios = c(1, 200), field_resolution = 3, QC_mm2 = TRUE, s1_belowmax = 0.8, AS_belowmax = 0.8, NM_thresh = 15, de_thresh = 0.01, parallelize = TRUE) {
   ## parallelize
   if (parallelize) {
     multi_thread <- parallel::detectCores()
@@ -416,7 +416,7 @@ Top_HLA_list_byCB <- function(reads, seu = NULL, CB_rev_com = FALSE, hla_with_co
     })
   } else {
     reads <- list(reads = reads)
-    message(cat(crayon::green("Recommended: "), "To refine your results, first analyze distribution of alleles per Cell Barcodes in UMAP space using 'HLA_clusters()', \n  then map the generated HLA Clusters back to your count data using 'map_HLA_clusters()'."))
+    message(cat(crayon::green("Recommended:"), "To refine your results, first analyze distribution of alleles per Cell Barcodes in UMAP space using 'HLA_clusters()', then map the generated HLA Clusters back to your count data using 'map_HLA_clusters()'."))
   }  
   matrices <- mclapply(1:length(reads), function(m) {
     alleles <- unique(reads[[m]]$gene) %>% sort()
@@ -524,7 +524,7 @@ Top_HLA_list_byCB <- function(reads, seu = NULL, CB_rev_com = FALSE, hla_with_co
       t$csum <- cumsum(t$N)
       # ----------------------------------------------------------------
       # include alleles covering a specific fraction 'frac' of all reads
-      if (!is.numeric(range_allele_scenarios)) range_allele_scenarios <- c(1, 50)
+      if (!is.numeric(range_allele_scenarios)) range_allele_scenarios <- c(1, 200)
       min_alleles_keep <- min(range_allele_scenarios)
       max_alleles_keep <- max(range_allele_scenarios)
       if (length(t$toptwo) <= min_alleles_keep) {
