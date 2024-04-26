@@ -295,6 +295,7 @@ Top_HLA_plot_bulk <- function(reads_1, reads_2 = NULL, top_hla = 10, min_reads_p
                       #guides(colour=guide_legend(override.aes=list(colour="grey70")))+
                       theme(text = element_text(size = 8), legend.key.size = unit(4, 'mm'), legend.title = element_text(size=6))
   )
-   pl2 <- plot_grid(pl, gridExtra::grid.arrange(leg), rel_widths = c(10,1)) 
+  pl2 <- plot_grid(pl, gridExtra::grid.arrange(leg), rel_widths = c(10,1)) 
+  print(pl2)
   return(pl2)
 }
