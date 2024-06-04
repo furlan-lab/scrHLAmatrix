@@ -344,8 +344,8 @@ Top_HLA_list_byCB_preprocessed <- function(reads, seu = NULL, hla_with_counts_ab
       part_HLA<- HLA.matrix
     } else {
       if (class(seu) == "Seurat") {
-        message(cat("\nObject of class 'Seurat' detected"))
-        message(cat(crayon::green("Note: "), "Currently the Seurat Barcode (i.e. colnames or Cells) supported format is: SAMPLE_AATGCTTGGTCCATTA-1", sep = ""))
+        #message(cat("\nObject of class 'Seurat' detected"))
+        #message(cat(crayon::green("Note: "), "Currently the Seurat Barcode (i.e. colnames or Cells) supported format is: SAMPLE_AATGCTTGGTCCATTA-1", sep = ""))
         if(match_CB_with_seu) {
           part_HLA<- HLA.matrix[,colnames(HLA.matrix) %in% Cells(seu)]
         } else {
