@@ -634,6 +634,7 @@ HLA_Matrix <- function(reads, seu, hla_recip = character(), hla_donor = characte
 #' @param de_thresh  is the gap-compressed per-base sequence divergence in the minimap2 alignment at or below which the quality of the read is acceptable; the number is between 0 and 1, and default is 0.015.
 #' @param parallelize  is a logical, called TRUE if using parallel processing (multi-threading) is desired; default is FALSE.
 #' @param pt_size  is a number, the size of the geometric point displayed by ggplot2. 
+#' @param return_heavy  is a logical, if TRUE it also returns the now processed scrHLAtag count file (minimap2 QCed, CB reverse comp'ed, etc..) but the returned object is significantly heavier; default is FALSE. 
 #' @param ...  arguments passed onto uwot::umap()
 #' @import stringr
 #' @import pbmcapply
@@ -665,7 +666,7 @@ HLA_Matrix <- function(reads, seu, hla_recip = character(), hla_donor = characte
 #' HLA_clusters(reads = cts[["mRNA"]], k = 2, seu = your_Seurat_Obj, geno_metadata_id = "geno", hla_with_counts_above = 5, CBs_with_counts_above = 35)
 #' @export
 
-HLA_clusters <- function(reads, k = 2, seu = NULL, CB_rev_com = FALSE, geno_metadata_id = NULL, hla_with_counts_above = 0, CBs_with_counts_above = 0, match_CB_with_seu = TRUE, QC_mm2 = TRUE, s1_belowmax = 0.8, AS_belowmax = 0.8, NM_thresh = 15, de_thresh = 0.01, parallelize = FALSE, pt_size = 0.5, ...) {
+HLA_clusters <- function(reads, k = 2, seu = NULL, CB_rev_com = FALSE, geno_metadata_id = NULL, hla_with_counts_above = 10, CBs_with_counts_above = 30, match_CB_with_seu = TRUE, QC_mm2 = TRUE, s1_belowmax = 0.8, AS_belowmax = 0.8, NM_thresh = 15, de_thresh = 0.01, parallelize = FALSE, pt_size = 0.5, return_heavy = FALSE, ...) {
   ## parallelize
   if (parallelize) {
     multi_thread <- parallel::detectCores()
@@ -722,7 +723,10 @@ HLA_clusters <- function(reads, k = 2, seu = NULL, CB_rev_com = FALSE, geno_meta
     setTxtProgressBar(pb, i)
   }
   close(pb)
-  rm(reads)
+  ## do we keep or jettison the 'reads'? 
+  if (!return_heavy) {
+    reads <- NULL
+  }
   HLA.matrix[is.na(HLA.matrix)]<-0
   #HLA.matrix<-Matrix(HLA.matrix,sparse = T)
   ## Matching with Seurat colnames
@@ -764,7 +768,7 @@ HLA_clusters <- function(reads, k = 2, seu = NULL, CB_rev_com = FALSE, geno_meta
   # ggplot(pcv, aes(x=Comp.1, y=Comp.2, color=logUMI))+geom_point(size=0.25)+scale_color_viridis_b()+theme_bw()
   # ggplot(pcv, aes(x=Comp.1, y=Comp.2, color=geno))+geom_point(size=0.5)+scale_color_manual(values=pals::glasbey())+theme_bw()
   umat<-pcv[,1:floor(0.8*ncol(pcv))] %>% as.matrix()
-  umapout<-uwot::umap(umat, verbose = TRUE, batch = TRUE, seed = 1985, ...)
+  umapout<-uwot::umap(umat, verbose = TRUE, batch = TRUE, seed = 1985, ...) #batch and seed are fixed to promote consistency and repeatability
   colnames(umapout)<-c("umap1", "umap2")
   umapout <- as.data.frame(umapout)
   if (!is.null(seu) & !is.null(geno_metadata_id)){
@@ -779,11 +783,11 @@ HLA_clusters <- function(reads, k = 2, seu = NULL, CB_rev_com = FALSE, geno_meta
   umapout$hla_clusters <- stats::cutree(humapout, k = k)
   umapout$hla_clusters <- as.factor(umapout$hla_clusters)
   g <- ggplot(umapout, aes(x=umap1, y=umap2, color=hla_clusters))+geom_point(size=pt_size)#+scale_color_manual(values=pals::glasbey())+theme_bw()
-  message(cat("\nDone!!"))
+  #message(cat("\nDone!!"))
   if (!is.null(seu) & !is.null(geno_metadata_id)){
-    return(list(UMAP_coordinates = umapout, HLA_clusters_on_umap = g, genotype_on_umap = g0))
+    return(list(UMAP_coordinates = umapout, HLA_clusters_on_umap = g, genotype_on_umap = g0, reads = reads))
   } else {
-    return(list(UMAP_coordinates = umapout, HLA_clusters_on_umap = g))
+    return(list(UMAP_coordinates = umapout, HLA_clusters_on_umap = g, reads = reads))
   }
 }
 
@@ -825,7 +829,7 @@ map_HLA_clusters <- function(reads.list, cluster_coordinates, CB_rev_com = FALSE
   } else {
     multi_thread <- 1
   }  
-  if (all(class(reads.list) %in% c("data.frame", "data.table"))) {
+  if (any(class(reads.list) %in% c("data.frame", "data.table"))) {
     reads.list <- list(reads.list=reads.list)
   } else {
     if (!(sapply(reads.list, function(x) class(x)) %in% list("data.frame", "data.table", c("data.table", "data.frame"), c("data.frame", "data.table")) %>% all()) | class(reads.list) != "list") {
@@ -863,5 +867,10 @@ map_HLA_clusters <- function(reads.list, cluster_coordinates, CB_rev_com = FALSE
       ]
     }
   }
-  return(reads.list)
+  if (length(reads.list) == 1) {
+    reads.list <- reads.list[[1]]
+    return(reads.list)
+  } else {
+    return(reads.list)
+  }
 }

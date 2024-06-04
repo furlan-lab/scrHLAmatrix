@@ -10,8 +10,8 @@ HLA_clusters(
   seu = NULL,
   CB_rev_com = FALSE,
   geno_metadata_id = NULL,
-  hla_with_counts_above = 0,
-  CBs_with_counts_above = 0,
+  hla_with_counts_above = 10,
+  CBs_with_counts_above = 30,
   match_CB_with_seu = TRUE,
   QC_mm2 = TRUE,
   s1_belowmax = 0.8,
@@ -20,6 +20,7 @@ HLA_clusters(
   de_thresh = 0.01,
   parallelize = FALSE,
   pt_size = 0.5,
+  return_heavy = FALSE,
   ...
 )
 }
@@ -53,6 +54,8 @@ HLA_clusters(
 \item{parallelize}{is a logical, called TRUE if using parallel processing (multi-threading) is desired; default is FALSE.}
 
 \item{pt_size}{is a number, the size of the geometric point displayed by ggplot2.}
+
+\item{return_heavy}{is a logical, if TRUE it also returns the now processed scrHLAtag count file (minimap2 QCed, CB reverse comp'ed, etc..) but the returned object is significantly heavier; default is FALSE.}
 
 \item{...}{arguments passed onto uwot::umap()}
 }
