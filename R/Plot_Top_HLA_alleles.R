@@ -73,7 +73,7 @@ Top_HLA_plot_byCB <- function(reads, seu = NULL, CB_rev_com = FALSE, hla_with_co
       message(cat("\nClusters generated from HLA distribution per Cell Barcode in UMAP space detected in reads count object! Number of Clusters: ", length(levels(cl))))
       reads <- reads[reads$hla_clusters %in% levels(cl)[idx],]
     } else {
-      message(cat(crayon::red("Warning: Colname 'hla_clusters' not detected in reads count object."), "\n  Did you analyze distribution of alleles per Cell Barcodes in UMAP space using ", crayon::bgWhite("'HLA_clusters()'"), ", \n  then map the generated HLA Clusters back to your counts data object using ", crayon::bgWhite("'map_HLA_clusters()'"), "?", sep = ""))
+      message(cat(crayon::red("Warning: Colname 'hla_clusters' not detected in reads count object."), "\n  Did you analyze distribution of alleles per Cell Barcodes in UMAP space using ", crayon::bgWhite(" HLA_clusters() "), ", \n  then map the generated HLA Clusters back to your counts data object using ", crayon::bgWhite(" map_HLA_clusters() "), "?", sep = ""))
     }
   }  
   ## Remove low quality reads based on minimap2 tags
@@ -346,7 +346,7 @@ Top_HLA_plot_bulk <- function(reads_1, reads_2 = NULL, cluster_index = NULL, top
         message(cat("\nClusters generated from HLA distribution per Cell Barcode in UMAP space detected in reads count object! Number of Clusters: ", length(levels(cl))))
         reads_1 <- reads_1[reads_1$hla_clusters %in% levels(cl)[idx],]
       } else {
-        message(cat(crayon::red("Warning: Colname 'hla_clusters' not detected in read count object."), "\n  Did you analyze distribution of alleles per Cell Barcodes in UMAP space using ", crayon::bgWhite("'HLA_clusters()'"), ", \n  then map the generated HLA Clusters back to your counts data object using ", crayon::bgWhite("'map_HLA_clusters()'"), "?", sep = ""))
+        message(cat(crayon::red("Warning: Colname 'hla_clusters' not detected in reads count object."), "\n  Did you analyze distribution of alleles per Cell Barcodes in UMAP space using ", crayon::bgWhite(" HLA_clusters() "), ", \n  then map the generated HLA Clusters back to your counts data object using ", crayon::bgWhite(" map_HLA_clusters() "), "?", sep = ""))
       }
     } 
     reads_2 <- reads_1
@@ -361,7 +361,7 @@ Top_HLA_plot_bulk <- function(reads_1, reads_2 = NULL, cluster_index = NULL, top
         message(cat("Clusters generated from HLA distribution per Cell Barcode in UMAP space detected in first reads count object! Number of Clusters: ", length(levels(cl))))
         reads_1 <- reads_1[reads_1$hla_clusters %in% levels(cl)[idx],]
       } else {
-        message(cat(crayon::red("Warning: Colname 'hla_clusters' not detected in first read count object."), "\n  Did you analyze distribution of alleles per Cell Barcodes in UMAP space using ", crayon::bgWhite("'HLA_clusters()'"), ", \n  then map the generated HLA Clusters back to your counts data object using ", crayon::bgWhite("'map_HLA_clusters()'"), "?", sep = ""))
+        message(cat(crayon::red("Warning: Colname 'hla_clusters' not detected in first reads count object."), "\n  Did you analyze distribution of alleles per Cell Barcodes in UMAP space using ", crayon::bgWhite(" HLA_clusters() "), ", \n  then map the generated HLA Clusters back to your counts data object using ", crayon::bgWhite(" map_HLA_clusters() "), "?", sep = ""))
       }
       if ("hla_clusters" %in% colnames(reads_2)) {
         cl <- unique(reads_2$hla_clusters) %>% as.factor()
@@ -369,7 +369,7 @@ Top_HLA_plot_bulk <- function(reads_1, reads_2 = NULL, cluster_index = NULL, top
         message(cat("Clusters generated from HLA distribution per Cell Barcode in UMAP space detected in second reads count object! Number of Clusters: ", length(levels(cl))))
         reads_2 <- reads_2[reads_2$hla_clusters %in% levels(cl)[idx],]
       } else {
-        message(cat(crayon::red("Warning: Colname 'hla_clusters' not detected in second reads count object."), "\n  Did you analyze distribution of alleles per Cell Barcodes in UMAP space using ", crayon::bgWhite("'HLA_clusters()'"), ", \n  then map the generated HLA Clusters back to your counts data object using ", crayon::bgWhite("'map_HLA_clusters()'"), "?", sep = ""))
+        message(cat(crayon::red("Warning: Colname 'hla_clusters' not detected in second reads count object."), "\n  Did you analyze distribution of alleles per Cell Barcodes in UMAP space using ", crayon::bgWhite(" HLA_clusters() "), ", \n  then map the generated HLA Clusters back to your counts data object using ", crayon::bgWhite(" map_HLA_clusters() "), "?", sep = ""))
       }
     }
   } 
