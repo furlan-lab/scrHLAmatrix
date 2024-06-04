@@ -81,7 +81,7 @@ Top_HLA_list <- function(reads_1, reads_2 = NULL, allogeneic_entities = 2, seu =
                                     spread = umap_spread, min_dist = umap_min_dist, repulsion_strength = umap_repulsion, ...)
   print(HLA_umap_clusters[[2]]+scale_color_manual(values=pals::glasbey())+theme_classic())
   if ((reads_1$gene %>% unique() %>% sort() %>% length()) > 2000) {
-    message(cat("\nRead file shows > 2000 mapped HLA alleles; extracting top alleles using pseudo-bulk approach"))
+    message(cat("\nReads count file shows greater than 2000 mapped HLA alleles; extracting top alleles using the Pseudo-Bulk algorithm"))
     reads_1 <- map_HLA_clusters(reads.list = reads_1, HLA_umap_clusters[[1]], CB_rev_com = CB_rev_com)
     if (!is.null(reads_2)) {reads_2 <- map_HLA_clusters(reads.list = reads_2, HLA_umap_clusters[[1]], CB_rev_com = CB_rev_com)}
     cluster <- levels(reads_1$hla_clusters)
@@ -97,17 +97,17 @@ Top_HLA_list <- function(reads_1, reads_2 = NULL, allogeneic_entities = 2, seu =
     }
     top_alleles_HLA <- top_alleles_HLA %>% unique() %>% sort()
   } else {
-    message(cat("\nRead file shows < 2000 mapped HLA alleles; extracting top alleles using single-cell approach"))
+    message(cat("\nReads count file shows 2000 or fewer mapped HLA alleles; extracting top alleles using the Single-Cell algorithm"))
     reads_1 <- map_HLA_clusters(reads.list = HLA_umap_clusters[["reads"]], HLA_umap_clusters[[1]], CB_rev_com = F)
     top_alleles_HLA <- Top_HLA_list_byCB_preprocessed(reads = reads_1,
-                                         seu = seu,
-                                         match_CB_with_seu = match_CB_with_seu,
-                                         hla_with_counts_above = hla_with_counts_above,
-                                         CBs_with_counts_above = CBs_with_counts_above,
-                                         frac = top_by_read_frac.cb,
-                                         allowed_alleles_per_cell = allowed_alleles_per_cell,
-                                         field_resolution = field_resolution,
-                                         parallelize = parallelize)
+                                                      seu = seu,
+                                                      match_CB_with_seu = match_CB_with_seu,
+                                                      hla_with_counts_above = hla_with_counts_above,
+                                                      CBs_with_counts_above = CBs_with_counts_above,
+                                                      frac = top_by_read_frac.cb,
+                                                      allowed_alleles_per_cell = allowed_alleles_per_cell,
+                                                      field_resolution = field_resolution,
+                                                      parallelize = parallelize)
   }
   e <- difftime(Sys.time(), s, units = "sec") %>% as.numeric() %>% abs()
   message(cat("\nDone!! (runtime: ", format(as.POSIXlt(e, origin = "1970-01-01", tz = "UTC"), "%H:%M:%S", tz = "UTC"), ")", sep = ""))
