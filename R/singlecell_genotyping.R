@@ -751,6 +751,6 @@ Top_HLA_list_byCB_preprocessed <- function(reads, seu = NULL, hla_with_counts_ab
   }, mc.cores = multi_thread)
   top_a_list <- do.call("c", top_a_list)
   top_a_list <- top_a_list %>% unique() %>% sort()
-  message(cat("\nDone!!"))
+  #message(cat("\nDone!!"))
   return(top_a_list)
 }

@@ -2,7 +2,7 @@
 #' 
 #' @param reads_1  is the primary scrHLAtag count file (1 of 2 files containing either the mRNA molecular info or the genomic (gene) molecular info). It includes columns for CB, UMI, and HLA alleles (https://github.com/furlan-lab/scrHLAtag).
 #' @param reads_2  is the secondary scrHLAtag count file (the alternative file vs. the one designated in 'reads_1' argument). It includes columns for CB, UMI, and HLA alleles (https://github.com/furlan-lab/scrHLAtag). Default is NULL, in which case it will not be able to count alternative aligment.
-#' @param allogeneic_entities
+#' @param allogeneic_entities  is the number 'k' of clusters to partition the UMAP space into, e.g. the number of entities or genotypes you 'think' there might be in your captured sample.
 #' @param seu  is the Seurat object associated with the scrHLAtag count file (https://satijalab.org/seurat/index.html), and entered here if matching CBs in count file with Seurat colnames is desired.
 #' @param CB_rev_com  is a logical, called TRUE if the need to obtained the reverse complement of Cell Barcodes (CBs) is desired; default is FALSE. 
 #' @param hla_with_counts_above  is the number of total reads accross CBs at or above which an HLA allele is retained in the matrix.
@@ -99,7 +99,7 @@ Top_HLA_list <- function(reads_1, reads_2 = NULL, allogeneic_entities = 2, seu =
   } else {
     message(cat("\nRead file shows < 2000 mapped HLA alleles; extracting top alleles using single-cell approach"))
     reads_1 <- map_HLA_clusters(reads.list = HLA_umap_clusters[["reads"]], HLA_umap_clusters[[1]], CB_rev_com = F)
-    top_alleles_HLA <- scrHLAmatrix:::Top_HLA_list_byCB_preprocessed(reads = reads_1,
+    top_alleles_HLA <- Top_HLA_list_byCB_preprocessed(reads = reads_1,
                                          seu = seu,
                                          match_CB_with_seu = match_CB_with_seu,
                                          hla_with_counts_above = hla_with_counts_above,
