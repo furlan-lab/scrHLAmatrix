@@ -8,7 +8,7 @@ Top_HLA_list_bulk(
   reads_1,
   reads_2 = NULL,
   frac = 0.75,
-  min_alleles_keep = 5,
+  min_alleles_keep = 2,
   min_reads_per_gene = 20,
   insert_pop_most_freq = TRUE,
   use_alt_align_ABC = FALSE
@@ -21,7 +21,7 @@ Top_HLA_list_bulk(
 
 \item{frac}{is the fraction (0 to 1) of total reads for a particular HLA gene, which incorporates the highest ranking alleles of that gene in terms of number of reads; default at 0.75 .}
 
-\item{min_alleles_keep}{is a numeric representing the minimum number of highest ranking alleles to keep despite filtering by fraction 'frac'; default is 5.}
+\item{min_alleles_keep}{is a numeric representing the minimum number of highest ranking alleles to keep despite filtering by fraction 'frac'; default is 2.}
 
 \item{min_reads_per_gene}{is a numeric representing minimum number of total reads per HLA gene (including all its alleles) below which the gene is filtered out; default is 20.}
 
