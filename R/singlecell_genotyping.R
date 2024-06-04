@@ -53,7 +53,7 @@
 #' # there were no counts for that allele (all zeros).
 #' @export
 
-Top_HLA_plot_byCB <- function(reads, seu = NULL, CB_rev_com = FALSE, hla_with_counts_above = 0, CBs_with_counts_above = 0, match_CB_with_seu = TRUE, cluster_index = NULL, top_hla = 10, field_resolution = 3, QC_mm2 = TRUE, s1_belowmax = 0.8, AS_belowmax = 0.8, NM_thresh = 15, de_thresh = 0.01, default_theme = TRUE, return_genotype_data = FALSE, parallelize = TRUE) {
+Top_HLA_plot_byCB <- function(reads, seu = NULL, CB_rev_com = FALSE, hla_with_counts_above = 5, CBs_with_counts_above = 15, match_CB_with_seu = TRUE, cluster_index = NULL, top_hla = 10, field_resolution = 3, QC_mm2 = TRUE, s1_belowmax = 0.8, AS_belowmax = 0.8, NM_thresh = 15, de_thresh = 0.01, default_theme = TRUE, return_genotype_data = FALSE, parallelize = TRUE) {
   ## parallelize
   if (parallelize) {
     multi_thread <- parallel::detectCores()
@@ -344,7 +344,7 @@ Top_HLA_plot_byCB <- function(reads, seu = NULL, CB_rev_com = FALSE, hla_with_co
 #' # there were no counts for that allele (all zeros).
 #' @export
 
-Top_HLA_list_byCB <- function(reads, seu = NULL, CB_rev_com = FALSE, hla_with_counts_above = 10, CBs_with_counts_above = 30, match_CB_with_seu = TRUE, frac = 0.85, allowed_alleles_per_cell = c(1, 200), field_resolution = 3, QC_mm2 = TRUE, s1_belowmax = 0.8, AS_belowmax = 0.8, NM_thresh = 15, de_thresh = 0.01, parallelize = TRUE) {
+Top_HLA_list_byCB <- function(reads, seu = NULL, CB_rev_com = FALSE, hla_with_counts_above = 5, CBs_with_counts_above = 15, match_CB_with_seu = TRUE, frac = 0.85, allowed_alleles_per_cell = c(1, 200), field_resolution = 3, QC_mm2 = TRUE, s1_belowmax = 0.8, AS_belowmax = 0.8, NM_thresh = 15, de_thresh = 0.01, parallelize = TRUE) {
   ## parallelize
   if (parallelize) {
     multi_thread <- parallel::detectCores()
@@ -578,7 +578,7 @@ Top_HLA_list_byCB <- function(reads, seu = NULL, CB_rev_com = FALSE, hla_with_co
 #' @return a Vector of the top HLA alleles in the count files (in terms of reads per Cell Barcode).
 #' @noRd
 
-Top_HLA_list_byCB_preprocessed <- function(reads, seu = NULL, hla_with_counts_above = 10, CBs_with_counts_above = 30, match_CB_with_seu = TRUE, frac = 0.85, allowed_alleles_per_cell = c(1, 200), field_resolution = 3, parallelize = TRUE) {
+Top_HLA_list_byCB_preprocessed <- function(reads, seu = NULL, hla_with_counts_above = 5, CBs_with_counts_above = 15, match_CB_with_seu = TRUE, frac = 0.85, allowed_alleles_per_cell = c(1, 200), field_resolution = 3, parallelize = TRUE) {
   ## parallelize
   if (parallelize) {
     multi_thread <- parallel::detectCores()

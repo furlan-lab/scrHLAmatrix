@@ -666,7 +666,7 @@ HLA_Matrix <- function(reads, seu, hla_recip = character(), hla_donor = characte
 #' HLA_clusters(reads = cts[["mRNA"]], k = 2, seu = your_Seurat_Obj, geno_metadata_id = "geno", hla_with_counts_above = 5, CBs_with_counts_above = 35)
 #' @export
 
-HLA_clusters <- function(reads, k = 2, seu = NULL, CB_rev_com = FALSE, geno_metadata_id = NULL, hla_with_counts_above = 10, CBs_with_counts_above = 30, match_CB_with_seu = TRUE, QC_mm2 = TRUE, s1_belowmax = 0.8, AS_belowmax = 0.8, NM_thresh = 15, de_thresh = 0.01, parallelize = FALSE, pt_size = 0.5, return_heavy = FALSE, ...) {
+HLA_clusters <- function(reads, k = 2, seu = NULL, CB_rev_com = FALSE, geno_metadata_id = NULL, hla_with_counts_above = 5, CBs_with_counts_above = 15, match_CB_with_seu = TRUE, QC_mm2 = TRUE, s1_belowmax = 0.8, AS_belowmax = 0.8, NM_thresh = 15, de_thresh = 0.01, parallelize = FALSE, pt_size = 0.5, return_heavy = FALSE, ...) {
   ## parallelize
   if (parallelize) {
     multi_thread <- parallel::detectCores()
