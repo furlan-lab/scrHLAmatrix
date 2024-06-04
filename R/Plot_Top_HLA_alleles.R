@@ -350,7 +350,7 @@ Top_HLA_plot_bulk <- function(reads_1, reads_2 = NULL, cluster_index = NULL, top
       }
     } 
     reads_2 <- reads_1
-    message(cat(crayon::red("The molecule_info_gene.txt.gz count file does not seem to be included. The function will run but the argument 'use_alt_align_ABC' will be irrelevant.")))
+    message(cat(crayon::red("Warning: "), "A secondary reads count file does not seem to be included (reads_2 = NULL).\n  The function will run but the argument 'use_alt_align_ABC' will be irrelevant.", sep = ""))
     #warning("The molecule_info_gene.txt.gz count file does not seem to be included. The function will run but the argument 'use_alt_align_ABC' will be irrelevant.")
   } else {
     if (!is.null(cluster_index)) {
