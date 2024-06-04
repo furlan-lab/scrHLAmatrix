@@ -724,7 +724,10 @@ HLA_clusters <- function(reads, k = 2, seu = NULL, CB_rev_com = FALSE, geno_meta
   }
   close(pb)
   ## do we keep or jettison the 'reads'? 
-  if (!return_heavy) {
+  if (return_heavy) {
+    reads <- data.table::rbindlist(reads)
+    row.names(reads)<-NULL
+  } else {
     reads <- NULL
   }
   HLA.matrix[is.na(HLA.matrix)]<-0
