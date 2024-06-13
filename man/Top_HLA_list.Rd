@@ -18,7 +18,7 @@ Top_HLA_list(
   AS_belowmax = 0.8,
   NM_thresh = 15,
   de_thresh = 0.01,
-  top_by_read_frac.blk = 0.75,
+  top_by_read_frac.blk = 0.85,
   top_by_read_frac.cb = 0.85,
   allowed_alleles_per_cell = c(1, 200),
   field_resolution = 3,
@@ -56,7 +56,7 @@ Top_HLA_list(
 
 \item{de_thresh}{is the gap-compressed per-base sequence divergence in the minimap2 alignment at or below which the quality of the read is acceptable; the number is between 0 and 1, and default is 0.015.}
 
-\item{top_by_read_frac.blk}{in the Pseudo-Bulk algorithm, is the fraction (0 to 1) of total reads for a particular HLA gene, which incorporates the highest ranking alleles of that gene in terms of number of reads; default at 0.75}
+\item{top_by_read_frac.blk}{in the Pseudo-Bulk algorithm, is the fraction (0 to 1) of total reads for a particular HLA gene, which incorporates the highest ranking alleles of that gene in terms of number of reads; default at 0.85}
 
 \item{top_by_read_frac.cb}{in the Single-Cell algorithm, is the fraction (0 to 1) of total reads for a particular HLA gene, which incorporates the highest ranking alleles of that gene in terms of number of reads; default at 0.85}
 
@@ -83,6 +83,7 @@ A comprehensive function to extract the top HLA alleles from the scrHLAtag count
 \examples{
 samples <- c("AML_101_BM", "AML_101_34")
 mol_info <- c("molecule_info_gene.txt.gz", "molecule_info_mRNA.txt.gz")
+cts <- list()
 for (i in 1:length(mol_info)){
   dl<-lapply(samples, function(sample){
     d<-read.table(file.path("path/to/scrHLAtag/out/files", sample,
@@ -100,8 +101,8 @@ for (i in 1:length(mol_info)){
 top_alleles <- Top_HLA_list(reads_1 = cts[["mRNA"]], reads_2 = cts[["gene"]], seu = your_Seurat_Obj)
 # 
 # Note: the function is optimized to choose whether to find top HLA alleles
-# based on a Single-Cell approach (large number of uniquely mapped alleles) or 
-# a Pseudo-Bulk approach (number of alleles is generally < 2000).
+# using a Pseudo-Bulk algorithm (large number of uniquely mapped alleles) or 
+# a Single-Cell algorithm (number of alleles is fewer than 2000).
 # 
 # Note: if for a particular HLA, the alleles with the most counts are in a tie 
 # between 3 or more alleles in a particular Cell Barcode, we cannot know which 

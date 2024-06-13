@@ -8,7 +8,7 @@
 #' @param hla_with_counts_above  is the number of total reads accross CBs at or above which an HLA allele is retained in the matrix.
 #' @param CBs_with_counts_above  is the number of total reads accross HLA alleles at or above which a CB is retained in the matrix. Note: at present, the function will make sure that number of CBs is equal or more than available HLA alleles in the matrix.
 #' @param match_CB_with_seu  is a logical, called TRUE if filtering CBs in the scrHLAtag count file with matching ones in the Seurat object is desired. 
-#' @param top_by_read_frac.blk  in the Pseudo-Bulk algorithm, is the fraction (0 to 1) of total reads for a particular HLA gene, which incorporates the highest ranking alleles of that gene in terms of number of reads; default at 0.75
+#' @param top_by_read_frac.blk  in the Pseudo-Bulk algorithm, is the fraction (0 to 1) of total reads for a particular HLA gene, which incorporates the highest ranking alleles of that gene in terms of number of reads; default at 0.85
 #' @param top_by_read_frac.cb  in the Single-Cell algorithm, is the fraction (0 to 1) of total reads for a particular HLA gene, which incorporates the highest ranking alleles of that gene in terms of number of reads; default at 0.85
 #' @param allowed_alleles_per_cell  is a numeric (single or range) determining the minimum and maximum number of highest ranking allele genotypes per cell to keep if such number is beyond those limits when filtering by fraction 'frac'; default is c(1, 200), usefull in the early scrHLAtag iterations to give minimap2 lots of room to align; once you are ready to finalize the top HLA allele list, you can try c(1, 2) if you assume a cell can have a min of 1 allele (homozygous) and a max of 2 (heterozygous).
 #' @param field_resolution  is a numeric, to select the HLA nomenclature level of Field resolution, where 1, 2, or 3 will take into consideration the first, the first two, or the first three field(s) of HLA designation; default is 3.
@@ -34,6 +34,7 @@
 #' @examples
 #' samples <- c("AML_101_BM", "AML_101_34")
 #' mol_info <- c("molecule_info_gene.txt.gz", "molecule_info_mRNA.txt.gz")
+#' cts <- list()
 #' for (i in 1:length(mol_info)){
 #'   dl<-lapply(samples, function(sample){
 #'     d<-read.table(file.path("path/to/scrHLAtag/out/files", sample,
@@ -51,8 +52,8 @@
 #' top_alleles <- Top_HLA_list(reads_1 = cts[["mRNA"]], reads_2 = cts[["gene"]], seu = your_Seurat_Obj)
 #' # 
 #' # Note: the function is optimized to choose whether to find top HLA alleles
-#' # based on a Single-Cell approach (large number of uniquely mapped alleles) or 
-#' # a Pseudo-Bulk approach (number of alleles is generally < 2000).
+#' # using a Pseudo-Bulk algorithm (large number of uniquely mapped alleles) or 
+#' # a Single-Cell algorithm (number of alleles is fewer than 2000).
 #' # 
 #' # Note: if for a particular HLA, the alleles with the most counts are in a tie 
 #' # between 3 or more alleles in a particular Cell Barcode, we cannot know which 
@@ -63,7 +64,7 @@
 Top_HLA_list <- function(reads_1, reads_2 = NULL, allogeneic_entities = 2, seu = NULL, CB_rev_com = FALSE,
                          hla_with_counts_above = 5, CBs_with_counts_above = 15, match_CB_with_seu = TRUE, 
                          QC_mm2 = TRUE, s1_belowmax = 0.8, AS_belowmax = 0.8, NM_thresh = 15, de_thresh = 0.01,
-                         top_by_read_frac.blk = 0.75, top_by_read_frac.cb = 0.85,
+                         top_by_read_frac.blk = 0.85, top_by_read_frac.cb = 0.85,
                          allowed_alleles_per_cell = c(1, 200), field_resolution = 3, parallelize = TRUE, 
                          umap_spread = 3, umap_min_dist = 0.0001, umap_repulsion = 0.0001, ...) {
   s <- Sys.time()
