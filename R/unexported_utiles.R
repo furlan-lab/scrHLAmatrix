@@ -237,16 +237,17 @@ Top_HLA_list_byCB <- function(reads, seu = NULL, CB_rev_com = FALSE, hla_with_co
       min_alleles_keep <- min(allowed_alleles_per_cell)
       max_alleles_keep <- max(allowed_alleles_per_cell)
       if (length(t$toptwo) <= min_alleles_keep) {
-        top <- t$toptwo
+        top <- t[order(-t$N),]
       } else {
         if (length(t$toptwo[t$csum/sum(t$N) > (1-frac)]) <= min_alleles_keep) {
-          top <- t[order(-t$N),][1:min_alleles_keep,]$toptwo %>% rev()
+          top <- t[order(-t$N),][1:min_alleles_keep,]
         } else {
-          top <- t$toptwo[t$csum/sum(t$N) > (1-frac)]
+          top <- t[t$csum/sum(t$N) > (1-frac),]
+          top <- top[order(-top$N),]
         }
       }
-      top <- top %>% rev()
-      if (length(top) > max_alleles_keep) top <- top[1:max_alleles_keep]
+      if (nrow(top) > max_alleles_keep) top <- top[1:max_alleles_keep,]
+      top <- top$toptwo
       top_a <- c(top_a, top)
     }
     top_a <- sapply(top_a, function(x) strsplit(x, "_")[[1]]) %>% as.character()
@@ -437,16 +438,17 @@ Top_HLA_list_byCB_preprocessed <- function(reads, seu = NULL, hla_with_counts_ab
       min_alleles_keep <- min(allowed_alleles_per_cell)
       max_alleles_keep <- max(allowed_alleles_per_cell)
       if (length(t$toptwo) <= min_alleles_keep) {
-        top <- t$toptwo
+        top <- t[order(-t$N),]
       } else {
         if (length(t$toptwo[t$csum/sum(t$N) > (1-frac)]) <= min_alleles_keep) {
-          top <- t[order(-t$N),][1:min_alleles_keep,]$toptwo %>% rev()
+          top <- t[order(-t$N),][1:min_alleles_keep,]
         } else {
-          top <- t$toptwo[t$csum/sum(t$N) > (1-frac)]
+          top <- t[t$csum/sum(t$N) > (1-frac),]
+          top <- top[order(-top$N),]
         }
       }
-      top <- top %>% rev()
-      if (length(top) > max_alleles_keep) top <- top[1:max_alleles_keep]
+      if (nrow(top) > max_alleles_keep) top <- top[1:max_alleles_keep,]
+      top <- top$toptwo
       top_a <- c(top_a, top)
     }
     top_a <- sapply(top_a, function(x) strsplit(x, "_")[[1]]) %>% as.character()

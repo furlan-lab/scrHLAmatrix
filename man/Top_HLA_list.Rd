@@ -21,6 +21,7 @@ Top_HLA_list(
   top_by_read_frac.blk = 0.85,
   top_by_read_frac.cb = 0.85,
   allowed_alleles_per_cell = c(1, 200),
+  stringent_mode = TRUE,
   field_resolution = 3,
   parallelize = TRUE,
   umap_spread = 3,
@@ -61,6 +62,8 @@ Top_HLA_list(
 \item{top_by_read_frac.cb}{in the Single-Cell algorithm, is the fraction (0 to 1) of total reads for a particular HLA gene, which incorporates the highest ranking alleles of that gene in terms of number of reads; default at 0.85}
 
 \item{allowed_alleles_per_cell}{is a numeric (single or range) determining the minimum and maximum number of highest ranking allele genotypes per cell to keep if such number is beyond those limits when filtering by fraction 'frac'; default is c(1, 200), usefull in the early scrHLAtag iterations to give minimap2 lots of room to align; once you are ready to finalize the top HLA allele list, you can try c(1, 2) if you assume a cell can have a min of 1 allele (homozygous) and a max of 2 (heterozygous).}
+
+\item{stringent_mode}{is a logical, when called TRUE, the algorithm detects when the final iteration is near (unique alleles in read file is equal or less than 125 per allogeneic entity) and getting top alleles becomes more stringent, with 'top_by_read_frac.cb' switching to 0.75 and 'allowed_alleles_per_cell' switching to c(1, 2). This argument, however, will be ignored if the user inputs values for 'top_by_read_frac.cb' and 'allowed_alleles_per_cell' other than their defaults.}
 
 \item{field_resolution}{is a numeric, to select the HLA nomenclature level of Field resolution, where 1, 2, or 3 will take into consideration the first, the first two, or the first three field(s) of HLA designation; default is 3.}
 
