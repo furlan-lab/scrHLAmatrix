@@ -99,7 +99,7 @@ Top_HLA_list <- function(reads_1, reads_2 = NULL, allogeneic_entities = 2, seu =
       top_alleles_HLA <- c(top_alleles_HLA, top_al)
     }
     top_alleles_HLA <- top_alleles_HLA %>% unique() %>% sort()
-} else if (stringent_mode & all(range_allele_scenarios == c(1, 200)) & top_by_read_frac.cb == 0.85) {
+  } else {
     reads_1 <- map_HLA_clusters(reads.list = HLA_umap_clusters[["reads"]], HLA_umap_clusters[[1]], CB_rev_com = F)
     cl <- unique(reads_1$hla_clusters)
     cl <- cl[!is.na(cl)]
@@ -111,7 +111,7 @@ Top_HLA_list <- function(reads_1, reads_2 = NULL, allogeneic_entities = 2, seu =
       tmp <- x$gene %>% unique() %>% sort() %>% length()
       return(tmp)
     }) %>% unlist()
-    if (all(unique_alleles <= 200)) {
+    if (all(unique_alleles <= 200) & stringent_mode & all(range_allele_scenarios == c(1, 200)) & top_by_read_frac.cb == 0.85) {
       message(cat("\nReads count file shows 200 or fewer mapped HLA alleles per allogeneic entity;\nStringent mode active: ", crayon::green("attempting to extract final list of top HLA alleles using the Single-Cell algorithm"), sep = ""))      
       top_alleles_HLA <- Top_HLA_list_byCB_preprocessed(reads = reads_1,
                                                         seu = seu,
@@ -122,19 +122,19 @@ Top_HLA_list <- function(reads_1, reads_2 = NULL, allogeneic_entities = 2, seu =
                                                         allowed_alleles_per_cell = c(1, 2),
                                                         field_resolution = field_resolution,
                                                         parallelize = parallelize)
+    } else {
+      message(cat("\nReads count file shows 2000 or fewer mapped HLA alleles; extracting top alleles using the Single-Cell algorithm"))
+      reads_1 <- map_HLA_clusters(reads.list = HLA_umap_clusters[["reads"]], HLA_umap_clusters[[1]], CB_rev_com = F)
+      top_alleles_HLA <- Top_HLA_list_byCB_preprocessed(reads = reads_1,
+                                                        seu = seu,
+                                                        match_CB_with_seu = match_CB_with_seu,
+                                                        hla_with_counts_above = hla_with_counts_above,
+                                                        CBs_with_counts_above = CBs_with_counts_above,
+                                                        frac = top_by_read_frac.cb,
+                                                        allowed_alleles_per_cell = allowed_alleles_per_cell,
+                                                        field_resolution = field_resolution,
+                                                        parallelize = parallelize)
     }
-  } else {
-    message(cat("\nReads count file shows 2000 or fewer mapped HLA alleles; extracting top alleles using the Single-Cell algorithm"))
-    reads_1 <- map_HLA_clusters(reads.list = HLA_umap_clusters[["reads"]], HLA_umap_clusters[[1]], CB_rev_com = F)
-    top_alleles_HLA <- Top_HLA_list_byCB_preprocessed(reads = reads_1,
-                                                      seu = seu,
-                                                      match_CB_with_seu = match_CB_with_seu,
-                                                      hla_with_counts_above = hla_with_counts_above,
-                                                      CBs_with_counts_above = CBs_with_counts_above,
-                                                      frac = top_by_read_frac.cb,
-                                                      allowed_alleles_per_cell = allowed_alleles_per_cell,
-                                                      field_resolution = field_resolution,
-                                                      parallelize = parallelize)
   }
   e <- difftime(Sys.time(), s, units = "sec") %>% as.numeric() %>% abs()
   message(cat("\nDone!! (runtime: ", format(as.POSIXlt(e, origin = "1970-01-01", tz = "UTC"), "%H:%M:%S", tz = "UTC"), ")", sep = ""))
