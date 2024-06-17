@@ -11,7 +11,7 @@
 #' @param top_by_read_frac.blk  in the Pseudo-Bulk algorithm, is the fraction (\code{0} to \code{1}) of total reads for a particular HLA gene, which incorporates the highest ranking alleles of that gene in terms of number of reads; default at \code{0.85}
 #' @param top_by_read_frac.cb  in the Single-Cell algorithm, is the fraction (\code{0} to \code{1}) of total reads for a particular HLA gene, which incorporates the highest ranking alleles of that gene in terms of number of reads; default at \code{0.85}
 #' @param allowed_alleles_per_cell  is a numeric (single or range) determining the minimum and maximum number of highest ranking allele genotypes per cell to keep if such number is beyond those limits after filtering by fraction; default is \code{c(1, 200)}, usefull in the early scrHLAtag iterations to give minimap2 lots of room to align; once you are ready to finalize the top HLA allele list, you can try \code{c(1, 2)} if you assume a cell can have a min of 1 allele (homozygous) and a max of 2 (heterozygous).
-#' @param stringent_mode  is a logical, when called \code{TRUE}, the algorithm detects when the final iteration is near (unique alleles in read file is equal or less than 200 per allogeneic entity) and getting top alleles becomes more stringent, with \code{top_by_read_frac.cb} switching to \code{0.75} and \code{allowed_alleles_per_cell} switching to \code{c(1, 2)}. This argument, however, will be ignored if the user inputs values for \code{top_by_read_frac.cb} and \code{allowed_alleles_per_cell} other than their defaults.
+#' @param stringent_mode  is a logical, when called \code{TRUE}, the algorithm detects when the final iteration is near (unique alleles in read file is equal or less than 200 per allogeneic entity) and getting top alleles becomes more stringent, with \code{allowed_alleles_per_cell} switching to \code{c(1, 2)}. This argument, however, will be ignored if the user inputs values for \code{allowed_alleles_per_cell} other than its default.
 #' @param field_resolution  is a numeric, to select the HLA nomenclature level of Field resolution, where \code{1}, \code{2}, or \code{3} will take into consideration the first, the first two, or the first three field(s) of HLA designation; default is \code{3}.
 #' @param QC_mm2  is a logical, called \code{TRUE} if removing low quality reads based on minimap2 tags is desired.
 #' @param s1_belowmax  is a proportion (\code{0} to \code{1}) of the maximum value (best quality) of the minimap2 's1' tag above which the quality of the read is acceptable; default at \code{0.75} of the max s1 score.
@@ -83,7 +83,7 @@ Top_HLA_list <- function(reads_1, reads_2 = NULL, allogeneic_entities = 2, seu =
                                     return_heavy = TRUE, 
                                     spread = umap_spread, min_dist = umap_min_dist, repulsion_strength = umap_repulsion, ...)
   print(HLA_umap_clusters[[2]]+scale_color_manual(values=pals::glasbey())+theme_classic())
-  if ((reads_1$gene %>% unique() %>% sort() %>% length()) > 2000) {
+  if ((reads_1$gene %>% unique() %>% length()) > 2000) {
     message(cat("\nReads count file shows greater than 2000 mapped HLA alleles; extracting top alleles using the Pseudo-Bulk algorithm"))
     reads_1 <- map_HLA_clusters(reads.list = reads_1, HLA_umap_clusters[[1]], CB_rev_com = CB_rev_com)
     if (!is.null(reads_2)) {reads_2 <- map_HLA_clusters(reads.list = reads_2, HLA_umap_clusters[[1]], CB_rev_com = CB_rev_com)}
@@ -108,33 +108,24 @@ Top_HLA_list <- function(reads_1, reads_2 = NULL, allogeneic_entities = 2, seu =
       return(tmp)
     })
     unique_alleles <- lapply(unique_alleles, function(x) {
-      tmp <- x$gene %>% unique() %>% sort() %>% length()
+      tmp <- x$gene %>% unique() %>% length()
       return(tmp)
     }) %>% unlist()
-    if (all(unique_alleles <= 200) & stringent_mode & all(range_allele_scenarios == c(1, 200)) & top_by_read_frac.cb == 0.85) {
-      message(cat("\nReads count file shows 200 or fewer mapped HLA alleles per allogeneic entity;\nStringent mode active: ", crayon::green("attempting to extract final list of top HLA alleles using the Single-Cell algorithm"), sep = ""))      
-      top_alleles_HLA <- Top_HLA_list_byCB_preprocessed(reads = reads_1,
-                                                        seu = seu,
-                                                        match_CB_with_seu = match_CB_with_seu,
-                                                        hla_with_counts_above = hla_with_counts_above,
-                                                        CBs_with_counts_above = CBs_with_counts_above,
-                                                        frac = 0.75,
-                                                        allowed_alleles_per_cell = c(1, 2),
-                                                        field_resolution = field_resolution,
-                                                        parallelize = parallelize)
+    if (all(unique_alleles <= 200) & stringent_mode & all(range_allele_scenarios == c(1, 200))) {
+      message(cat("\nReads count file shows 200 or fewer mapped HLA alleles per allogeneic entity;\nStringent mode active: ", crayon::green("attempting to extract final list of top HLA alleles using the Single-Cell algorithm"), sep = ""))
+      allowed_alleles_per_cell <- c(1, 2)
     } else {
       message(cat("\nReads count file shows 2000 or fewer mapped HLA alleles; extracting top alleles using the Single-Cell algorithm"))
-      reads_1 <- map_HLA_clusters(reads.list = HLA_umap_clusters[["reads"]], HLA_umap_clusters[[1]], CB_rev_com = F)
-      top_alleles_HLA <- Top_HLA_list_byCB_preprocessed(reads = reads_1,
-                                                        seu = seu,
-                                                        match_CB_with_seu = match_CB_with_seu,
-                                                        hla_with_counts_above = hla_with_counts_above,
-                                                        CBs_with_counts_above = CBs_with_counts_above,
-                                                        frac = top_by_read_frac.cb,
-                                                        allowed_alleles_per_cell = allowed_alleles_per_cell,
-                                                        field_resolution = field_resolution,
-                                                        parallelize = parallelize)
     }
+    top_alleles_HLA <- Top_HLA_list_byCB_preprocessed(reads = reads_1,
+                                                      seu = seu,
+                                                      match_CB_with_seu = match_CB_with_seu,
+                                                      hla_with_counts_above = hla_with_counts_above,
+                                                      CBs_with_counts_above = CBs_with_counts_above,
+                                                      frac = top_by_read_frac.cb,
+                                                      allowed_alleles_per_cell = allowed_alleles_per_cell,
+                                                      field_resolution = field_resolution,
+                                                      parallelize = parallelize)
   }
   e <- difftime(Sys.time(), s, units = "sec") %>% as.numeric() %>% abs()
   message(cat("\nDone!! (runtime: ", format(as.POSIXlt(e, origin = "1970-01-01", tz = "UTC"), "%H:%M:%S", tz = "UTC"), ")", sep = ""))
