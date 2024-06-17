@@ -289,7 +289,7 @@ Top_HLA_list_byCB_preprocessed <- function(reads, seu = NULL, hla_with_counts_ab
   ## parallelize
   if (parallelize) {
     multi_thread <- parallel::detectCores()
-    message(cat("\nMulti-threading! Available cores: ", parallel::detectCores()))
+    # message(cat("\nMulti-threading! Available cores: ", parallel::detectCores()))
   } else {
     multi_thread <- 1
   }
@@ -316,7 +316,7 @@ Top_HLA_list_byCB_preprocessed <- function(reads, seu = NULL, hla_with_counts_ab
   if ("hla_clusters" %in% colnames(reads)) {
     cl <- unique(reads$hla_clusters)
     cl <- cl[!is.na(cl)]
-    message(cat("  Clusters generated from HLA distribution per Cell Barcode in UMAP space detected! Number of Clusters: ", length(cl)))
+    # message(cat("  Clusters generated from HLA distribution per Cell Barcode in UMAP space detected! Number of Clusters: ", length(cl)))
     reads <- lapply(cl, function(x) {
       tmp <- reads[reads$hla_clusters %in% x,]
       return(tmp)

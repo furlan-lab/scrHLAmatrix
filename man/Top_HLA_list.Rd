@@ -33,49 +33,49 @@ Top_HLA_list(
 \arguments{
 \item{reads_1}{is the primary scrHLAtag count file (1 of 2 files containing either the mRNA molecular info or the genomic (gene) molecular info). It includes columns for CB, UMI, and HLA alleles (https://github.com/furlan-lab/scrHLAtag).}
 
-\item{reads_2}{is the secondary scrHLAtag count file (the alternative file vs. the one designated in 'reads_1' argument). It includes columns for CB, UMI, and HLA alleles (https://github.com/furlan-lab/scrHLAtag). Default is NULL, in which case it will not be able to count alternative aligment.}
+\item{reads_2}{is the secondary scrHLAtag count file (the alternative file vs. the one designated in '\code{reads_1}' argument). It includes columns for CB, UMI, and HLA alleles (https://github.com/furlan-lab/scrHLAtag). Default is \code{NULL}, in which case it will not be able to count alternative aligment.}
 
 \item{allogeneic_entities}{is the number 'k' of clusters to partition the UMAP space into, e.g. the number of entities or genotypes you 'think' there might be in your captured sample.}
 
 \item{seu}{is the Seurat object associated with the scrHLAtag count file (https://satijalab.org/seurat/index.html), and entered here if matching CBs in count file with Seurat colnames is desired.}
 
-\item{CB_rev_com}{is a logical, called TRUE if the need to obtained the reverse complement of Cell Barcodes (CBs) is desired; default is FALSE.}
+\item{CB_rev_com}{is a logical, called \code{TRUE} if the need to obtained the reverse complement of Cell Barcodes (CBs) is desired; default is \code{FALSE}.}
 
 \item{hla_with_counts_above}{is the number of total reads accross CBs at or above which an HLA allele is retained in the matrix.}
 
 \item{CBs_with_counts_above}{is the number of total reads accross HLA alleles at or above which a CB is retained in the matrix. Note: at present, the function will make sure that number of CBs is equal or more than available HLA alleles in the matrix.}
 
-\item{match_CB_with_seu}{is a logical, called TRUE if filtering CBs in the scrHLAtag count file with matching ones in the Seurat object is desired.}
+\item{match_CB_with_seu}{is a logical, called \code{TRUE} if filtering CBs in the scrHLAtag count file with matching ones in the Seurat object is desired.}
 
-\item{QC_mm2}{is a logical, called TRUE if removing low quality reads based on minimap2 tags is desired.}
+\item{QC_mm2}{is a logical, called \code{TRUE} if removing low quality reads based on minimap2 tags is desired.}
 
-\item{s1_belowmax}{is a proportion (0 to 1) of the maximum value (best quality) of the minimap2 's1' tag above which the quality of the read is acceptable; default at 0.75 of the max s1 score.}
+\item{s1_belowmax}{is a proportion (\code{0} to \code{1}) of the maximum value (best quality) of the minimap2 's1' tag above which the quality of the read is acceptable; default at \code{0.75} of the max s1 score.}
 
-\item{AS_belowmax}{is a proportion (0 to 1) of the maximum value (best quality) of the minimap2 'AS' tag above which the quality of the read is acceptable; default at 0.85 of the max AS score.}
+\item{AS_belowmax}{is a proportion (\code{0} to \code{1}) of the maximum value (best quality) of the minimap2 'AS' tag above which the quality of the read is acceptable; default at \code{0.85} of the max AS score.}
 
 \item{NM_thresh}{is the number of mismatches and gaps in the minimap2 alignment at or below which the quality of the read is acceptable; default is 15.}
 
-\item{de_thresh}{is the gap-compressed per-base sequence divergence in the minimap2 alignment at or below which the quality of the read is acceptable; the number is between 0 and 1, and default is 0.015.}
+\item{de_thresh}{is the gap-compressed per-base sequence divergence in the minimap2 alignment at or below which the quality of the read is acceptable; the number is between \code{0} and \code{1}, and default is \code{0.015}.}
 
-\item{top_by_read_frac.blk}{in the Pseudo-Bulk algorithm, is the fraction (0 to 1) of total reads for a particular HLA gene, which incorporates the highest ranking alleles of that gene in terms of number of reads; default at 0.85}
+\item{top_by_read_frac.blk}{in the Pseudo-Bulk algorithm, is the fraction (\code{0} to \code{1}) of total reads for a particular HLA gene, which incorporates the highest ranking alleles of that gene in terms of number of reads; default at \code{0.85}}
 
-\item{top_by_read_frac.cb}{in the Single-Cell algorithm, is the fraction (0 to 1) of total reads for a particular HLA gene, which incorporates the highest ranking alleles of that gene in terms of number of reads; default at 0.85}
+\item{top_by_read_frac.cb}{in the Single-Cell algorithm, is the fraction (\code{0} to \code{1}) of total reads for a particular HLA gene, which incorporates the highest ranking alleles of that gene in terms of number of reads; default at \code{0.85}}
 
-\item{allowed_alleles_per_cell}{is a numeric (single or range) determining the minimum and maximum number of highest ranking allele genotypes per cell to keep if such number is beyond those limits when filtering by fraction 'frac'; default is c(1, 200), usefull in the early scrHLAtag iterations to give minimap2 lots of room to align; once you are ready to finalize the top HLA allele list, you can try c(1, 2) if you assume a cell can have a min of 1 allele (homozygous) and a max of 2 (heterozygous).}
+\item{allowed_alleles_per_cell}{is a numeric (single or range) determining the minimum and maximum number of highest ranking allele genotypes per cell to keep if such number is beyond those limits after filtering by fraction; default is \code{c(1, 200)}, usefull in the early scrHLAtag iterations to give minimap2 lots of room to align; once you are ready to finalize the top HLA allele list, you can try \code{c(1, 2)} if you assume a cell can have a min of 1 allele (homozygous) and a max of 2 (heterozygous).}
 
-\item{stringent_mode}{is a logical, when called TRUE, the algorithm detects when the final iteration is near (unique alleles in read file is equal or less than 125 per allogeneic entity) and getting top alleles becomes more stringent, with 'top_by_read_frac.cb' switching to 0.75 and 'allowed_alleles_per_cell' switching to c(1, 2). This argument, however, will be ignored if the user inputs values for 'top_by_read_frac.cb' and 'allowed_alleles_per_cell' other than their defaults.}
+\item{stringent_mode}{is a logical, when called \code{TRUE}, the algorithm detects when the final iteration is near (unique alleles in read file is equal or less than 200 per allogeneic entity) and getting top alleles becomes more stringent, with \code{top_by_read_frac.cb} switching to \code{0.75} and \code{allowed_alleles_per_cell} switching to \code{c(1, 2)}. This argument, however, will be ignored if the user inputs values for \code{top_by_read_frac.cb} and \code{allowed_alleles_per_cell} other than their defaults.}
 
-\item{field_resolution}{is a numeric, to select the HLA nomenclature level of Field resolution, where 1, 2, or 3 will take into consideration the first, the first two, or the first three field(s) of HLA designation; default is 3.}
+\item{field_resolution}{is a numeric, to select the HLA nomenclature level of Field resolution, where \code{1}, \code{2}, or \code{3} will take into consideration the first, the first two, or the first three field(s) of HLA designation; default is \code{3}.}
 
-\item{parallelize}{is a logical, called TRUE if using parallel processing (multi-threading) is desired; default is TRUE.}
+\item{parallelize}{is a logical, called \code{TRUE} if using parallel processing (multi-threading) is desired; default is \code{TRUE}.}
 
-\item{umap_spread}{for uwot::umap(); effective scale of embedded points determining how clustered/clumped the embedded points are.}
+\item{umap_spread}{for \code{uwot::umap()}; effective scale of embedded points determining how clustered/clumped the embedded points are.}
 
-\item{umap_min_dist}{for uwot::umap(); effective minimum distance between embedded points. Smaller values will result in a more clustered/clumped embedding.}
+\item{umap_min_dist}{for \code{uwot::umap()}; effective minimum distance between embedded points. Smaller values will result in a more clustered/clumped embedding.}
 
-\item{umap_repulsion}{for uwot::umap(); weighting applied to negative samples in low dimensional embedding optimization.}
+\item{umap_repulsion}{for \code{uwot::umap()}; weighting applied to negative samples in low dimensional embedding optimization.}
 
-\item{...}{other arguments passed onto uwot::umap()}
+\item{...}{other arguments passed onto \code{uwot::umap()}.}
 }
 \value{
 a Vector of the top HLA alleles in the count files (in terms of reads per Cell Barcode).
