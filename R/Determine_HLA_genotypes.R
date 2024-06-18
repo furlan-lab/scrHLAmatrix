@@ -16,7 +16,7 @@
 #' @param QC_mm2  is a logical, called \code{TRUE} if removing low quality reads based on minimap2 tags is desired.
 #' @param s1_belowmax  is a proportion (\code{0} to \code{1}) of the maximum value (best quality) of the minimap2 's1' tag above which the quality of the read is acceptable; default at \code{0.75} of the max s1 score.
 #' @param AS_belowmax  is a proportion (\code{0} to \code{1}) of the maximum value (best quality) of the minimap2 'AS' tag above which the quality of the read is acceptable; default at \code{0.85} of the max AS score.
-#' @param NM_thresh  is the number of mismatches and gaps in the minimap2 alignment at or below which the quality of the read is acceptable; default is 15.
+#' @param NM_thresh  is the number of mismatches and gaps in the minimap2 alignment at or below which the quality of the read is acceptable; default is \code{15}.
 #' @param de_thresh  is the gap-compressed per-base sequence divergence in the minimap2 alignment at or below which the quality of the read is acceptable; the number is between \code{0} and \code{1}, and default is \code{0.015}.
 #' @param parallelize  is a logical, called \code{TRUE} if using parallel processing (multi-threading) is desired; default is \code{TRUE}.
 #' @param umap_spread  for \code{uwot::umap()}; effective scale of embedded points determining how clustered/clumped the embedded points are.
@@ -63,7 +63,7 @@
 #' @export
 
 Top_HLA_list <- function(reads_1, reads_2 = NULL, allogeneic_entities = 2, seu = NULL, CB_rev_com = FALSE,
-                         hla_with_counts_above = 5, CBs_with_counts_above = 15, match_CB_with_seu = TRUE, 
+                         hla_with_counts_above = 0, CBs_with_counts_above = 50, match_CB_with_seu = TRUE, 
                          QC_mm2 = TRUE, s1_belowmax = 0.8, AS_belowmax = 0.8, NM_thresh = 15, de_thresh = 0.01,
                          top_by_read_frac.blk = 0.85, top_by_read_frac.cb = 0.85,
                          allowed_alleles_per_cell = c(1, 200), stringent_mode = TRUE,

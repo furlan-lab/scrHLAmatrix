@@ -10,8 +10,8 @@ Top_HLA_list(
   allogeneic_entities = 2,
   seu = NULL,
   CB_rev_com = FALSE,
-  hla_with_counts_above = 5,
-  CBs_with_counts_above = 15,
+  hla_with_counts_above = 0,
+  CBs_with_counts_above = 50,
   match_CB_with_seu = TRUE,
   QC_mm2 = TRUE,
   s1_belowmax = 0.8,
@@ -53,7 +53,7 @@ Top_HLA_list(
 
 \item{AS_belowmax}{is a proportion (\code{0} to \code{1}) of the maximum value (best quality) of the minimap2 'AS' tag above which the quality of the read is acceptable; default at \code{0.85} of the max AS score.}
 
-\item{NM_thresh}{is the number of mismatches and gaps in the minimap2 alignment at or below which the quality of the read is acceptable; default is 15.}
+\item{NM_thresh}{is the number of mismatches and gaps in the minimap2 alignment at or below which the quality of the read is acceptable; default is \code{15}.}
 
 \item{de_thresh}{is the gap-compressed per-base sequence divergence in the minimap2 alignment at or below which the quality of the read is acceptable; the number is between \code{0} and \code{1}, and default is \code{0.015}.}
 
