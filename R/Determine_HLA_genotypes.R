@@ -126,6 +126,23 @@ Top_HLA_list <- function(reads_1, reads_2 = NULL, allogeneic_entities = 2, seu =
                                                       allowed_alleles_per_cell = allowed_alleles_per_cell,
                                                       field_resolution = field_resolution,
                                                       parallelize = parallelize)
+    if (all(unique_alleles <= 200) & stringent_mode & all(range_allele_scenarios == c(1, 200))) {
+      problematic_alleles <- c("DPA1*02:38Q", "A*03:437Q", "B*13:123Q", "C*02:205Q", "C*04:09N", "C*04:61N")
+      names(problematic_alleles) <- c("DPA1*02:02:02", "A*03:01:01", "B*13:02:01", "C*02:02:01", "C*04:01:01", "C*04:01:01")
+      is_the_allele_correct <- top_alleles_HLA[which(top_alleles_HLA %in% problematic_alleles)]
+      names(is_the_allele_correct) <- names(problematic_alleles)[which(problematic_alleles %in% is_the_allele_correct)]
+      for (x in seq_along(top_alleles_HLA[which(top_alleles_HLA %in% is_the_allele_correct)])) {
+        message(cat(crayon::red("\nWarning: "), 
+                    crayon::bgWhite(" ", is_the_allele_correct[x], " "),
+                    crayon::red(" detected in final list. \nMake sure the correct allele is not "),
+                    crayon::bgWhite(" ", names(is_the_allele_correct)[x], " "),
+                    "\n  The mRNA (i.e. cDNA) reference IMGT/HLA sequence of the rare allele ", is_the_allele_correct[x], 
+                    "\n  is more extended/complete than the similar but more common allele ", names(is_the_allele_correct)[x], ".",
+                    "\n  Minimap2 of scrHLAtag will preferentially map ", names(is_the_allele_correct)[x], 
+                    " reads to the ", is_the_allele_correct[x], " ref.", 
+                    sep = ""))
+      }
+    } 
   }
   e <- difftime(Sys.time(), s, units = "sec") %>% as.numeric() %>% abs()
   message(cat("\nDone!! (runtime: ", format(as.POSIXlt(e, origin = "1970-01-01", tz = "UTC"), "%H:%M:%S", tz = "UTC"), ")", sep = ""))
