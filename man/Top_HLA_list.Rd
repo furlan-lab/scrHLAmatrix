@@ -22,6 +22,7 @@ Top_HLA_list(
   top_by_read_frac.cb = 0.85,
   allowed_alleles_per_cell = c(1, 200),
   stringent_mode = TRUE,
+  correct_alleles = TRUE,
   field_resolution = 3,
   parallelize = TRUE,
   umap_spread = 3,
@@ -63,7 +64,9 @@ Top_HLA_list(
 
 \item{allowed_alleles_per_cell}{is a numeric (single or range) determining the minimum and maximum number of highest ranking allele genotypes per cell to keep if such number is beyond those limits after filtering by fraction; default is \code{c(1, 200)}, usefull in the early scrHLAtag iterations to give minimap2 lots of room to align; once you are ready to finalize the top HLA allele list, you can try \code{c(1, 2)} if you assume a cell can have a min of 1 allele (homozygous) and a max of 2 (heterozygous).}
 
-\item{stringent_mode}{is a logical, when called \code{TRUE}, the algorithm detects when the final iteration is near (unique alleles in read file is equal or less than 200 per allogeneic entity) and getting top alleles becomes more stringent, with \code{allowed_alleles_per_cell} switching to \code{c(1, 2)}. This argument, however, will be ignored if the user inputs values for \code{allowed_alleles_per_cell} other than its default.}
+\item{stringent_mode}{is a logical, when called \code{TRUE}, the algorithm detects when the final iteration is near (unique alleles in read file is equal or less than 200 per allogeneic entity); thus, getting top alleles becomes more stringent, with \code{allowed_alleles_per_cell} switching to \code{c(1, 2)}. This argument, however, will be ignored if the user inputs values for \code{allowed_alleles_per_cell} other than its default.}
+
+\item{correct_alleles}{is a logical. Minimap2 of scrHLAtag preferentially maps reads that are in fact DPA1*02:02:02, A*03:01:01, B*13:02:01, C*02:02:02, or C*04:01:01, to DPA1*02:38Q, A*03:437Q, B*13:123Q, C*02:205Q, or C*04:09N/C*04:61N, respectively. When called \code{TRUE}, the algorithm will replace the unlikely allele(s) with their 'correct' version(s). Will work if \code{stringent_mode} is \code{TRUE} and its own conditions to work are met (as explained above).}
 
 \item{field_resolution}{is a numeric, to select the HLA nomenclature level of Field resolution, where \code{1}, \code{2}, or \code{3} will take into consideration the first, the first two, or the first three field(s) of HLA designation; default is \code{3}.}
 

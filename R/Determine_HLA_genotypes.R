@@ -11,7 +11,8 @@
 #' @param top_by_read_frac.blk  in the Pseudo-Bulk algorithm, is the fraction (\code{0} to \code{1}) of total reads for a particular HLA gene, which incorporates the highest ranking alleles of that gene in terms of number of reads; default at \code{0.85}
 #' @param top_by_read_frac.cb  in the Single-Cell algorithm, is the fraction (\code{0} to \code{1}) of total reads for a particular HLA gene, which incorporates the highest ranking alleles of that gene in terms of number of reads; default at \code{0.85}
 #' @param allowed_alleles_per_cell  is a numeric (single or range) determining the minimum and maximum number of highest ranking allele genotypes per cell to keep if such number is beyond those limits after filtering by fraction; default is \code{c(1, 200)}, usefull in the early scrHLAtag iterations to give minimap2 lots of room to align; once you are ready to finalize the top HLA allele list, you can try \code{c(1, 2)} if you assume a cell can have a min of 1 allele (homozygous) and a max of 2 (heterozygous).
-#' @param stringent_mode  is a logical, when called \code{TRUE}, the algorithm detects when the final iteration is near (unique alleles in read file is equal or less than 200 per allogeneic entity) and getting top alleles becomes more stringent, with \code{allowed_alleles_per_cell} switching to \code{c(1, 2)}. This argument, however, will be ignored if the user inputs values for \code{allowed_alleles_per_cell} other than its default.
+#' @param stringent_mode  is a logical, when called \code{TRUE}, the algorithm detects when the final iteration is near (unique alleles in read file is equal or less than 200 per allogeneic entity); thus, getting top alleles becomes more stringent, with \code{allowed_alleles_per_cell} switching to \code{c(1, 2)}. This argument, however, will be ignored if the user inputs values for \code{allowed_alleles_per_cell} other than its default.
+#' @param correct_alleles  is a logical. Minimap2 of scrHLAtag preferentially maps reads that are in fact DPA1*02:02:02, A*03:01:01, B*13:02:01, C*02:02:02, or C*04:01:01, to DPA1*02:38Q, A*03:437Q, B*13:123Q, C*02:205Q, or C*04:09N/C*04:61N, respectively. When called \code{TRUE}, the algorithm will replace the unlikely allele(s) with their 'correct' version(s). Will work if \code{stringent_mode} is \code{TRUE} and its own conditions to work are met (as explained above).
 #' @param field_resolution  is a numeric, to select the HLA nomenclature level of Field resolution, where \code{1}, \code{2}, or \code{3} will take into consideration the first, the first two, or the first three field(s) of HLA designation; default is \code{3}.
 #' @param QC_mm2  is a logical, called \code{TRUE} if removing low quality reads based on minimap2 tags is desired.
 #' @param s1_belowmax  is a proportion (\code{0} to \code{1}) of the maximum value (best quality) of the minimap2 's1' tag above which the quality of the read is acceptable; default at \code{0.75} of the max s1 score.
@@ -66,7 +67,7 @@ Top_HLA_list <- function(reads_1, reads_2 = NULL, allogeneic_entities = 2, seu =
                          hla_with_counts_above = 0, CBs_with_counts_above = 50, match_CB_with_seu = TRUE, 
                          QC_mm2 = TRUE, s1_belowmax = 0.8, AS_belowmax = 0.8, NM_thresh = 15, de_thresh = 0.01,
                          top_by_read_frac.blk = 0.85, top_by_read_frac.cb = 0.85,
-                         allowed_alleles_per_cell = c(1, 200), stringent_mode = TRUE,
+                         allowed_alleles_per_cell = c(1, 200), stringent_mode = TRUE, correct_alleles = TRUE, 
                          field_resolution = 3, parallelize = TRUE, 
                          umap_spread = 3, umap_min_dist = 0.0001, umap_repulsion = 0.0001, ...) {
   s <- Sys.time()
@@ -128,7 +129,7 @@ Top_HLA_list <- function(reads_1, reads_2 = NULL, allogeneic_entities = 2, seu =
                                                       parallelize = parallelize)
     if (all(unique_alleles <= 200) & stringent_mode & all(range_allele_scenarios == c(1, 200))) {
       problematic_alleles <- c("DPA1*02:38Q", "A*03:437Q", "B*13:123Q", "C*02:205Q", "C*04:09N", "C*04:61N")
-      names(problematic_alleles) <- c("DPA1*02:02:02", "A*03:01:01", "B*13:02:01", "C*02:02:01", "C*04:01:01", "C*04:01:01")
+      names(problematic_alleles) <- c("DPA1*02:02:02", "A*03:01:01", "B*13:02:01", "C*02:02:02", "C*04:01:01", "C*04:01:01")
       is_the_allele_correct <- top_alleles_HLA[which(top_alleles_HLA %in% problematic_alleles)]
       names(is_the_allele_correct) <- names(problematic_alleles)[which(problematic_alleles %in% is_the_allele_correct)]
       for (x in seq_along(top_alleles_HLA[which(top_alleles_HLA %in% is_the_allele_correct)])) {
@@ -137,10 +138,17 @@ Top_HLA_list <- function(reads_1, reads_2 = NULL, allogeneic_entities = 2, seu =
                     crayon::red(" detected in final list. \nMake sure the correct allele is not "),
                     crayon::bgWhite(" ", names(is_the_allele_correct)[x], " "),
                     "\n  The mRNA (i.e. cDNA) reference IMGT/HLA sequence of the rare allele ", is_the_allele_correct[x], 
-                    "\n  is more extended/complete at the 3' end than the similar but more common allele ", names(is_the_allele_correct)[x], ".",
+                    "\n  is more extended/complete at the 3' end than the similar but more common allele(s) ", names(is_the_allele_correct)[x], ".",
                     "\n  Minimap2 of scrHLAtag will preferentially map ", names(is_the_allele_correct)[x], 
                     " reads to the ", is_the_allele_correct[x], " ref.", 
                     sep = ""))
+      }
+      if (correct_alleles) {
+        message(cat(crayon::red("\nWarning: "), "argument 'correct_alleles' is ",
+                    crayon::green("TRUE"), "; replacing the unlikely allele(s) with their 'correct' version(s).", sep = ""))
+        top_alleles_HLA <- sapply(top_alleles_HLA, function(x) if (x %in% is_the_allele_correct) names(is_the_allele_correct)[is_the_allele_correct == x] else x)
+        names(top_alleles_HLA) <- NULL
+        top_alleles_HLA <- top_alleles_HLA %>% sort()
       }
     } 
   }
