@@ -137,7 +137,7 @@ Top_HLA_list <- function(reads_1, reads_2 = NULL, allogeneic_entities = 2, seu =
                     crayon::red(" detected in final list. \nMake sure the correct allele is not "),
                     crayon::bgWhite(" ", names(is_the_allele_correct)[x], " "),
                     "\n  The mRNA (i.e. cDNA) reference IMGT/HLA sequence of the rare allele ", is_the_allele_correct[x], 
-                    "\n  is more extended/complete than the similar but more common allele ", names(is_the_allele_correct)[x], ".",
+                    "\n  is more extended/complete at the 3' end than the similar but more common allele ", names(is_the_allele_correct)[x], ".",
                     "\n  Minimap2 of scrHLAtag will preferentially map ", names(is_the_allele_correct)[x], 
                     " reads to the ", is_the_allele_correct[x], " ref.", 
                     sep = ""))
