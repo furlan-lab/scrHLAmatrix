@@ -18,8 +18,8 @@ Top_HLA_list(
   AS_belowmax = 0.8,
   NM_thresh = 15,
   de_thresh = 0.01,
-  top_by_read_frac.blk = 0.85,
-  top_by_read_frac.cb = 0.85,
+  top_by_read_frac = 0.85,
+  bulk_to_perCB_threshold = 2000,
   allowed_alleles_per_cell = c(1, 200),
   stringent_mode = TRUE,
   correct_alleles = TRUE,
@@ -58,9 +58,9 @@ Top_HLA_list(
 
 \item{de_thresh}{is the gap-compressed per-base sequence divergence in the minimap2 alignment at or below which the quality of the read is acceptable; the number is between \code{0} and \code{1}, and default is \code{0.015}.}
 
-\item{top_by_read_frac.blk}{in the Pseudo-Bulk algorithm, is the fraction (\code{0} to \code{1}) of total reads for a particular HLA gene, which incorporates the highest ranking alleles of that gene in terms of number of reads; default at \code{0.85}}
+\item{top_by_read_frac}{is the fraction (\code{0} to \code{1}) of total reads for a particular HLA gene, which incorporates the highest ranking alleles of that gene in terms of number of reads; default at \code{0.85}.}
 
-\item{top_by_read_frac.cb}{in the Single-Cell algorithm, is the fraction (\code{0} to \code{1}) of total reads for a particular HLA gene, which incorporates the highest ranking alleles of that gene in terms of number of reads; default at \code{0.85}}
+\item{bulk_to_perCB_threshold}{is a numeric, a threshold of number of uniquely mapped HLA alleles in the primary count file \code{read_1} above which listing the top alleles uses the Pseudo-Bulk algorithm and below which it uses the Single-Cell algorithm. Default is \code{2000}.}
 
 \item{allowed_alleles_per_cell}{is a numeric (single or range) determining the minimum and maximum number of highest ranking allele genotypes per cell to keep if such number is beyond those limits after filtering by fraction; default is \code{c(1, 200)}, usefull in the early scrHLAtag iterations to give minimap2 lots of room to align; once you are ready to finalize the top HLA allele list, you can try \code{c(1, 2)} if you assume a cell can have a min of 1 allele (homozygous) and a max of 2 (heterozygous).}
 
