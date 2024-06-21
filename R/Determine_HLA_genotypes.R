@@ -144,7 +144,7 @@ Top_HLA_list <- function(reads_1, reads_2 = NULL, allogeneic_entities = 2, seu =
                     sep = ""))
       }
       if (correct_alleles & length(is_the_allele_correct) > 0) {
-        message(cat("\nReplacing problematic allele(s) with their suspected 'correct' version(s). \n  (To turn off this feature: correct_alleles = FALSE)"))
+        message(cat("\nReplacing problematic allele(s) with their suspected 'correct' version(s). \n  Note: 'correct_alleles = FALSE' to turn off this feature."))
         top_alleles_HLA <- sapply(top_alleles_HLA, function(x) if (x %in% is_the_allele_correct) names(is_the_allele_correct)[is_the_allele_correct == x] else x)
         names(top_alleles_HLA) <- NULL
         top_alleles_HLA <- top_alleles_HLA %>% sort()
