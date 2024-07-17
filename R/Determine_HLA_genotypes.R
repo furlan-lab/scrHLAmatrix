@@ -15,10 +15,10 @@
 #' @param correct_alleles  is a logical. Minimap2 of scrHLAtag preferentially maps reads that are in fact DPA1*02:02:02, A*03:01:01, B*13:02:01, C*02:02:02, or C*04:01:01, to DPA1*02:38Q, A*03:437Q, B*13:123Q, C*02:205Q, or C*04:09N/C*04:61N, respectively. When called \code{TRUE}, the algorithm will replace the unlikely allele(s) with their 'correct' version(s). Will work if \code{stringent_mode} is \code{TRUE} and its own conditions to work are met (as explained above).
 #' @param field_resolution  is a numeric, to select the HLA nomenclature level of Field resolution, where \code{1}, \code{2}, or \code{3} will take into consideration the first, the first two, or the first three field(s) of HLA designation; default is \code{3}.
 #' @param QC_mm2  is a logical, called \code{TRUE} if removing low quality reads based on minimap2 tags is desired.
-#' @param s1_belowmax  is a proportion (\code{0} to \code{1}) of the maximum value (best quality) of the minimap2 's1' tag above which the quality of the read is acceptable; default at \code{0.75} of the max s1 score.
-#' @param AS_belowmax  is a proportion (\code{0} to \code{1}) of the maximum value (best quality) of the minimap2 'AS' tag above which the quality of the read is acceptable; default at \code{0.85} of the max AS score.
+#' @param s1_percent_pass_score  is a percentage (\code{0} to \code{100}) cuttoff from the maximum score (best quality) of the minimap2 's1' tag, which a read needs to acheive to pass as acceptable; default at \code{80} and becomes less inclusive if value increases.
+#' @param AS_percent_pass_score  is a percentage (\code{0} to \code{100}) cuttoff from the maximum score (best quality) of the minimap2 'AS' tag, which a read needs to acheive to pass as acceptable; default at \code{80} and becomes less inclusive if value increases.
 #' @param NM_thresh  is the number of mismatches and gaps in the minimap2 alignment at or below which the quality of the read is acceptable; default is \code{15}.
-#' @param de_thresh  is the gap-compressed per-base sequence divergence in the minimap2 alignment at or below which the quality of the read is acceptable; the number is between \code{0} and \code{1}, and default is \code{0.015}.
+#' @param de_thresh  is the gap-compressed per-base sequence divergence in the minimap2 alignment at or below which the quality of the read is acceptable; the number is between \code{0} and \code{1}, and default is \code{0.01}.
 #' @param parallelize  is a logical, called \code{TRUE} if using parallel processing (multi-threading) is desired; default is \code{TRUE}.
 #' @param umap_spread  for \code{uwot::umap()}; effective scale of embedded points determining how clustered/clumped the embedded points are.
 #' @param umap_min_dist  for \code{uwot::umap()}; effective minimum distance between embedded points. Smaller values will result in a more clustered/clumped embedding.
@@ -65,7 +65,7 @@
 
 Top_HLA_list <- function(reads_1, reads_2 = NULL, allogeneic_entities = 2, seu = NULL, CB_rev_com = FALSE,
                          hla_with_counts_above = 0, CBs_with_counts_above = 50, match_CB_with_seu = TRUE, 
-                         QC_mm2 = TRUE, s1_belowmax = 0.8, AS_belowmax = 0.8, NM_thresh = 15, de_thresh = 0.01,
+                         QC_mm2 = TRUE, s1_percent_pass_score = 80, AS_percent_pass_score = 80, NM_thresh = 15, de_thresh = 0.01,
                          top_by_read_frac = 0.85, bulk_to_perCB_threshold = 2000,
                          allowed_alleles_per_cell = c(1, 200), stringent_mode = TRUE, correct_alleles = TRUE, 
                          field_resolution = 3, parallelize = TRUE, 
@@ -79,8 +79,8 @@ Top_HLA_list <- function(reads_1, reads_2 = NULL, allogeneic_entities = 2, seu =
                                     match_CB_with_seu = match_CB_with_seu,
                                     hla_with_counts_above = hla_with_counts_above, 
                                     CBs_with_counts_above = CBs_with_counts_above,
-                                    QC_mm2 = QC_mm2, s1_belowmax = s1_belowmax, 
-                                    AS_belowmax = AS_belowmax, NM_thresh = NM_thresh, de_thresh = de_thresh,
+                                    QC_mm2 = QC_mm2, s1_percent_pass_score = s1_percent_pass_score, 
+                                    AS_percent_pass_score = AS_percent_pass_score, NM_thresh = NM_thresh, de_thresh = de_thresh,
                                     return_heavy = TRUE, 
                                     spread = umap_spread, min_dist = umap_min_dist, repulsion_strength = umap_repulsion, ...)
   print(HLA_umap_clusters[[2]]+scale_color_manual(values=pals::glasbey())+theme_classic())

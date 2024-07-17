@@ -8,10 +8,10 @@
 #' @param res_conflict_per_gene  is a logical, called \code{TRUE} if resolving per-HLA genotype conflicts is desired, with the assumption that each Cell can have no more than 2 alleles of the same HLA gene.
 #' @param LD_correct  is a logical, called \code{TRUE} if Linkage Diseqilibrium (LD) correction in the HLA-DR locus is desired, with the assumption of a very strong LD between certain DRB1 allele families and the DRB2, DRB3, DRB4, DRB5, DRB6, DRB7, DRB8, and DRB9 loci.
 #' @param remove_alleles  is a character list of HLA alleles to be removed from the count file if desired; default is an empty character vector.
-#' @param s1_belowmax  is a proportion (\code{0} to \code{1}) of the maximum value (best quality) of the minimap2 's1' tag above which the quality of the read is acceptable; default at \code{0.75} of the max s1 score.
-#' @param AS_belowmax  is a proportion (\code{0} to \code{1}) of the maximum value (best quality) of the minimap2 'AS' tag above which the quality of the read is acceptable; default at \code{0.85} of the max AS score.
+#' @param s1_percent_pass_score  is a percentage (\code{0} to \code{100}) cuttoff from the maximum score (best quality) of the minimap2 's1' tag, which a read needs to acheive to pass as acceptable; default at \code{80} and becomes less inclusive if value increases.
+#' @param AS_percent_pass_score  is a percentage (\code{0} to \code{100}) cuttoff from the maximum score (best quality) of the minimap2 'AS' tag, which a read needs to acheive to pass as acceptable; default at \code{80} and becomes less inclusive if value increases.
 #' @param NM_thresh  is the number of mismatches and gaps in the minimap2 alignment at or below which the quality of the read is acceptable; default is \code{15}.
-#' @param de_thresh  is the gap-compressed per-base sequence divergence in the minimap2 alignment at or below which the quality of the read is acceptable; the number is between \code{0} and \code{1}, and default is \code{0.015}.
+#' @param de_thresh  is the gap-compressed per-base sequence divergence in the minimap2 alignment at or below which the quality of the read is acceptable; the number is between \code{0} and \code{1}, and default is \code{0.01}.
 #' @param parallelize  is a logical, called \code{TRUE} if using parallel processing (multi-threading) is desired; default is \code{FALSE}.
 #' @param CB_rev_com  is a logical, called \code{TRUE} if the need to obtained the reverse complement of Cell Barcodes (CBs) is desired; default is \code{FALSE}. 
 #' @param return_stats  is a logical, when \code{TRUE} returns step-by-step read statistics and UMI duplication rate in a list of dataframes and plot, in addition to the Seurat-compatible count matrix; will require additional computations which may noticeably slow down the function; defualt is \code{FALSE}.
@@ -45,7 +45,7 @@
 #' HLA_Matrix(reads = cts[["mRNA"]], seu = your_Seurat_obj, hla_recip = c("A*24:02:01", "DRB1*04:01:01", "DRB4*01:03:02"), hla_donor = c("A*33:03:01", "B*42:01:01"))
 #' @export
 
-HLA_Matrix <- function(reads, seu, hla_recip = character(), hla_donor = character(), QC_mm2 = TRUE, res_conflict_per_gene = TRUE, LD_correct = TRUE, remove_alleles = character(), s1_belowmax = 0.80, AS_belowmax = 0.80, NM_thresh = 15, de_thresh = 0.01, parallelize = FALSE, CB_rev_com = FALSE, return_stats = FALSE) {
+HLA_Matrix <- function(reads, seu, hla_recip = character(), hla_donor = character(), QC_mm2 = TRUE, res_conflict_per_gene = TRUE, LD_correct = TRUE, remove_alleles = character(), s1_percent_pass_score = 80, AS_percent_pass_score = 80, NM_thresh = 15, de_thresh = 0.01, parallelize = FALSE, CB_rev_com = FALSE, return_stats = FALSE) {
   s <- Sys.time()
   #message(cat(format(s, "%F %H:%M:%S")))
   n_reads <- nrow(reads)
@@ -113,9 +113,9 @@ HLA_Matrix <- function(reads, seu, hla_recip = character(), hla_donor = characte
       stop("NM tag threshold 'NM_thresh' must be numeric or integer")
     }
   }
-  ## check 's1_belowmax', 'AS_belowmax', and 'de_thresh' thresholds are between 0 and 1
-  if (!all(between(c(s1_belowmax, AS_belowmax, de_thresh), 0, 1))){
-    stop("'s1_belowmax', 'AS_belowmax', and 'de_thresh' should be numerics between 0 and 1")
+  ## check 's1_percent_pass_score/100', 'AS_percent_pass_score/100', and 'de_thresh' thresholds are between 0 and 1
+  if (!all(between(c((s1_percent_pass_score/100), (AS_percent_pass_score/100), de_thresh), 0, 1))){
+    stop("'s1_percent_pass_score', 'AS_percent_pass_score', should be numerics between 0 and 100, and 'de_thresh' between 0 and 1")
   }
   ## Reverse Complement the CB
   if (CB_rev_com) {
@@ -181,9 +181,9 @@ HLA_Matrix <- function(reads, seu, hla_recip = character(), hla_donor = characte
     QC_mm2 <- FALSE
   }
   if (QC_mm2) {
-    message(cat("\nRemoving low quality reads based on minimap2 tags"))   
+    message(cat("\nRemoving low quality reads based on minimap2 tags"))
     reads <- split(data.table::setDT(reads), by = "gene0")   
-    reads <- pbmcapply::pbmclapply(reads, function(df){df[df$s1 > s1_belowmax*max(df$s1) & df$AS > AS_belowmax*max(df$AS) & df$NM <= NM_thresh & df$de <= de_thresh,]}, mc.cores = multi_thread)    
+    reads <- pbmcapply::pbmclapply(reads, function(df){df[df$s1 > (s1_percent_pass_score/100)*max(df$s1) & df$AS > (AS_percent_pass_score/100)*max(df$AS) & df$NM <= NM_thresh & df$de <= de_thresh,]}, mc.cores = multi_thread)    
     reads <- data.table::rbindlist(reads) 
     row.names(reads)<-NULL
     if (return_stats) {

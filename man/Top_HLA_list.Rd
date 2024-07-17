@@ -14,8 +14,8 @@ Top_HLA_list(
   CBs_with_counts_above = 50,
   match_CB_with_seu = TRUE,
   QC_mm2 = TRUE,
-  s1_belowmax = 0.8,
-  AS_belowmax = 0.8,
+  s1_percent_pass_score = 80,
+  AS_percent_pass_score = 80,
   NM_thresh = 15,
   de_thresh = 0.01,
   top_by_read_frac = 0.85,
@@ -50,13 +50,13 @@ Top_HLA_list(
 
 \item{QC_mm2}{is a logical, called \code{TRUE} if removing low quality reads based on minimap2 tags is desired.}
 
-\item{s1_belowmax}{is a proportion (\code{0} to \code{1}) of the maximum value (best quality) of the minimap2 's1' tag above which the quality of the read is acceptable; default at \code{0.75} of the max s1 score.}
+\item{s1_percent_pass_score}{is a percentage (\code{0} to \code{100}) cuttoff from the maximum score (best quality) of the minimap2 's1' tag, which a read needs to acheive to pass as acceptable; default at \code{80} and becomes less inclusive if value increases.}
 
-\item{AS_belowmax}{is a proportion (\code{0} to \code{1}) of the maximum value (best quality) of the minimap2 'AS' tag above which the quality of the read is acceptable; default at \code{0.85} of the max AS score.}
+\item{AS_percent_pass_score}{is a percentage (\code{0} to \code{100}) cuttoff from the maximum score (best quality) of the minimap2 'AS' tag, which a read needs to acheive to pass as acceptable; default at \code{80} and becomes less inclusive if value increases.}
 
 \item{NM_thresh}{is the number of mismatches and gaps in the minimap2 alignment at or below which the quality of the read is acceptable; default is \code{15}.}
 
-\item{de_thresh}{is the gap-compressed per-base sequence divergence in the minimap2 alignment at or below which the quality of the read is acceptable; the number is between \code{0} and \code{1}, and default is \code{0.015}.}
+\item{de_thresh}{is the gap-compressed per-base sequence divergence in the minimap2 alignment at or below which the quality of the read is acceptable; the number is between \code{0} and \code{1}, and default is \code{0.01}.}
 
 \item{top_by_read_frac}{is the fraction (\code{0} to \code{1}) of total reads for a particular HLA gene, which incorporates the highest ranking alleles of that gene in terms of number of reads; default at \code{0.85}.}
 
