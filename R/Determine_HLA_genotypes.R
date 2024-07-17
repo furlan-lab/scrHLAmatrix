@@ -112,7 +112,7 @@ Top_HLA_list <- function(reads_1, reads_2 = NULL, allogeneic_entities = 2, seu =
       tmp <- x$gene %>% unique() %>% length()
       return(tmp)
     }) %>% unlist()
-    if (all(unique_alleles <= 200) & stringent_mode & all(range_allele_scenarios == c(1, 200))) {
+    if (all(unique_alleles <= 200) & stringent_mode & all(allowed_alleles_per_cell == c(1, 200))) {
       message(cat("\nReads count file shows 200 or fewer uniquely mapped HLA alleles per allogeneic entity;\nStringent mode active: ", crayon::green("attempting to extract final list of top HLA alleles using the Single-Cell algorithm"), sep = ""))
       allowed_alleles_per_cell <- c(1, 2)
     } else {
@@ -127,7 +127,7 @@ Top_HLA_list <- function(reads_1, reads_2 = NULL, allogeneic_entities = 2, seu =
                                                       allowed_alleles_per_cell = allowed_alleles_per_cell,
                                                       field_resolution = field_resolution,
                                                       parallelize = parallelize)
-    if (all(unique_alleles <= 200) & stringent_mode & all(range_allele_scenarios == c(1, 200))) {
+    if (all(unique_alleles <= 200) & stringent_mode & all(allowed_alleles_per_cell == c(1, 200))) {
       problematic_alleles <- c("DPA1*02:38Q", "A*03:437Q", "B*13:123Q", "C*02:205Q", "C*04:09N", "C*04:61N")
       names(problematic_alleles) <- c("DPA1*02:02:02", "A*03:01:01", "B*13:02:01", "C*02:02:02", "C*04:01:01", "C*04:01:01")
       is_the_allele_correct <- top_alleles_HLA[which(top_alleles_HLA %in% problematic_alleles)]
