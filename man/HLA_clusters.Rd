@@ -21,6 +21,7 @@ HLA_clusters(
   parallelize = FALSE,
   pt_size = 0.5,
   return_heavy = FALSE,
+  hclust_method = "complete",
   ...
 )
 }
@@ -56,6 +57,8 @@ HLA_clusters(
 \item{pt_size}{is a number, the size of the geometric point displayed by ggplot2.}
 
 \item{return_heavy}{is a logical, if \code{TRUE} it also returns the now processed scrHLAtag count file (minimap2 QCed, CB reverse comp'ed, etc..) but the returned object is significantly heavier; default is \code{FALSE}.}
+
+\item{hclust_method}{for the \code{stats::hclust()}; is the agglonaration method to be used. Values include \code{"ward.D"}, \code{"ward.D2"}, \code{"single"}, \code{"complete"}, \code{"average"}, \code{"mcquitty"}, \code{"median"}, or \code{"centroid"}; for more information: \code{?stats::hclust}.}
 
 \item{...}{arguments passed onto \code{uwot::umap()}.}
 }
