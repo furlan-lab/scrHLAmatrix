@@ -165,7 +165,8 @@ HLA_clusters <- function(reads, k = 2, seu = NULL, CB_rev_com = FALSE, geno_meta
   # ggplot(umapout, aes(x=umap1, y=umap2, color=geno))+geom_point(size=0.5)+scale_color_manual(values=pals::glasbey())+theme_bw()
   # ggplot(umapout, aes(x=umap1, y=umap2, color=logUMI))+geom_point(size=0.25)+scale_color_viridis_b()+theme_bw()
   message(cat("\nClustering on the UMAP space using Hierarchical Clustering (from 'stats')"))
-  humapout <- stats::hclust(dist(as.matrix(umapout[,1:2])), method = hclust_method) 
+  if (hclust_method == "centroid") {exp <- 2} else {exp <- 1}
+  humapout <- stats::hclust(dist(as.matrix(umapout[,1:2]))^exp, method = hclust_method) 
   umapout$hla_clusters <- stats::cutree(humapout, k = k)
   umapout$hla_clusters <- as.factor(umapout$hla_clusters)
   g <- ggplot(umapout, aes(x=umap1, y=umap2, color=hla_clusters))+geom_point(size=pt_size)#+scale_color_manual(values=pals::glasbey())+theme_bw()
