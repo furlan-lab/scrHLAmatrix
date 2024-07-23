@@ -29,7 +29,6 @@
 #' @import ggplot2
 #' @import Seurat
 #' @import dplyr
-#' @import mclust
 #' @return a large list containing DataFrame with UMAP coordinates and ggplot of HLA clusters
 #' @examples
 #' samples <- c("AML_101_BM", "AML_101_34")
@@ -57,6 +56,8 @@ HLA_clusters <- function(reads, k = 2, seu = NULL, CB_rev_com = FALSE, geno_meta
                          QC_mm2 = TRUE, s1_percent_pass_score = 80, AS_percent_pass_score = 80, NM_thresh = 15, de_thresh = 0.01, 
                          hclust_algorithm = "complete", kmeans_algorithm = "Hartigan-Wong",
                          parallelize = FALSE, pt_size = 0.5, return_heavy = FALSE, ...) {
+  if (!requireNamespace("mclust", quietly = TRUE)) { stop("Package 'mclust' needed for this function to work. Please install it.", call. = FALSE) }
+  if (!"package:mclust" %in% search()) {library(mclust)}
   ## parallelize
   if (parallelize) {
     multi_thread <- parallel::detectCores()

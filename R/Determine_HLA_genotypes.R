@@ -32,7 +32,6 @@
 #' @import htmltools
 #' @import Seurat
 #' @import dplyr
-#' @import mclust
 #' @return a Vector of the top HLA alleles in the count files (in terms of reads per Cell Barcode).
 #' @examples
 #' samples <- c("AML_101_BM", "AML_101_34")
@@ -70,6 +69,8 @@ Top_HLA_list <- function(reads_1, reads_2 = NULL, allogeneic_entities = 2, seu =
                          top_by_read_frac = 0.85, bulk_to_perCB_threshold = 2000,
                          allowed_alleles_per_cell = c(1, 200), stringent_mode = TRUE, correct_alleles = TRUE,                         
                          hclust_algorithm = "complete", kmeans_algorithm = "Hartigan-Wong", field_resolution = 3, parallelize = TRUE, ...) {
+  if (!requireNamespace("mclust", quietly = TRUE)) { stop("Package 'mclust' needed for this function to work. Please install it.", call. = FALSE) }
+  if (!"package:mclust" %in% search()) {library(mclust)}
   s <- Sys.time()
   # creating HLA umap clusters
   HLA_umap_clusters <- HLA_clusters(reads = reads_1, 
