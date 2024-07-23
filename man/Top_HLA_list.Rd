@@ -13,6 +13,7 @@ Top_HLA_list(
   hla_with_counts_above = 0,
   CBs_with_counts_above = 50,
   match_CB_with_seu = TRUE,
+  graph_based_clust = "hclust",
   QC_mm2 = TRUE,
   s1_percent_pass_score = 80,
   AS_percent_pass_score = 80,
@@ -23,11 +24,10 @@ Top_HLA_list(
   allowed_alleles_per_cell = c(1, 200),
   stringent_mode = TRUE,
   correct_alleles = TRUE,
+  hclust_algorithm = "complete",
+  kmeans_algorithm = "Hartigan-Wong",
   field_resolution = 3,
   parallelize = TRUE,
-  umap_spread = 3,
-  umap_min_dist = 1e-04,
-  umap_repulsion = 1e-04,
   ...
 )
 }
@@ -47,6 +47,8 @@ Top_HLA_list(
 \item{CBs_with_counts_above}{is the number of total reads accross HLA alleles at or above which a CB is retained in the matrix. Note: at present, the function will make sure that number of CBs is equal or more than available HLA alleles in the matrix.}
 
 \item{match_CB_with_seu}{is a logical, called \code{TRUE} if filtering CBs in the scrHLAtag count file with matching ones in the Seurat object is desired.}
+
+\item{graph_based_clust}{is the graph-based clustering method to be used for partitioning cells based on their HLA count patterns. The choice is between a Connectivity-based method: \code{"hclust"} or \code{"umap_hclust"}, a Centroid-based method: \code{"kmeans"}, or a Distribution based method: \code{"mclust"} (for Gaussian Mixture Model). We found \code{"hclust"} had the best ability to separate allogeneic entities so we set it as Default. In some cases, applying hierarchical clustering directly on UMAP coordinates gives good allogeneic entity separation so we provide the \code{"umap_hclust"} option.}
 
 \item{QC_mm2}{is a logical, called \code{TRUE} if removing low quality reads based on minimap2 tags is desired.}
 
@@ -68,17 +70,15 @@ Top_HLA_list(
 
 \item{correct_alleles}{is a logical. Minimap2 of scrHLAtag preferentially maps reads that are in fact DPA1*02:02:02, A*03:01:01, B*13:02:01, C*02:02:02, or C*04:01:01, to DPA1*02:38Q, A*03:437Q, B*13:123Q, C*02:205Q, or C*04:09N/C*04:61N, respectively. When called \code{TRUE}, the algorithm will replace the unlikely allele(s) with their 'correct' version(s). Will work if \code{stringent_mode} is \code{TRUE} and its own conditions to work are met (as explained above).}
 
+\item{hclust_algorithm}{applies to \code{stats::hclust()}; is the agglomeration algorithm to be used. Values include \code{"ward.D"}, \code{"ward.D2"}, \code{"single"}, \code{"complete"}, \code{"average"}, \code{"mcquitty"}, \code{"median"}, or \code{"centroid"}; for more information: \code{?stats::hclust}.}
+
+\item{kmeans_algorithm}{applies to \code{stats::kmeans()}; is the k-means algorithm to be used. Values include \code{"Hartigan-Wong"}, \code{"Lloyd"}, \code{"Forgy"}, or \code{"MacQueen"}; for more information: \code{?stats::kmeans}.}
+
 \item{field_resolution}{is a numeric, to select the HLA nomenclature level of Field resolution, where \code{1}, \code{2}, or \code{3} will take into consideration the first, the first two, or the first three field(s) of HLA designation; default is \code{3}.}
 
 \item{parallelize}{is a logical, called \code{TRUE} if using parallel processing (multi-threading) is desired; default is \code{TRUE}.}
 
-\item{umap_spread}{for \code{uwot::umap()}; effective scale of embedded points determining how clustered/clumped the embedded points are.}
-
-\item{umap_min_dist}{for \code{uwot::umap()}; effective minimum distance between embedded points. Smaller values will result in a more clustered/clumped embedding.}
-
-\item{umap_repulsion}{for \code{uwot::umap()}; weighting applied to negative samples in low dimensional embedding optimization.}
-
-\item{...}{other arguments passed onto \code{uwot::umap()}.}
+\item{...}{arguments passed onto \code{uwot::umap()}.}
 }
 \value{
 a Vector of the top HLA alleles in the count files (in terms of reads per Cell Barcode).

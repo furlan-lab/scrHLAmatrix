@@ -8,6 +8,7 @@
 #' @param hla_with_counts_above  is the number of total reads accross CBs at or above which an HLA allele is retained in the matrix.
 #' @param CBs_with_counts_above  is the number of total reads accross HLA alleles at or above which a CB is retained in the matrix. Note: at present, the function will make sure that number of CBs is equal or more than available HLA alleles in the matrix.
 #' @param match_CB_with_seu  is a logical, called \code{TRUE} if filtering CBs in the scrHLAtag count file with matching ones in the Seurat object is desired. 
+#' @param graph_based_clust  is the graph-based clustering method to be used for partitioning cells based on their HLA count patterns. The choice is between a Connectivity-based method: \code{"hclust"} or \code{"umap_hclust"}, a Centroid-based method: \code{"kmeans"}, or a Distribution based method: \code{"mclust"} (for Gaussian Mixture Model). We found \code{"hclust"} had the best ability to separate allogeneic entities so we set it as Default. In some cases, applying hierarchical clustering directly on UMAP coordinates gives good allogeneic entity separation so we provide the \code{"umap_hclust"} option.
 #' @param top_by_read_frac  is the fraction (\code{0} to \code{1}) of total reads for a particular HLA gene, which incorporates the highest ranking alleles of that gene in terms of number of reads; default at \code{0.85}.
 #' @param bulk_to_perCB_threshold  is a numeric, a threshold of number of uniquely mapped HLA alleles in the primary count file \code{read_1} above which listing the top alleles uses the Pseudo-Bulk Algorithm and below which it uses the Per Single-Cell Algorithm. Default is \code{2000}.
 #' @param allowed_alleles_per_cell  is a numeric (single or range) determining the minimum and maximum number of highest ranking allele genotypes per cell to keep if such number is beyond those limits after filtering by fraction; default is \code{c(1, 200)}, usefull in the early scrHLAtag iterations to give minimap2 lots of room to align; once you are ready to finalize the top HLA allele list, you can try \code{c(1, 2)} if you assume a cell can have a min of 1 allele (homozygous) and a max of 2 (heterozygous).
@@ -19,11 +20,10 @@
 #' @param AS_percent_pass_score  is a percentage (\code{0} to \code{100}) cuttoff from the maximum score (best quality) of the minimap2 'AS' tag, which a read needs to acheive to pass as acceptable; default at \code{80} and becomes less inclusive if value increases.
 #' @param NM_thresh  is the number of mismatches and gaps in the minimap2 alignment at or below which the quality of the read is acceptable; default is \code{15}.
 #' @param de_thresh  is the gap-compressed per-base sequence divergence in the minimap2 alignment at or below which the quality of the read is acceptable; the number is between \code{0} and \code{1}, and default is \code{0.01}.
+#' @param hclust_algorithm  applies to \code{stats::hclust()}; is the agglomeration algorithm to be used. Values include \code{"ward.D"}, \code{"ward.D2"}, \code{"single"}, \code{"complete"}, \code{"average"}, \code{"mcquitty"}, \code{"median"}, or \code{"centroid"}; for more information: \code{?stats::hclust}.
+#' @param kmeans_algorithm  applies to \code{stats::kmeans()}; is the k-means algorithm to be used. Values include \code{"Hartigan-Wong"}, \code{"Lloyd"}, \code{"Forgy"}, or \code{"MacQueen"}; for more information: \code{?stats::kmeans}.
 #' @param parallelize  is a logical, called \code{TRUE} if using parallel processing (multi-threading) is desired; default is \code{TRUE}.
-#' @param umap_spread  for \code{uwot::umap()}; effective scale of embedded points determining how clustered/clumped the embedded points are.
-#' @param umap_min_dist  for \code{uwot::umap()}; effective minimum distance between embedded points. Smaller values will result in a more clustered/clumped embedding.
-#' @param umap_repulsion  for \code{uwot::umap()}; weighting applied to negative samples in low dimensional embedding optimization.
-#' @param ...  other arguments passed onto \code{uwot::umap()}.
+#' @param ...  arguments passed onto \code{uwot::umap()}.
 #' @import stringr
 #' @import pbmcapply
 #' @import parallel
@@ -32,6 +32,7 @@
 #' @import htmltools
 #' @import Seurat
 #' @import dplyr
+#' @import mclust
 #' @return a Vector of the top HLA alleles in the count files (in terms of reads per Cell Barcode).
 #' @examples
 #' samples <- c("AML_101_BM", "AML_101_34")
@@ -64,12 +65,11 @@
 #' @export
 
 Top_HLA_list <- function(reads_1, reads_2 = NULL, allogeneic_entities = 2, seu = NULL, CB_rev_com = FALSE,
-                         hla_with_counts_above = 0, CBs_with_counts_above = 50, match_CB_with_seu = TRUE, 
+                         hla_with_counts_above = 0, CBs_with_counts_above = 50, match_CB_with_seu = TRUE, graph_based_clust = "hclust", 
                          QC_mm2 = TRUE, s1_percent_pass_score = 80, AS_percent_pass_score = 80, NM_thresh = 15, de_thresh = 0.01,
                          top_by_read_frac = 0.85, bulk_to_perCB_threshold = 2000,
-                         allowed_alleles_per_cell = c(1, 200), stringent_mode = TRUE, correct_alleles = TRUE, 
-                         field_resolution = 3, parallelize = TRUE, 
-                         umap_spread = 3, umap_min_dist = 0.0001, umap_repulsion = 0.0001, ...) {
+                         allowed_alleles_per_cell = c(1, 200), stringent_mode = TRUE, correct_alleles = TRUE,                         
+                         hclust_algorithm = "complete", kmeans_algorithm = "Hartigan-Wong", field_resolution = 3, parallelize = TRUE, ...) {
   s <- Sys.time()
   # creating HLA umap clusters
   HLA_umap_clusters <- HLA_clusters(reads = reads_1, 
@@ -82,7 +82,7 @@ Top_HLA_list <- function(reads_1, reads_2 = NULL, allogeneic_entities = 2, seu =
                                     QC_mm2 = QC_mm2, s1_percent_pass_score = s1_percent_pass_score, 
                                     AS_percent_pass_score = AS_percent_pass_score, NM_thresh = NM_thresh, de_thresh = de_thresh,
                                     return_heavy = TRUE, 
-                                    spread = umap_spread, min_dist = umap_min_dist, repulsion_strength = umap_repulsion, ...)
+                                    method = graph_based_clust, hclust_algorithm = hclust_algorithm, kmeans_algorithm = kmeans_algorithm, ...)
   print(HLA_umap_clusters[[2]]+scale_color_manual(values=pals::glasbey())+theme_classic())
   if ((reads_1$gene %>% unique() %>% length()) > bulk_to_perCB_threshold) {
     message(cat("\nReads count file shows greater than ", bulk_to_perCB_threshold, " uniquely mapped HLA alleles; extracting top alleles using the Pseudo-Bulk Algorithm", sep = ""))

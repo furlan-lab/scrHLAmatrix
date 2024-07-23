@@ -13,15 +13,17 @@ HLA_clusters(
   hla_with_counts_above = 0,
   CBs_with_counts_above = 50,
   match_CB_with_seu = TRUE,
+  method = "hclust",
   QC_mm2 = TRUE,
   s1_percent_pass_score = 80,
   AS_percent_pass_score = 80,
   NM_thresh = 15,
   de_thresh = 0.01,
+  hclust_algorithm = "complete",
+  kmeans_algorithm = "Hartigan-Wong",
   parallelize = FALSE,
   pt_size = 0.5,
   return_heavy = FALSE,
-  hclust_method = "complete",
   ...
 )
 }
@@ -42,6 +44,8 @@ HLA_clusters(
 
 \item{match_CB_with_seu}{is a logical, called \code{TRUE} if filtering CBs in the scrHLAtag count file with matching ones in the Seurat object is desired.}
 
+\item{method}{is the graph-based clustering method to be used for partitioning cells based on their HLA count patterns. The choice is between a Connectivity-based method: \code{"hclust"} or \code{"umap_hclust"}, a Centroid-based method: \code{"kmeans"}, or a Distribution based method: \code{"mclust"} (for Gaussian Mixture Model). We found \code{"hclust"} had the best ability to separate allogeneic entities so we set it as Default. In some cases, applying hierarchical clustering directly on UMAP coordinates gives good allogeneic entity separation so we provide the \code{"umap_hclust"} option.}
+
 \item{QC_mm2}{is a logical, called \code{TRUE} if removing low quality reads based on minimap2 tags is desired.}
 
 \item{s1_percent_pass_score}{is a percentage (\code{0} to \code{100}) cuttoff from the maximum score (best quality) of the minimap2 's1' tag, which a read needs to acheive to pass as acceptable; default at \code{80} and becomes less inclusive if value increases.}
@@ -52,13 +56,15 @@ HLA_clusters(
 
 \item{de_thresh}{is the gap-compressed per-base sequence divergence in the minimap2 alignment at or below which the quality of the read is acceptable; the number is between \code{0} and \code{1}, and default is \code{0.01}.}
 
+\item{hclust_algorithm}{applies to \code{stats::hclust()}; is the agglomeration algorithm to be used. Values include \code{"ward.D"}, \code{"ward.D2"}, \code{"single"}, \code{"complete"}, \code{"average"}, \code{"mcquitty"}, \code{"median"}, or \code{"centroid"}; for more information: \code{?stats::hclust}.}
+
+\item{kmeans_algorithm}{applies to \code{stats::kmeans()}; is the k-means algorithm to be used. Values include \code{"Hartigan-Wong"}, \code{"Lloyd"}, \code{"Forgy"}, or \code{"MacQueen"}; for more information: \code{?stats::kmeans}.}
+
 \item{parallelize}{is a logical, called \code{TRUE} if using parallel processing (multi-threading) is desired; default is \code{FALSE}.}
 
 \item{pt_size}{is a number, the size of the geometric point displayed by ggplot2.}
 
 \item{return_heavy}{is a logical, if \code{TRUE} it also returns the now processed scrHLAtag count file (minimap2 QCed, CB reverse comp'ed, etc..) but the returned object is significantly heavier; default is \code{FALSE}.}
-
-\item{hclust_method}{for the \code{stats::hclust()}; is the agglonaration method to be used. Values include \code{"ward.D"}, \code{"ward.D2"}, \code{"single"}, \code{"complete"}, \code{"average"}, \code{"mcquitty"}, \code{"median"}, or \code{"centroid"}; for more information: \code{?stats::hclust}.}
 
 \item{...}{arguments passed onto \code{uwot::umap()}.}
 }
