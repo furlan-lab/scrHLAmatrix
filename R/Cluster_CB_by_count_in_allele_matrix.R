@@ -16,6 +16,7 @@
 #' @param de_thresh  is the gap-compressed per-base sequence divergence in the minimap2 alignment at or below which the quality of the read is acceptable; the number is between \code{0} and \code{1}, and default is \code{0.01}.
 #' @param hclust_algorithm  applies to \code{stats::hclust()}; is the agglomeration algorithm to be used. Values include \code{"ward.D"}, \code{"ward.D2"}, \code{"single"}, \code{"complete"}, \code{"average"}, \code{"mcquitty"}, \code{"median"}, or \code{"centroid"}; for more information: \code{?stats::hclust}.
 #' @param kmeans_algorithm  applies to \code{stats::kmeans()}; is the k-means algorithm to be used. Values include \code{"Hartigan-Wong"}, \code{"Lloyd"}, \code{"Forgy"}, or \code{"MacQueen"}; for more information: \code{?stats::kmeans}.
+#' @param n_PCs  is a numeric, representing the number of top principal components to retain in downstream clustering and umap analyses; default is \code{100} or the top 80% of PCs, whichever is smaller.
 #' @param parallelize  is a logical, called \code{TRUE} if using parallel processing (multi-threading) is desired; default is \code{FALSE}.
 #' @param pt_size  is a number, the size of the geometric point displayed by ggplot2. 
 #' @param return_heavy  is a logical, if \code{TRUE} it also returns the now processed scrHLAtag count file (minimap2 QCed, CB reverse comp'ed, etc..) but the returned object is significantly heavier; default is \code{FALSE}. 
@@ -54,7 +55,7 @@
 HLA_clusters <- function(reads, k = 2, seu = NULL, CB_rev_com = FALSE, geno_metadata_id = NULL, 
                          hla_with_counts_above = 0, CBs_with_counts_above = 50, match_CB_with_seu = TRUE, method = "hclust", 
                          QC_mm2 = TRUE, s1_percent_pass_score = 80, AS_percent_pass_score = 80, NM_thresh = 15, de_thresh = 0.01, 
-                         hclust_algorithm = "complete", kmeans_algorithm = "Hartigan-Wong",
+                         hclust_algorithm = "complete", kmeans_algorithm = "Hartigan-Wong", n_PCs = 100,
                          parallelize = FALSE, pt_size = 0.5, return_heavy = FALSE, ...) {
   if (!requireNamespace("mclust", quietly = TRUE)) { stop("Package 'mclust' needed for this function to work. Please install it.", call. = FALSE) }
   if (!"package:mclust" %in% search()) {library(mclust)}
@@ -158,7 +159,7 @@ HLA_clusters <- function(reads, k = 2, seu = NULL, CB_rev_com = FALSE, geno_meta
   pc <- stats::princomp(t(part_HLA))
   pcv<-as.data.frame(pc$scores)
   elbow <- barplot((pc$sdev^2/sum(pc$sdev^2))[1:100])
-  umat<-pcv[,1:floor(0.8*ncol(pcv))] %>% as.matrix()
+  umat<-pcv[,1:floor(min(n_PCs, 0.8*ncol(pcv)))] %>% as.matrix()
   umapout<-uwot::umap(umat, verbose = TRUE, ...) # fix `batch = TRUE, seed = 1985` (for example) for more consistent umaps.
   colnames(umapout)<-c("umap1", "umap2")
   umapout <- as.data.frame(umapout)

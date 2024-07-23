@@ -22,6 +22,7 @@
 #' @param de_thresh  is the gap-compressed per-base sequence divergence in the minimap2 alignment at or below which the quality of the read is acceptable; the number is between \code{0} and \code{1}, and default is \code{0.01}.
 #' @param hclust_algorithm  applies to \code{stats::hclust()}; is the agglomeration algorithm to be used. Values include \code{"ward.D"}, \code{"ward.D2"}, \code{"single"}, \code{"complete"}, \code{"average"}, \code{"mcquitty"}, \code{"median"}, or \code{"centroid"}; for more information: \code{?stats::hclust}.
 #' @param kmeans_algorithm  applies to \code{stats::kmeans()}; is the k-means algorithm to be used. Values include \code{"Hartigan-Wong"}, \code{"Lloyd"}, \code{"Forgy"}, or \code{"MacQueen"}; for more information: \code{?stats::kmeans}.
+#' @param n_PCs  is a numeric, representing the number of top principal components to retain in downstream clustering and umap analyses; default is \code{100} or the top 80% of PCs, whichever is smaller.
 #' @param parallelize  is a logical, called \code{TRUE} if using parallel processing (multi-threading) is desired; default is \code{TRUE}.
 #' @param ...  arguments passed onto \code{uwot::umap()}.
 #' @import stringr
@@ -68,7 +69,7 @@ Top_HLA_list <- function(reads_1, reads_2 = NULL, allogeneic_entities = 2, seu =
                          QC_mm2 = TRUE, s1_percent_pass_score = 80, AS_percent_pass_score = 80, NM_thresh = 15, de_thresh = 0.01,
                          top_by_read_frac = 0.85, bulk_to_perCB_threshold = 2000,
                          allowed_alleles_per_cell = c(1, 200), stringent_mode = TRUE, correct_alleles = TRUE,                         
-                         hclust_algorithm = "complete", kmeans_algorithm = "Hartigan-Wong", field_resolution = 3, parallelize = TRUE, ...) {
+                         hclust_algorithm = "complete", kmeans_algorithm = "Hartigan-Wong", n_PCs = 100, field_resolution = 3, parallelize = TRUE, ...) {
   if (!requireNamespace("mclust", quietly = TRUE)) { stop("Package 'mclust' needed for this function to work. Please install it.", call. = FALSE) }
   if (!"package:mclust" %in% search()) {library(mclust)}
   s <- Sys.time()
@@ -82,7 +83,7 @@ Top_HLA_list <- function(reads_1, reads_2 = NULL, allogeneic_entities = 2, seu =
                                     CBs_with_counts_above = CBs_with_counts_above,
                                     QC_mm2 = QC_mm2, s1_percent_pass_score = s1_percent_pass_score, 
                                     AS_percent_pass_score = AS_percent_pass_score, NM_thresh = NM_thresh, de_thresh = de_thresh,
-                                    return_heavy = TRUE, 
+                                    return_heavy = TRUE, n_PCs = n_PCs,
                                     method = graph_based_clust, hclust_algorithm = hclust_algorithm, kmeans_algorithm = kmeans_algorithm, ...)
   print(HLA_umap_clusters[[2]]+scale_color_manual(values=pals::glasbey())+theme_classic())
   if ((reads_1$gene %>% unique() %>% length()) > bulk_to_perCB_threshold) {

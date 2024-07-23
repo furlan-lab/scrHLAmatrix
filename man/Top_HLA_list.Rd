@@ -26,6 +26,7 @@ Top_HLA_list(
   correct_alleles = TRUE,
   hclust_algorithm = "complete",
   kmeans_algorithm = "Hartigan-Wong",
+  n_PCs = 100,
   field_resolution = 3,
   parallelize = TRUE,
   ...
@@ -73,6 +74,8 @@ Top_HLA_list(
 \item{hclust_algorithm}{applies to \code{stats::hclust()}; is the agglomeration algorithm to be used. Values include \code{"ward.D"}, \code{"ward.D2"}, \code{"single"}, \code{"complete"}, \code{"average"}, \code{"mcquitty"}, \code{"median"}, or \code{"centroid"}; for more information: \code{?stats::hclust}.}
 
 \item{kmeans_algorithm}{applies to \code{stats::kmeans()}; is the k-means algorithm to be used. Values include \code{"Hartigan-Wong"}, \code{"Lloyd"}, \code{"Forgy"}, or \code{"MacQueen"}; for more information: \code{?stats::kmeans}.}
+
+\item{n_PCs}{is a numeric, representing the number of top principal components to retain in downstream clustering and umap analyses; default is \code{100} or the top 80% of PCs, whichever is smaller.}
 
 \item{field_resolution}{is a numeric, to select the HLA nomenclature level of Field resolution, where \code{1}, \code{2}, or \code{3} will take into consideration the first, the first two, or the first three field(s) of HLA designation; default is \code{3}.}
 

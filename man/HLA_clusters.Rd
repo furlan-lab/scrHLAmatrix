@@ -21,6 +21,7 @@ HLA_clusters(
   de_thresh = 0.01,
   hclust_algorithm = "complete",
   kmeans_algorithm = "Hartigan-Wong",
+  n_PCs = 100,
   parallelize = FALSE,
   pt_size = 0.5,
   return_heavy = FALSE,
@@ -59,6 +60,8 @@ HLA_clusters(
 \item{hclust_algorithm}{applies to \code{stats::hclust()}; is the agglomeration algorithm to be used. Values include \code{"ward.D"}, \code{"ward.D2"}, \code{"single"}, \code{"complete"}, \code{"average"}, \code{"mcquitty"}, \code{"median"}, or \code{"centroid"}; for more information: \code{?stats::hclust}.}
 
 \item{kmeans_algorithm}{applies to \code{stats::kmeans()}; is the k-means algorithm to be used. Values include \code{"Hartigan-Wong"}, \code{"Lloyd"}, \code{"Forgy"}, or \code{"MacQueen"}; for more information: \code{?stats::kmeans}.}
+
+\item{n_PCs}{is a numeric, representing the number of top principal components to retain in downstream clustering and umap analyses; default is \code{100} or the top 80% of PCs, whichever is smaller.}
 
 \item{parallelize}{is a logical, called \code{TRUE} if using parallel processing (multi-threading) is desired; default is \code{FALSE}.}
 
