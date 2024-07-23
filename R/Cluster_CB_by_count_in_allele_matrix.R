@@ -182,7 +182,7 @@ HLA_clusters <- function(reads, k = 2, seu = NULL, CB_rev_com = FALSE, geno_meta
     umapout$hla_clusters <- humapout$cluster
   } else if (method == "mclust") {
     message(cat("\nDistribution-based Clustering: ", crayon::red("HGaussian Mixture Model Clustering"), " on PCA space...", sep = ""))
-    humapout <- mclust::Mclust(umat[, 1:min(50, ncol(umat))], G = k) # beyond 50 cols, the algorithm takes forever
+    humapout <- mclust::Mclust(umat[, 1:min(100, ncol(umat))], G = k) # beyond 100 cols, the algorithm takes forever
     umapout$hla_clusters <- humapout$classification
   } else if (method == "umap_hclust") {
     message(cat("\nConnectivity-based Clustering: ", crayon::red("Hierarchical Clustering"), " (agglomerative) on UMAP coordinates...", sep = ""))
