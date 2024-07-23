@@ -171,20 +171,20 @@ HLA_clusters <- function(reads, k = 2, seu = NULL, CB_rev_com = FALSE, geno_meta
     method <- "hclust"
   } %>% suppressWarnings()
   if (method == "hclust") {
-    message(cat("\nConnectivity-based Clustering: Hierarchical Clustering (agglomerative) on PCA space"))
+    message(cat("\nConnectivity-based Clustering: ", crayon::red("Hierarchical Clustering"), " (agglomerative) on PCA space...", sep = ""))
     if (hclust_algorithm == "centroid") {exp <- 2} else {exp <- 1}
     humapout <- stats::hclust(dist(umat[, 1:min(2000, ncol(umat))])^exp, method = hclust_algorithm)
     umapout$hla_clusters <- stats::cutree(humapout, k = k)
   } else if (method == "kmeans") {
-    message(cat("\nCentroid-based Clustering: k-means Clustering on PCA space"))
+    message(cat("\nCentroid-based Clustering: ", crayon::red("k-means Clustering"), " on PCA space...", sep = ""))
     humapout <- stats::kmeans(umat, centers = k, algorithm = kmeans_algorithm)
     umapout$hla_clusters <- humapout$cluster
   } else if (method == "mclust") {
-    message(cat("\nDistribution-based Clustering: Gaussian Mixture Model Clustering on PCA space"))
+    message(cat("\nDistribution-based Clustering: ", crayon::red("HGaussian Mixture Model Clustering"), " on PCA space...", sep = ""))
     humapout <- mclust::Mclust(umat[, 1:min(50, ncol(umat))], G = k) # beyond 50 cols, the algorithm takes forever
     umapout$hla_clusters <- humapout$classification
   } else if (method == "umap_hclust") {
-    message(cat("\nConnectivity-based Clustering: Hierarchical Clustering (agglomerative) on UMAP coordinates"))
+    message(cat("\nConnectivity-based Clustering: ", crayon::red("Hierarchical Clustering"), " (agglomerative) on UMAP coordinates...", sep = ""))
     if (hclust_method == "centroid") {exp <- 2} else {exp <- 1}
     humapout <- stats::hclust(dist(as.matrix(umapout[,1:2]))^exp, method = hclust_method) 
     umapout$hla_clusters <- stats::cutree(humapout, k = k)
