@@ -19,7 +19,7 @@ Top_HLA_list(
   AS_percent_pass_score = 80,
   NM_thresh = 15,
   de_thresh = 0.01,
-  top_by_read_frac = 0.85,
+  top_cumulative_frac = 0.85,
   bulk_to_perCB_threshold = 2000,
   allowed_alleles_per_cell = c(1, 200),
   stringent_mode = TRUE,
@@ -61,7 +61,7 @@ Top_HLA_list(
 
 \item{de_thresh}{is the gap-compressed per-base sequence divergence in the minimap2 alignment at or below which the quality of the read is acceptable; the number is between \code{0} and \code{1}, and default is \code{0.01}.}
 
-\item{top_by_read_frac}{is the fraction (\code{0} to \code{1}) of total reads for a particular HLA gene, which incorporates the highest ranking alleles of that gene in terms of number of reads; default at \code{0.85}.}
+\item{top_cumulative_frac}{is the fraction (\code{0} to \code{1}) of total counts for a particular HLA locus, where the highest-ranking alleles (or genotypes) cumulatively accounting for that fraction of the total, shall be retained in the candidate list of alleles; default at \code{0.85}.}
 
 \item{bulk_to_perCB_threshold}{is a numeric, a threshold of number of uniquely mapped HLA alleles in the primary count file \code{read_1} above which listing the top alleles uses the Pseudo-Bulk Algorithm and below which it uses the Per Single-Cell Algorithm. Default is \code{2000}.}
 

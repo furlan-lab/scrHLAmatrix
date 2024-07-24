@@ -9,7 +9,7 @@
 #' @param CBs_with_counts_above  is the number of total reads accross HLA alleles at or above which a CB is retained in the matrix. Note: at present, the function will make sure that number of CBs is equal or more than available HLA alleles in the matrix.
 #' @param match_CB_with_seu  is a logical, called \code{TRUE} if filtering CBs in the scrHLAtag count file with matching ones in the Seurat object is desired. 
 #' @param graph_based_clust  is the graph-based clustering method to be used for partitioning cells based on their HLA count patterns. The choice is between a Connectivity-based method: \code{"hclust"} or \code{"umap_hclust"}, a Centroid-based method: \code{"kmeans"}, or a Distribution based method: \code{"mclust"} (for Gaussian Mixture Model). We found \code{"hclust"} had the best ability to separate allogeneic entities so we set it as Default. In some cases, applying hierarchical clustering directly on UMAP coordinates gives good allogeneic entity separation so we provide the \code{"umap_hclust"} option.
-#' @param top_by_read_frac  is the fraction (\code{0} to \code{1}) of total reads for a particular HLA gene, which incorporates the highest ranking alleles of that gene in terms of number of reads; default at \code{0.85}.
+#' @param top_cumulative_frac  is the fraction (\code{0} to \code{1}) of total counts for a particular HLA locus, where the highest-ranking alleles (or genotypes) cumulatively accounting for that fraction of the total, shall be retained in the candidate list of alleles; default at \code{0.85}.
 #' @param bulk_to_perCB_threshold  is a numeric, a threshold of number of uniquely mapped HLA alleles in the primary count file \code{read_1} above which listing the top alleles uses the Pseudo-Bulk Algorithm and below which it uses the Per Single-Cell Algorithm. Default is \code{2000}.
 #' @param allowed_alleles_per_cell  is a numeric (single or range) determining the minimum and maximum number of highest ranking allele genotypes per cell to keep if such number is beyond those limits after filtering by fraction; default is \code{c(1, 200)}, usefull in the early scrHLAtag iterations to give minimap2 lots of room to align; once you are ready to finalize the top HLA allele list, you can try \code{c(1, 2)} if you assume a cell can have a min of 1 allele (homozygous) and a max of 2 (heterozygous).
 #' @param stringent_mode  is a logical, when called \code{TRUE}, the algorithm detects when the final iteration is near (unique alleles in read file is equal or less than 200 per allogeneic entity); thus, getting top alleles becomes more stringent, with \code{allowed_alleles_per_cell} switching to \code{c(1, 2)}. This argument, however, will be ignored if the user inputs values for \code{allowed_alleles_per_cell} other than its default or if the Pseudo-Bulk algorithm is running instead of the per Single-Cell algorithm.
@@ -67,7 +67,7 @@
 Top_HLA_list <- function(reads_1, reads_2 = NULL, allogeneic_entities = 2, seu = NULL, CB_rev_com = FALSE,
                          hla_with_counts_above = 0, CBs_with_counts_above = 50, match_CB_with_seu = TRUE, graph_based_clust = "hclust", 
                          QC_mm2 = TRUE, s1_percent_pass_score = 80, AS_percent_pass_score = 80, NM_thresh = 15, de_thresh = 0.01,
-                         top_by_read_frac = 0.85, bulk_to_perCB_threshold = 2000,
+                         top_cumulative_frac = 0.85, bulk_to_perCB_threshold = 2000,
                          allowed_alleles_per_cell = c(1, 200), stringent_mode = TRUE, correct_alleles = TRUE,                         
                          hclust_algorithm = "complete", kmeans_algorithm = "Hartigan-Wong", n_PCs = 100, field_resolution = 3, parallelize = TRUE, ...) {
   if (!requireNamespace("mclust", quietly = TRUE)) { stop("Package 'mclust' needed for this function to work. Please install it.", call. = FALSE) }
@@ -96,7 +96,7 @@ Top_HLA_list <- function(reads_1, reads_2 = NULL, allogeneic_entities = 2, seu =
     for (i in seq_along(cluster)) {
       top_al <- Top_HLA_list_bulk(reads_1 = reads_1[reads_1$hla_clusters %in% cluster[i],], 
                                   reads_2 = reads_2[reads_2$hla_clusters %in% cluster[i],], 
-                                  frac = top_by_read_frac,
+                                  frac = top_cumulative_frac,
                                   insert_pop_most_freq = T,   # recommended to be TRUE for first iteration
                                   use_alt_align_ABC = alt_align[i])
       top_alleles_HLA <- c(top_alleles_HLA, top_al)
@@ -125,7 +125,7 @@ Top_HLA_list <- function(reads_1, reads_2 = NULL, allogeneic_entities = 2, seu =
                                                       match_CB_with_seu = match_CB_with_seu,
                                                       hla_with_counts_above = hla_with_counts_above,
                                                       CBs_with_counts_above = CBs_with_counts_above,
-                                                      frac = top_by_read_frac,
+                                                      frac = top_cumulative_frac,
                                                       allowed_alleles_per_cell = allowed_alleles_per_cell,
                                                       field_resolution = field_resolution,
                                                       parallelize = parallelize)
