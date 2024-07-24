@@ -186,8 +186,8 @@ HLA_clusters <- function(reads, k = 2, seu = NULL, CB_rev_com = FALSE, geno_meta
     umapout$hla_clusters <- humapout$classification
   } else if (method == "umap_hclust") {
     message(cat("\nConnectivity-based Clustering: ", crayon::red("Hierarchical Clustering"), " (agglomerative) on UMAP coordinates...", sep = ""))
-    if (hclust_method == "centroid") {exp <- 2} else {exp <- 1}
-    humapout <- stats::hclust(dist(as.matrix(umapout[,1:2]))^exp, method = hclust_method) 
+    if (hclust_algorithm == "centroid") {exp <- 2} else {exp <- 1}
+    humapout <- stats::hclust(dist(as.matrix(umapout[,1:2]))^exp, method = hclust_algorithm) 
     umapout$hla_clusters <- stats::cutree(humapout, k = k)
   }
   umapout$hla_clusters <- as.factor(umapout$hla_clusters)
