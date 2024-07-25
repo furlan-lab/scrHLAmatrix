@@ -104,7 +104,7 @@ Top_HLA_list <- function(reads_1, reads_2 = NULL, allogeneic_entities = 2, seu =
                                     use_alt_align_ABC = F)
         top_alle <- c(top_alle, top_al)
       }
-      top_alleles_HLA <- c(top_alleles_HLA, top_allle)
+      top_alleles_HLA <- c(top_alleles_HLA, top_alle)
     }
     top_alleles_HLA <- top_alleles_HLA %>% unique() %>% sort()
   } else {
