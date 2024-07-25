@@ -1,6 +1,6 @@
 #' A comprehensive function to extract the top HLA alleles from the scrHLAtag count files (based on the most counts per Cell Barcode)
 #' 
-#' @param reads_1  is the primary scrHLAtag count file (1 of 2 files containing either the mRNA molecular info or the genomic (gene) molecular info). It includes columns for CB, UMI, and HLA alleles (`https://github.com/furlan-lab/scrHLAtag`).
+#' @param reads_1  is the primary scrHLAtag count file (1 of 2 files containing either the mRNA molecular info or the genomic (gene) molecular info). It includes columns for CB, UMI, and HLA alleles (https://github.com/furlan-lab/scrHLAtag).
 #' @param reads_2  is the secondary scrHLAtag count file (the alternative file vs. the one designated in '\code{reads_1}' argument). It includes columns for CB, UMI, and HLA alleles (https://github.com/furlan-lab/scrHLAtag). Default is \code{NULL}, in which case it will not be able to count alternative aligment.
 #' @param allogeneic_entities  is the number 'k' of clusters to partition the UMAP space into, e.g. the number of entities or genotypes you 'think' there might be in your captured sample.
 #' @param seu  is the Seurat object associated with the scrHLAtag count file (https://satijalab.org/seurat/index.html), and entered here if matching CBs in count file with Seurat colnames is desired.
