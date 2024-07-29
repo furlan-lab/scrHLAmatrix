@@ -18,6 +18,7 @@
 #' @param parallelize  is a logical, called \code{TRUE} if using parallel processing (multi-threading) is desired; default is \code{FALSE}.
 #' @param pt_size  is a number, the size of the geometric point displayed by ggplot2. 
 #' @param return_heavy  is a logical, if \code{TRUE} it also returns the now processed scrHLAtag count file (minimap2 QCed, CB reverse comp'ed, etc..) but the returned object is significantly heavier; default is \code{FALSE}. 
+#' @param seed  is a numeric or NULL, to set seed to the environment for reproducibility
 #' @param ...  arguments passed onto \code{uwot::umap()}.
 #' @import stringr
 #' @import pbmcapply
@@ -54,11 +55,12 @@ HLA_clusters <- function(reads, k = 2, seu = NULL, CB_rev_com = FALSE, geno_meta
                          hla_with_counts_above = 0, CBs_with_counts_above = 25, match_CB_with_seu = TRUE, 
                          method = "meta_hclust", n_PCs = 50,
                          QC_mm2 = TRUE, s1_percent_pass_score = 80, AS_percent_pass_score = 80, NM_thresh = 15, de_thresh = 0.01, 
-                         parallelize = FALSE, pt_size = 0.5, return_heavy = FALSE, ...) {
+                         parallelize = FALSE, pt_size = 0.5, return_heavy = FALSE, seed = NULL, ...) {
   if (!requireNamespace("mclust", quietly = TRUE)) { stop("Package 'mclust' needed for this function to work. Please install it.", call. = FALSE) }
   if (!requireNamespace("kohonen", quietly = TRUE)) { stop("Package 'kohonen' needed for this function to work. Please install it.", call. = FALSE) }
   if (!requireNamespace("dbscan", quietly = TRUE)) { stop("Package 'dbscan' needed for this function to work. Please install it.", call. = FALSE) }
   if (!"package:mclust" %in% search()) {library(mclust)}
+  if (!is.null(seed)) set.seed(seed)
   ## parallelize
   if (parallelize) {
     multi_thread <- parallel::detectCores()
@@ -221,7 +223,7 @@ HLA_clusters <- function(reads, k = 2, seu = NULL, CB_rev_com = FALSE, geno_meta
     message(cat(crayon::red(format(Sys.time(), "%H:%M:%S"), "- Self-Organizing Maps on PCA space"), sep = ""))
     pc.mat <- umat[, 1:min(250, ncol(umat))]
     som_grid <- kohonen::somgrid(xdim = ceiling(sqrt(length(pc.mat)/324))+1, ydim = ceiling(sqrt(length(pc.mat)/324))+1, topo = "hexagonal")
-    som_model <- kohonen::som(umat[, 1:min(250, ncol(umat))], grid = som_grid, rlen = 100)
+    som_model <- kohonen::som(pc.mat, grid = som_grid, rlen = 100)
     # plot(som_model, type= "counts")
     clust <- stats::cutree(hclust(dist(som_model$codes[[1]])), k = k)
     # plot(som_model, type = "codes", bgcol = rainbow(9)[clust], main = "Cluster Map")
@@ -232,6 +234,14 @@ HLA_clusters <- function(reads, k = 2, seu = NULL, CB_rev_com = FALSE, geno_meta
     message(cat(crayon::red(format(Sys.time(), "%H:%M:%S"), "- Meta-Clustering: clustering of the cluster assignments by the different algorithms"), sep = ""))
     metamat <- umapout[, c("hla_clusters1", "hla_clusters2", "hla_clusters3", "hla_clusters4", "hla_clusters5")] %>% as.matrix()
     metamat <- metamat[, !apply(metamat, 2, function(x) all(is.na(x)))] # make sure there are no cols entirely NAs
+    relabel_matrix <- function(mat) {
+      apply(mat, 2, function(col) {
+        freqs <- sort(table(col), decreasing = FALSE)
+        new_labels <- setNames(seq_along(freqs), names(freqs))
+        sapply(col, function(x) new_labels[as.character(x)])
+      })
+    }
+    metamat <- relabel_matrix(metamat)
     humapout <- stats::hclust(dist(metamat), method = "complete")
     umapout$hla_clusters <- stats::cutree(humapout, k = k)
   } 
