@@ -201,19 +201,19 @@ HLA_clusters <- function(reads, k = 2, seu = NULL, CB_rev_com = FALSE, geno_meta
   }  
   if (method %in% c("hclust", "meta_hclust")) {
     message(cat(crayon::red(format(Sys.time(), "%H:%M:%S"), "- Hierarchical (agglomerative) on PCA space"), sep = ""))
-    humapout <- stats::hclust(dist(umat[, 1:min(250, ncol(umat))]))
+    humapout <- stats::hclust(dist(umat[, 1:min(250, ncol(umat))])) #limiting allowable number of PCs to 250 to prevent the algorithm from being needlessly slow
     umapout$hla_clusters  <- stats::cutree(humapout, k = k)
     umapout$hla_clusters2 <- stats::cutree(humapout, k = k)
   }  
   if (method %in% c("kmeans", "meta_hclust")) {
-    message(cat(crayon::red(format(Sys.time(), "%H:%M:%S"), "- k-means on PCA space..."), sep = ""))
-    humapout <- stats::kmeans(umat, centers = k, algorithm = kmeans_algorithm)
+    message(cat(crayon::red(format(Sys.time(), "%H:%M:%S"), "- k-means on PCA space"), sep = ""))
+    humapout <- stats::kmeans(umat, centers = k)
     umapout$hla_clusters  <- humapout$cluster
     umapout$hla_clusters3 <- humapout$cluster
   }  
   if (method %in% c("gmm", "meta_hclust")) {
     message(cat(crayon::red(format(Sys.time(), "%H:%M:%S"), "- Gaussian Mixture Model on PCA space"), sep = ""))
-    humapout <- mclust::Mclust(umat[, 1:min(50, ncol(umat))], G = k) # beyond 100 cols, the algorithm takes forever
+    humapout <- mclust::Mclust(umat[, 1:min(50, ncol(umat))], G = k) # beyond 50 cols, the algorithm takes forever
     umapout$hla_clusters  <- humapout$classification
     umapout$hla_clusters4 <- humapout$classification
   }  
