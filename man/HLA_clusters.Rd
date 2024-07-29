@@ -11,17 +11,15 @@ HLA_clusters(
   CB_rev_com = FALSE,
   geno_metadata_id = NULL,
   hla_with_counts_above = 0,
-  CBs_with_counts_above = 50,
+  CBs_with_counts_above = 25,
   match_CB_with_seu = TRUE,
-  method = "hclust",
+  method = "meta_hclust",
+  n_PCs = 50,
   QC_mm2 = TRUE,
   s1_percent_pass_score = 80,
   AS_percent_pass_score = 80,
   NM_thresh = 15,
   de_thresh = 0.01,
-  hclust_algorithm = "complete",
-  kmeans_algorithm = "Hartigan-Wong",
-  n_PCs = 100,
   parallelize = FALSE,
   pt_size = 0.5,
   return_heavy = FALSE,
@@ -45,7 +43,9 @@ HLA_clusters(
 
 \item{match_CB_with_seu}{is a logical, called \code{TRUE} if filtering CBs in the scrHLAtag count file with matching ones in the Seurat object is desired.}
 
-\item{method}{is the graph-based clustering method to be used for partitioning cells based on their HLA count patterns. The choice is between a Connectivity-based method: \code{"hclust"} or \code{"umap_hclust"}, a Centroid-based method: \code{"kmeans"}, or a Distribution-based method: \code{"mclust"} (for Gaussian Mixture Model). We found \code{"hclust"} had the best ability to separate allogeneic entities so we set it as Default. In some cases, applying hierarchical clustering directly on UMAP coordinates gives good allogeneic entity separation so we provide the \code{"umap_hclust"} option.}
+\item{method}{is the graph-based clustering method to be used for partitioning cells based on their HLA count patterns. The choice is between a Density-based method: \code{"dbscan"}, Connectivity-based method: \code{"hclust"}, a Centroid-based method: \code{"kmeans"}, a Distribution-based method: \code{"gmm"} (for Gaussian Mixture Model), or the Self-Organizing Map method: \code{"som"}. With the common "issue" in clustering that different methods yield different results, we propose the method: \code{"meta_hclust"} (here set as default) based on the hypothesis that with each clustering algorithm that is run, "true" clustering becomes better approximated (inspired by Monti et al., 2003)}
+
+\item{n_PCs}{is a numeric, representing the number of top principal components to retain in downstream clustering and umap analyses; default is \code{50} or the top 80% of PCs, whichever is smaller.}
 
 \item{QC_mm2}{is a logical, called \code{TRUE} if removing low quality reads based on minimap2 tags is desired.}
 
@@ -56,12 +56,6 @@ HLA_clusters(
 \item{NM_thresh}{is the number of mismatches and gaps in the minimap2 alignment at or below which the quality of the read is acceptable; default is \code{15}.}
 
 \item{de_thresh}{is the gap-compressed per-base sequence divergence in the minimap2 alignment at or below which the quality of the read is acceptable; the number is between \code{0} and \code{1}, and default is \code{0.01}.}
-
-\item{hclust_algorithm}{applies to \code{stats::hclust()}; is the agglomeration algorithm to be used. Values include \code{"ward.D"}, \code{"ward.D2"}, \code{"single"}, \code{"complete"}, \code{"average"}, \code{"mcquitty"}, \code{"median"}, or \code{"centroid"}; for more information: \code{?stats::hclust}.}
-
-\item{kmeans_algorithm}{applies to \code{stats::kmeans()}; is the k-means algorithm to be used. Values include \code{"Hartigan-Wong"}, \code{"Lloyd"}, \code{"Forgy"}, or \code{"MacQueen"}; for more information: \code{?stats::kmeans}.}
-
-\item{n_PCs}{is a numeric, representing the number of top principal components to retain in downstream clustering and umap analyses; default is \code{100} or the top 80% of PCs, whichever is smaller.}
 
 \item{parallelize}{is a logical, called \code{TRUE} if using parallel processing (multi-threading) is desired; default is \code{FALSE}.}
 
