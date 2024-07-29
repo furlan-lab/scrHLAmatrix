@@ -8,7 +8,7 @@
 #' @param hla_with_counts_above  is the number of total reads accross CBs at or above which an HLA allele is retained in the matrix.
 #' @param CBs_with_counts_above  is the number of total reads accross HLA alleles at or above which a CB is retained in the matrix. Note: \code{stats::princomp()} can only be used with at least as many units (CBs) as variables (HLAs), thus the function will make sure that number of CBs is equal or more than available HLA alleles in the matrix.
 #' @param match_CB_with_seu  is a logical, called \code{TRUE} if filtering CBs in the scrHLAtag count file with matching ones in the Seurat object is desired. 
-#' @param method  is the graph-based clustering method to be used for partitioning cells based on their HLA count patterns. The choice is between a Density-based method: \code{"dbscan"}, Connectivity-based method: \code{"hclust"}, a Centroid-based method: \code{"kmeans"}, a Distribution-based method: \code{"gmm"} (for Gaussian Mixture Model), or the Self-Organizing Map method: \code{"som"}. With the common "issue" in clustering that different methods yield different results, we propose the method: \code{"meta_hclust"} (here set as default) based on the hypothesis that with each clustering algorithm that is run, "true" clustering becomes better approximated (inspired by Monti et al., 2003)
+#' @param method  is the graph-based clustering method to be used for partitioning cells based on their HLA count patterns. The choice is between a Density-based method: \code{"dbscan"}, Connectivity-based method: \code{"hclust"}, a Centroid-based method: \code{"kmeans"}, or a Distribution-based method: \code{"gmm"} (for Gaussian Mixture Model). With the common "issue" in clustering that different methods yield different results, we propose the method: \code{"meta_hclust"} (here set as default) based on the hypothesis that with each clustering algorithm that is run, "true" clustering becomes better approximated (inspired by Monti et al., 2003)
 #' @param n_PCs  is a numeric, representing the number of top principal components to retain in downstream clustering and umap analyses; default is \code{50} or the top 80% of PCs, whichever is smaller.
 #' @param QC_mm2  is a logical, called \code{TRUE} if removing low quality reads based on minimap2 tags is desired.
 #' @param s1_percent_pass_score  is a percentage (\code{0} to \code{100}) cuttoff from the maximum score (best quality) of the minimap2 's1' tag, which a read needs to acheive to pass as acceptable; default at \code{80} and becomes less inclusive if value increases.
@@ -18,7 +18,7 @@
 #' @param parallelize  is a logical, called \code{TRUE} if using parallel processing (multi-threading) is desired; default is \code{FALSE}.
 #' @param pt_size  is a number, the size of the geometric point displayed by ggplot2. 
 #' @param return_heavy  is a logical, if \code{TRUE} it also returns the now processed scrHLAtag count file (minimap2 QCed, CB reverse comp'ed, etc..) but the returned object is significantly heavier; default is \code{FALSE}. 
-#' @param seed  is a numeric or NULL, to set seed to the environment for reproducibility
+#' @param seed  is a numeric (or \code{NULL}), to set seed (or not) in the environment for reproducibility
 #' @param ...  arguments passed onto \code{uwot::umap()}.
 #' @import stringr
 #' @import pbmcapply
@@ -57,7 +57,6 @@ HLA_clusters <- function(reads, k = 2, seu = NULL, CB_rev_com = FALSE, geno_meta
                          QC_mm2 = TRUE, s1_percent_pass_score = 80, AS_percent_pass_score = 80, NM_thresh = 15, de_thresh = 0.01, 
                          parallelize = FALSE, pt_size = 0.5, return_heavy = FALSE, seed = NULL, ...) {
   if (!requireNamespace("mclust", quietly = TRUE)) { stop("Package 'mclust' needed for this function to work. Please install it.", call. = FALSE) }
-  if (!requireNamespace("kohonen", quietly = TRUE)) { stop("Package 'kohonen' needed for this function to work. Please install it.", call. = FALSE) }
   if (!requireNamespace("dbscan", quietly = TRUE)) { stop("Package 'dbscan' needed for this function to work. Please install it.", call. = FALSE) }
   if (!"package:mclust" %in% search()) {library(mclust)}
   if (!is.null(seed)) set.seed(seed)
@@ -169,8 +168,8 @@ HLA_clusters <- function(reads, k = 2, seu = NULL, CB_rev_com = FALSE, geno_meta
     umapout<-cbind(umapout, seu@meta.data[match(rownames(umapout), colnames(seu)),])
     g0 <- ggplot(umapout, aes(x=umap1, y=umap2, color=!!sym(geno_metadata_id)))+geom_point(size=pt_size)#+scale_color_manual(values=pals::glasbey())+theme_bw()
   }
-  if (!(length(method) == 1L && method %in% c("hclust", "kmeans", "gmm", "dbscan", "som", "meta_hclust"))) {
-    message(cat("\nArgument `method` should be one of 'dbscan', 'hclust', 'kmeans', 'gmm', 'som', or 'meta_hclust'. Using default."))
+  if (!(length(method) == 1L && method %in% c("hclust", "kmeans", "gmm", "dbscan", "meta_hclust"))) {
+    message(cat("\nArgument `method` should be one of 'dbscan', 'hclust', 'kmeans', 'gmm', or 'meta_hclust'. Using default."))
     method <- "meta_hclust"
   } %>% suppressWarnings()
   message(cat("\nGraph-based Clustering:"))
@@ -219,20 +218,9 @@ HLA_clusters <- function(reads, k = 2, seu = NULL, CB_rev_com = FALSE, geno_meta
     umapout$hla_clusters  <- humapout$classification
     umapout$hla_clusters4 <- humapout$classification
   }  
-  if (method %in% c("som", "meta_hclust")) {
-    message(cat(crayon::red(format(Sys.time(), "%H:%M:%S"), "- Self-Organizing Maps on PCA space"), sep = ""))
-    pc.mat <- umat[, 1:min(250, ncol(umat))]
-    som_grid <- kohonen::somgrid(xdim = ceiling(sqrt(length(pc.mat)/324))+1, ydim = ceiling(sqrt(length(pc.mat)/324))+1, topo = "hexagonal")
-    som_model <- kohonen::som(pc.mat, grid = som_grid, rlen = 100)
-    # plot(som_model, type= "counts")
-    clust <- stats::cutree(hclust(dist(som_model$codes[[1]])), k = k)
-    # plot(som_model, type = "codes", bgcol = rainbow(9)[clust], main = "Cluster Map")
-    umapout$hla_clusters  <- clust[som_model$unit.classif]
-    umapout$hla_clusters5 <- clust[som_model$unit.classif]
-  }
   if (method == "meta_hclust") {
     message(cat(crayon::red(format(Sys.time(), "%H:%M:%S"), "- Meta-Clustering: clustering of the cluster assignments by the different algorithms"), sep = ""))
-    metamat <- umapout[, c("hla_clusters1", "hla_clusters2", "hla_clusters3", "hla_clusters4", "hla_clusters5")] %>% as.matrix()
+    metamat <- umapout[, c("hla_clusters1", "hla_clusters2", "hla_clusters3", "hla_clusters4")] %>% as.matrix()
     metamat <- metamat[, !apply(metamat, 2, function(x) all(is.na(x)))] # make sure there are no cols entirely NAs
     relabel_matrix <- function(mat) {
       apply(mat, 2, function(col) {
