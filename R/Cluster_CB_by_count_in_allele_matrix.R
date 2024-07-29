@@ -231,7 +231,7 @@ HLA_clusters <- function(reads, k = 2, seu = NULL, CB_rev_com = FALSE, geno_meta
   if (method == "meta_hclust") {
     message(cat(crayon::red(format(Sys.time(), "%H:%M:%S"), "- Meta-Clustering: clustering of the cluster assignments by the different algorithms"), sep = ""))
     metamat <- umapout[, c("hla_clusters1", "hla_clusters2", "hla_clusters3", "hla_clusters4", "hla_clusters5")] %>% as.matrix()
-    metamat <- metamat[, !apply(metamat, 2, function(x) all(is.na(x)))]
+    metamat <- metamat[, !apply(metamat, 2, function(x) all(is.na(x)))] # make sure there are no cols entirely NAs
     humapout <- stats::hclust(dist(metamat), method = "complete")
     umapout$hla_clusters <- stats::cutree(humapout, k = k)
   } 
@@ -239,9 +239,9 @@ HLA_clusters <- function(reads, k = 2, seu = NULL, CB_rev_com = FALSE, geno_meta
   g <- ggplot(umapout, aes(x=umap1, y=umap2, color=hla_clusters))+geom_point(size=pt_size)#+scale_color_manual(values=pals::glasbey())+theme_bw()
   #message(cat("\nDone!!"))
   if (!is.null(seu) & !is.null(geno_metadata_id)){
-    return(list(UMAP_coordinates = umapout, HLA_clusters_on_umap = g, genotype_on_umap = g0, reads = reads, top80_PC = umat))
+    return(list(UMAP_coordinates = umapout, HLA_clusters_on_umap = g, genotype_on_umap = g0, reads = reads, top80_PC = umat, mx = part_HLA))
   } else {
-    return(list(UMAP_coordinates = umapout, HLA_clusters_on_umap = g, reads = reads, top80_PC = umat))
+    return(list(UMAP_coordinates = umapout, HLA_clusters_on_umap = g, reads = reads, top80_PC = umat, mx = part_HLA))
   }
 }
 
