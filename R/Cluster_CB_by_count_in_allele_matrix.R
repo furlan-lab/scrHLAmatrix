@@ -204,7 +204,7 @@ HLA_clusters <- function(reads, k = 2, seu = NULL, CB_rev_com = FALSE, geno_meta
   if (method %in% c("hclust", "meta_hclust")) {
     message(cat(crayon::red(format(Sys.time(), "%H:%M:%S"), "- Hierarchical (agglomerative) on PCA space"), sep = ""))
     humapout <- stats::hclust(dist(umat[, 1:min(250, ncol(umat))])) #limiting allowable number of PCs to 250 to prevent the algorithm from being needlessly slow
-    umapout$hla_clusters  <- stats::cutree(humapout, k = k)
+    if (method == "hclust") umapout$hla_clusters  <- stats::cutree(humapout, k = k)
     umapout$hla_clusters2 <- stats::cutree(humapout, k = k)
   }  
   if (method %in% c("kmeans", "meta_hclust")) {
