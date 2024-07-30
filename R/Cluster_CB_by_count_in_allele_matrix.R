@@ -176,34 +176,42 @@ HLA_clusters <- function(reads, k = 2, seu = NULL, CB_rev_com = FALSE, geno_meta
   if (method %in% c("dbscan", "meta_hclust")) {
     message(cat(crayon::red(format(Sys.time(), "%H:%M:%S"), "- Density-based (dbscan) on UMAP coordinates"), sep = ""))
     find_optimal_eps <- function(data, desired_clusters, minPts = 15) {
-      Eps <- data.frame(eps = numeric(0), n_clust0= numeric(0))
+      Eps <- data.frame(eps = numeric(0), n_clust0 = numeric(0), p_clust0 = numeric(0))
       for (eps in c(0.0001 %o% 1.0903^(1:125))) {
         dbscan_result <- dbscan::dbscan(data, eps = eps, minPts = minPts)
         num_clusters <- length(unique(dbscan_result$cluster)) - (sum(dbscan_result$cluster == 0) > 0) # excluding noise cluster (0)
         if (num_clusters == desired_clusters) {
-          add <- data.frame(eps = eps, n_clust0= length(dbscan_result$cluster[dbscan_result$cluster == 0]))
+          add <- data.frame(eps = eps, n_clust0= length(dbscan_result$cluster[dbscan_result$cluster == 0]), p_clust0 = sum(dbscan_result$cluster == 0)/length(dbscan_result$cluster))
           Eps <- rbind(Eps, add)
         }
       }
-      if (nrow(Eps) == 0) {return(NA)} else {return(Eps$eps[which.min(Eps$n_clust0)])}
+      # fail if, despite having desired number of clusters, the 'noise' cluster was larger than 25% of clusters combined
+      if (nrow(Eps) == 0) {return(NA)} else if (Eps[which.min(Eps$n_clust0),]$p_clust0 > 0.25) {return(NA)} else {return(Eps[which.min(Eps$n_clust0),]$eps)}
     }
-    mpts <- 15
+    mpts <- 15 # this number could change in future versions, depending on how few chimeric cells can be and still cluster together here 
     optimal_eps <- find_optimal_eps(as.matrix(umapout[,1:2]), desired_clusters = k, minPts = mpts)
     if (!is.na(optimal_eps)) {
       dbscan_result <- dbscan::dbscan(as.matrix(umapout[,1:2]), eps = optimal_eps, minPts = mpts)
       umapout$hla_clusters  <- dbscan_result$cluster
       umapout$hla_clusters1 <- dbscan_result$cluster
+      # De-noise dbscan: reassign points with the noise cluster '0' to the classification of their nearest non-0 neighbor
+      if (any(umapout$hla_clusters1 == 0)) {
+        nearest_neighbors <- FNN::get.knnx(umapout[umapout$hla_clusters1 != 0, c("umap1", "umap2")], 
+                                           umapout[which(umapout$hla_clusters1 == 0), c("umap1", "umap2")], 
+                                           k = 1)
+        umapout$hla_clusters1[which(umapout$hla_clusters1 == 0)] <- umapout$hla_clusters1[umapout$hla_clusters1 != 0][nearest_neighbors$nn.index]
+      }
     } else {
       umapout$hla_clusters  <- NA
       umapout$hla_clusters1 <- NA
-      message(cat(crayon::red("could not compute dbscan with desired number of clusters, continuing with default method"), sep = ""))
+      message(cat(crayon::red("could not compute dbscan with desired number of clusters, continuing with default method: 'meta_hclust'"), sep = ""))
       method <- "meta_hclust"
     }
   }  
   if (method %in% c("hclust", "meta_hclust")) {
     message(cat(crayon::red(format(Sys.time(), "%H:%M:%S"), "- Hierarchical (agglomerative) on PCA space"), sep = ""))
     humapout <- stats::hclust(dist(umat[, 1:min(250, ncol(umat))])) #limiting allowable number of PCs to 250 to prevent the algorithm from being needlessly slow
-    if (method == "hclust") umapout$hla_clusters  <- stats::cutree(humapout, k = k)
+    umapout$hla_clusters  <- stats::cutree(humapout, k = k)
     umapout$hla_clusters2 <- stats::cutree(humapout, k = k)
   }  
   if (method %in% c("kmeans", "meta_hclust")) {
@@ -222,14 +230,6 @@ HLA_clusters <- function(reads, k = 2, seu = NULL, CB_rev_com = FALSE, geno_meta
     message(cat(crayon::red(format(Sys.time(), "%H:%M:%S"), "- Meta-Clustering: clustering of the cluster assignments by the different algorithms"), sep = ""))
     metamat <- umapout[, c("hla_clusters1", "hla_clusters2", "hla_clusters3", "hla_clusters4")] %>% as.matrix()
     metamat <- metamat[, !apply(metamat, 2, function(x) all(is.na(x)))] # make sure there are no cols entirely NAs
-    relabel_matrix <- function(mat) {
-      apply(mat, 2, function(col) {
-        freqs <- sort(table(col), decreasing = FALSE)
-        new_labels <- setNames(seq_along(freqs), names(freqs))
-        sapply(col, function(x) new_labels[as.character(x)])
-      })
-    }
-    metamat <- relabel_matrix(metamat)
     humapout <- stats::hclust(dist(metamat), method = "complete")
     umapout$hla_clusters <- stats::cutree(humapout, k = k)
   } 
@@ -237,9 +237,9 @@ HLA_clusters <- function(reads, k = 2, seu = NULL, CB_rev_com = FALSE, geno_meta
   g <- ggplot(umapout, aes(x=umap1, y=umap2, color=hla_clusters))+geom_point(size=pt_size)#+scale_color_manual(values=pals::glasbey())+theme_bw()
   #message(cat("\nDone!!"))
   if (!is.null(seu) & !is.null(geno_metadata_id)){
-    return(list(UMAP_coordinates = umapout, HLA_clusters_on_umap = g, genotype_on_umap = g0, reads = reads, top80_PC = umat, mx = part_HLA))
+    return(list(UMAP_coordinates = umapout, HLA_clusters_on_umap = g, genotype_on_umap = g0, reads = reads, top80_PC = umat))
   } else {
-    return(list(UMAP_coordinates = umapout, HLA_clusters_on_umap = g, reads = reads, top80_PC = umat, mx = part_HLA))
+    return(list(UMAP_coordinates = umapout, HLA_clusters_on_umap = g, reads = reads, top80_PC = umat))
   }
 }
 
