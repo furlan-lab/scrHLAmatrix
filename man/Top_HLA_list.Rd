@@ -13,8 +13,9 @@ Top_HLA_list(
   hla_with_counts_above = 0,
   CBs_with_counts_above = 25,
   match_CB_with_seu = TRUE,
-  clust_method = "meta_hclust",
+  clust_method = "consensus",
   n_PCs = 50,
+  dbscan_minPts = 30,
   QC_mm2 = TRUE,
   s1_percent_pass_score = 80,
   AS_percent_pass_score = 80,
@@ -51,9 +52,11 @@ Top_HLA_list(
 
 \item{match_CB_with_seu}{is a logical, called \code{TRUE} if filtering CBs in the scrHLAtag count file with matching ones in the Seurat object is desired.}
 
-\item{clust_method}{is the graph-based clustering method to be used for partitioning cells based on their HLA count patterns. The choice is between a Density-based method: \code{"dbscan"}, Connectivity-based method: \code{"hclust"}, a Centroid-based method: \code{"kmeans"}, or a Distribution-based method: \code{"gmm"} (for Gaussian Mixture Model). With the common "issue" in clustering that different methods yield different results, we propose the method: \code{"meta_hclust"} (here set as default) based on the hypothesis that with each clustering algorithm that is run, "true" clustering becomes better approximated (inspired by Monti et al., 2003)}
+\item{clust_method}{is the graph-based clustering method to be used for partitioning cells based on their HLA count patterns. The choice is between a Density-based method: \code{"dbscan"}, Connectivity-based method: \code{"hclust"}, a Centroid-based method: \code{"kmeans"}, or a Distribution-based method: \code{"gmm"} (for Gaussian Mixture Model). The methods are run with their respective Default algorithms. Some of those methods may predict "true" clusters with better accuracy than others; as we cannot know a priori which is the best method, we propose the method: \code{"consensus"} (set as Default) which groups cells in the same cluster if they agree on membership in > 50% of methods, otherwise they are unclassified (\code{NA}s).}
 
 \item{n_PCs}{is a numeric, representing the number of top principal components to retain in downstream clustering and umap analyses; default is \code{50} or the top 80% of PCs, whichever is smaller.}
+
+\item{dbscan_minPts}{only works for the  \code{"dbscan"} clust_method: number of minimum points required in the epsilon neighborhood (\code{eps}) of core points. While the other methods require 1 parameter (i.e., \code{k}), \code{"dbscan"} requires 2: \code{eps} and \code{minPts}. To acheive desired \code{k} clusters, a range of \code{eps} parameter is tested against a fixed \code{minPts}, which is provided here. Default at \code{30}, but can be adjusted higher or lower depending on how small and 'clumped' an allogeneic entity is suspected to be.}
 
 \item{QC_mm2}{is a logical, called \code{TRUE} if removing low quality reads based on minimap2 tags is desired.}
 
@@ -88,10 +91,6 @@ Top_HLA_list(
 \item{seed}{is a numeric (or \code{NULL}), to set seed (or not) in the environment for reproducibility}
 
 \item{...}{other arguments passed onto \code{uwot::umap()}.}
-
-\item{hclust_algorithm}{applies to \code{stats::hclust()}; is the agglomeration algorithm to be used. Values include \code{"ward.D"}, \code{"ward.D2"}, \code{"single"}, \code{"complete"}, \code{"average"}, \code{"mcquitty"}, \code{"median"}, or \code{"centroid"}; for more information: \code{?stats::hclust}.}
-
-\item{kmeans_algorithm}{applies to \code{stats::kmeans()}; is the k-means algorithm to be used. Values include \code{"Hartigan-Wong"}, \code{"Lloyd"}, \code{"Forgy"}, or \code{"MacQueen"}; for more information: \code{?stats::kmeans}.}
 }
 \value{
 a Vector of the top HLA alleles in the count files (in terms of reads per Cell Barcode).
