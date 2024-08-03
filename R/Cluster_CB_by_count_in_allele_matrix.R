@@ -1,16 +1,16 @@
 #' Getting raw scrHLAtag counts and analyzing distribution of HLA alleles per Cell Barcodes in UMAP space
 #' 
 #' @param reads  is the scrHLAtag count file including columns for CB, UMI, and HLA alleles (https://github.com/furlan-lab/scrHLAtag).
-#' @param k  is the number of clusters to partition the UMAP space into, e.g. the number of entities or genotypes you 'think' there might be in your captured sample.
+#' @param k  can be \code{NULL} or a fixed number of clusters to partition the datapoints into, e.g. the number of entities or genotypes you 'think' there might be in your captured sample. If \code{NULL}, each clustering method will automatically determine number of clusters (will not work for \code{"hclust"} and \code{"kmeans"}, which needs a defined \code{k}).
 #' @param seu  is the Seurat object associated with the scrHLAtag count file (https://satijalab.org/seurat/index.html).
 #' @param CB_rev_com  is a logical, called \code{TRUE} if the need to obtained the reverse complement of Cell Barcodes (CBs) is desired; default is \code{FALSE}. 
 #' @param geno_metadata_id  is a character, the column ID of the Seurat metadata designated to distinguish genotypes, if this information is available. \code{NULL} by default or when genotyping information is not available. 
 #' @param hla_with_counts_above  is the number of total reads accross CBs at or above which an HLA allele is retained in the matrix.
 #' @param CBs_with_counts_above  is the number of total reads accross HLA alleles at or above which a CB is retained in the matrix. Note: \code{stats::princomp()} can only be used with at least as many units (CBs) as variables (HLAs), thus the function will make sure that number of CBs is equal or more than available HLA alleles in the matrix.
 #' @param match_CB_with_seu  is a logical, called \code{TRUE} if filtering CBs in the scrHLAtag count file with matching ones in the Seurat object is desired. 
-#' @param method  is the graph-based clustering method to be used for partitioning cells based on their HLA count patterns. The choice is between a Density-based method: \code{"dbscan"}, Connectivity-based method: \code{"hclust"}, a Centroid-based method: \code{"kmeans"}, or a Distribution-based method: \code{"gmm"} (for Gaussian Mixture Model). The methods are run with their respective Default algorithms. Some of those methods may predict "true" clusters with better accuracy than others; as we cannot know a priori which is the best method, we propose the method: \code{"consensus"} (set as Default) which groups cells in the same cluster if they agree on membership in > 50% of methods, otherwise they are unclassified (\code{NA}s).
+#' @param method  is the graph-based clustering method to be used for partitioning cells based on their HLA count patterns. The choice is between a Community structure detection method: \code{"leiden"}, a Density-based method: \code{"dbscan"}, a Connectivity-based method: \code{"hclust"}, a Centroid-based method: \code{"kmeans"}, or a Distribution-based method: \code{"gmm"} (for Gaussian Mixture Model). The methods are run with their respective Default parameters. Some of those methods may predict "true" allogeneic entities with better accuracy than others; as we cannot know a priori which is the best method, we propose the method: \code{"consensus"}, which groups cells in the same cluster if they agree on membership in > 50% of methods, otherwise they are unclassified (\code{NA}s).
 #' @param n_PCs  is the number of top principal components to retain in downstream clustering and umap analyses; default is \code{50} or the top 80% of PCs, whichever is smaller.
-#' @param dbscan_minPts  only works for the  \code{"dbscan"} method: number of minimum points required in the epsilon neighborhood (\code{eps}) of core points. While the other methods require 1 parameter (i.e., \code{k}), \code{"dbscan"} requires 2: \code{eps} and \code{minPts}. To acheive desired \code{k} clusters, a range of \code{eps} parameter is tested against a fixed \code{minPts}, which is provided here. Default at \code{30}, but can be adjusted higher or lower depending on how small and 'clumped' an allogeneic entity is suspected to be. 
+#' @param dbscan_minPts  only works for the  \code{"dbscan"} method: number of minimum points required in the epsilon neighborhood radius (\code{eps}) of core points. While the other methods require 1 parameter (e.g., \code{k}), \code{"dbscan"} requires 2: \code{eps} and \code{minPts}. To acheive desired \code{k} clusters, a range of \code{eps} parameter is tested against a fixed \code{minPts}, which is provided here. Default at \code{30}, but can be adjusted higher or lower depending on how small and 'clumped' an allogeneic entity is suspected to be. 
 #' @param QC_mm2  is a logical, called \code{TRUE} if removing low quality reads based on minimap2 tags is desired.
 #' @param s1_percent_pass_score  is a percentage (\code{0} to \code{100}) cuttoff from the maximum score (best quality) of the minimap2 's1' tag, which a read needs to acheive to pass as acceptable; default at \code{80} and becomes less inclusive if value increases.
 #' @param AS_percent_pass_score  is a percentage (\code{0} to \code{100}) cuttoff from the maximum score (best quality) of the minimap2 'AS' tag, which a read needs to acheive to pass as acceptable; default at \code{80} and becomes less inclusive if value increases.
@@ -60,6 +60,8 @@ HLA_clusters <- function(reads, k = 2, seu = NULL, CB_rev_com = FALSE, geno_meta
   if (!requireNamespace("mclust", quietly = TRUE)) { stop("Package 'mclust' needed for this function to work. Please install it.", call. = FALSE) }
   if (!requireNamespace("dbscan", quietly = TRUE)) { stop("Package 'dbscan' needed for this function to work. Please install it.", call. = FALSE) }
   if (!requireNamespace("FNN", quietly = TRUE)) { stop("Package 'FNN' needed for this function to work. Please install it.", call. = FALSE) }
+  if (!all(sapply(c("leiden", "igraph", "reticulate"), requireNamespace, quietly = TRUE))) { stop("Install 'leiden' and associated 'igraph' and 'reticulate' pakages for this function to work.\nMoreover, install the python dependencies in R (if you haven't already):\n  reticulate::install_python(version = '<version>') #example '3.8.2'\n  reticulate::py_install('python-igraph')\n  reticulate::py_install('leidenalg', forge = TRUE)\n  reticulate::py_config()", call. = FALSE) }
+  if (is.null(k) & method %in% c("hclust", "kmeans","consensus")) { stop("'k' cannot be 'NULL' while using methods 'hclust', 'kmeans', or 'consensus'.", call. = FALSE)}
   if (!"package:mclust" %in% search()) {suppressPackageStartupMessages({library(mclust)})}
   if (!is.null(seed)) set.seed(seed)
   ## parallelize
@@ -172,33 +174,87 @@ HLA_clusters <- function(reads, k = 2, seu = NULL, CB_rev_com = FALSE, geno_meta
   } else {
     g0 <- NULL
   }
-  if (!(length(method) == 1L && method %in% c("hclust", "kmeans", "gmm", "dbscan", "consensus"))) {
+  if (!(length(method) == 1L && method %in% c("leiden", "hclust", "kmeans", "gmm", "dbscan", "consensus"))) {
     method <- "consensus"
-    message(cat("\nArgument `method` should be one of 'dbscan', 'hclust', 'kmeans', 'gmm', or 'consensus'. Defaulting to: '", method, "'", sep = ""))
+    message(cat("\nArgument `method` should be one of 'leiden' 'dbscan', 'hclust', 'kmeans', 'gmm', or 'consensus'. Defaulting to: '", method, "'", sep = ""))
   } %>% suppressWarnings()
   message(cat("\nGraph-based Clustering:"))
+  if (method %in% c("leiden", "consensus")) {
+    message(cat(crayon::red(format(Sys.time(), "%H:%M:%S"), "- Community detection (leiden) on PCA space"), sep = ""))
+    # Create a k-nearest neighbors graph, then convert to igraph
+    make_knn_graph <- function(data, k) {
+      dist_matrix <- as.matrix(stats::dist(data))
+      knn_graph <- matrix(0, nrow = nrow(data), ncol = nrow(data))
+      for (i in 1:nrow(data)) {
+        neighbors <- order(dist_matrix[i, ])[2:(k + 1)]
+        knn_graph[i, neighbors] <- 1
+        knn_graph[neighbors, i] <- 1
+      }
+      return(knn_graph)
+    }
+    knn_graph <- make_knn_graph(as.matrix(umat[, 1:min(50, ncol(umat))]), 15)
+    ig <- igraph::graph_from_adjacency_matrix(knn_graph, mode = "undirected")
+    if (is.null(k)) {
+      leiden_res <- suppressWarnings(leiden::leiden(ig, resolution_parameter = 1, seed = 1985)) 
+      umapout$hla_clusters  <- as.factor(leiden_res)
+      umapout$clust_leiden  <- as.factor(leiden_res)
+    } else {
+      find_optimal_res <- function(data, clust) {
+        x <- seq(from = 0.01, to = 3, length.out = max(8, parallel::detectCores()))
+        Res <- pbmcapply::pbmclapply(x, function(res) {
+          leiden_res <- suppressWarnings(leiden::leiden(data, resolution_parameter = res, seed = 1985))
+          add <- data.frame(res = res, clust_num = length(unique(as.factor(leiden_res))))
+          return(add)
+        }, mc.cores = parallel::detectCores()) # always attempt to parallelize
+        Res <- do.call(rbind, Res)
+        R <- Res[which(Res$clust_num == clust), ]
+        if (nrow(R) == 0) { 
+          # second attempt
+          up <- min(Res$clust_num[Res$clust_num > clust]) %>% suppressWarnings()
+          dn <- max(Res$clust_num[Res$clust_num < clust]) %>% suppressWarnings()
+          if (!(up %in% c(-Inf, Inf)) & !(dn %in% c(-Inf, Inf))) {
+            R <- Res[which(Res$clust_num %in% dn:up), ]
+            x <- seq(from = min(R$res), to = max(R$res), length.out = max(8, parallel::detectCores()))
+            Res <- pbmcapply::pbmclapply(x, function(res) {
+              leiden_res <- suppressWarnings(leiden::leiden(data, resolution_parameter = res, seed = 1985))
+              add <- data.frame(res = res, clust_num = length(unique(as.factor(leiden_res))))
+              return(add)
+            }, mc.cores = parallel::detectCores()) # always attempt to parallelize
+            Res <- do.call(rbind, Res)
+            R <- Res[which(Res$clust_num == clust), ]
+          }
+        }
+        if (nrow(R) == 0) {return(NA)} else {return(R[which(R$clust_num == clust), ]$res %>% max())}
+      }
+      optimal_res <- find_optimal_res(ig, clust = k)
+      if (!is.na(optimal_res)) {
+        leiden_res <- suppressWarnings(leiden::leiden(ig, resolution_parameter = optimal_res, seed = 1985))
+        umapout$hla_clusters  <- as.factor(leiden_res)
+        umapout$clust_leiden  <- as.factor(leiden_res)
+      } else {
+        umapout$hla_clusters  <- NA
+        umapout$clust_leiden  <- NA
+        method <- "consensus"
+        message(cat(crayon::red("could not compute dbscan with desired number of clusters, defaulting to method: '", method, "'", sep = ""), sep = ""))
+      }
+    }
+  }
   if (method %in% c("dbscan", "consensus")) {
     message(cat(crayon::red(format(Sys.time(), "%H:%M:%S"), "- Density-based (dbscan) on UMAP coordinates"), sep = ""))
-    find_optimal_eps <- function(data, desired_clusters, minPts = 30) {
-      x <- c(0.0001 %o% 1.0903^(1:125))
-      Eps <- pbmcapply::pbmclapply(x, function(eps) {
-        dbscan_result <- dbscan::dbscan(data, eps = eps, minPts = minPts)
-        num_clusters <- length(unique(dbscan_result$cluster)) - (sum(dbscan_result$cluster == 0) > 0) # excluding noise cluster '0'
-        if (num_clusters == desired_clusters) {
-          add <- data.frame(eps = eps, n_clust0= length(dbscan_result$cluster[dbscan_result$cluster == 0]), p_clust0 = sum(dbscan_result$cluster == 0)/length(dbscan_result$cluster))
-        } else {
-          add <- data.frame(eps = numeric(0), n_clust0 = numeric(0), p_clust0 = numeric(0))
-        }
-        return(add)
-      }, mc.cores = parallel::detectCores()) # always attempt to parallelize
-      Eps <- do.call(rbind, Eps)
-      # fail if, despite having desired number of clusters, the 'noise' cluster contained more than 20% of data points
-      if (nrow(Eps) == 0) {return(NA)} else if (Eps[which.min(Eps$n_clust0),]$p_clust0 > 0.2) {return(NA)} else {return(Eps[which.min(Eps$n_clust0),]$eps)}
-    }
-    mpts <- dbscan_minPts
-    optimal_eps <- find_optimal_eps(as.matrix(umapout[,1:2]), desired_clusters = k, minPts = mpts)
-    if (!is.na(optimal_eps)) {
+    if (is.null(k)) {
+      dbscan_knn <- dbscan::kNNdist(as.matrix(umapout[,1:2]), k =  (dbscan_minPts-1))
+      dbscan_knn_sort <- sort(dbscan_knn)
+      infl <- c(FALSE, diff(diff(dbscan_knn_sort)>0)!=0) #get inflection points
+      infl_select <- dbscan_knn_sort[intersect(names(dbscan_knn_sort), names(infl[which(infl == T)]))] %>% unname()
+      optimal_eps <- infl_select[which.max(infl_select)]
+      # # the optimal eps is at the 'elbow' (inflection point)
+      # plot_df <- data.frame(x = 1:length(dbscan_knn_sort), y = dbscan_knn_sort)
+      # ggplot(plot_df, aes(x = x, y = y)) +
+      #   geom_line() +
+      #   labs(title = "kNN Distance Plot", x = "Points sorted by distance", y = "kNN Distance") +
+      #   geom_hline(yintercept = optimal_eps, color = "red", linetype = "dashed")
       dbscan_result <- dbscan::dbscan(as.matrix(umapout[,1:2]), eps = optimal_eps, minPts = mpts)
+      umapout$hla_clusters  <- dbscan_result$cluster
       umapout$clust_dbscan <- dbscan_result$cluster
       # De-noise dbscan: reassign points with the noise cluster '0' to the classification of their nearest non-0 neighbor
       if (any(umapout$clust_dbscan == 0)) {
@@ -207,12 +263,42 @@ HLA_clusters <- function(reads, k = 2, seu = NULL, CB_rev_com = FALSE, geno_meta
                                            k = 1)
         umapout$clust_dbscan[which(umapout$clust_dbscan == 0)] <- umapout$clust_dbscan[umapout$clust_dbscan != 0][nearest_neighbors$nn.index]
       }
-      umapout$hla_clusters <- umapout$clust_dbscan
     } else {
-      umapout$hla_clusters <- NA
-      umapout$clust_dbscan <- NA
-      method <- "consensus"
-      message(cat(crayon::red("could not compute dbscan with desired number of clusters, defaulting to method: '", method, "'", sep = ""), sep = ""))
+      find_optimal_eps <- function(data, desired_clusters, minPts = 30) {
+        x <- c(0.0001 %o% 1.0903^(1:125))
+        Eps <- pbmcapply::pbmclapply(x, function(eps) {
+          dbscan_result <- dbscan::dbscan(data, eps = eps, minPts = minPts)
+          num_clusters <- length(unique(dbscan_result$cluster)) - (sum(dbscan_result$cluster == 0) > 0) # excluding noise cluster (0)
+          if (num_clusters == desired_clusters) {
+            add <- data.frame(eps = eps, n_clust0= length(dbscan_result$cluster[dbscan_result$cluster == 0]), p_clust0 = sum(dbscan_result$cluster == 0)/length(dbscan_result$cluster))
+          } else {
+            add <- data.frame(eps = numeric(0), n_clust0 = numeric(0), p_clust0 = numeric(0))
+          }
+          return(add)
+        }, mc.cores = parallel::detectCores()) # always attempt to parallelize
+        Eps <- do.call(rbind, Eps)
+        # fail if, despite having desired number of clusters, the 'noise' cluster contained more than 20% of data points
+        if (nrow(Eps) == 0) {return(NA)} else if (Eps[which.min(Eps$n_clust0),]$p_clust0 > 0.2) {return(NA)} else {return(Eps[which.min(Eps$n_clust0),]$eps)}
+      }
+      mpts <- dbscan_minPts
+      optimal_eps <- find_optimal_eps(as.matrix(umapout[,1:2]), desired_clusters = k, minPts = mpts)
+      if (!is.na(optimal_eps)) {
+        dbscan_result <- dbscan::dbscan(as.matrix(umapout[,1:2]), eps = optimal_eps, minPts = mpts)
+        umapout$hla_clusters  <- dbscan_result$cluster #keep this 'noisy' here for now.
+        umapout$clust_dbscan  <- dbscan_result$cluster
+        # De-noise dbscan: reassign points with the noise cluster '0' to the classification of their nearest non-0 neighbor
+        if (any(umapout$clust_dbscan == 0)) {
+          nearest_neighbors <- FNN::get.knnx(umapout[umapout$clust_dbscan != 0, c("umap1", "umap2")], 
+                                             umapout[which(umapout$clust_dbscan == 0), c("umap1", "umap2")], 
+                                             k = 1)
+          umapout$clust_dbscan[which(umapout$clust_dbscan == 0)] <- umapout$clust_dbscan[umapout$clust_dbscan != 0][nearest_neighbors$nn.index]
+        }
+      } else {
+        umapout$hla_clusters  <- NA
+        umapout$clust_dbscan  <- NA
+        method <- "consensus"
+        message(cat(crayon::red("could not compute dbscan with desired number of clusters, defaulting to method: '", method, "'", sep = ""), sep = ""))
+      }
     }
   }  
   if (method %in% c("hclust", "consensus")) {

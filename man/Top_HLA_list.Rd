@@ -7,7 +7,7 @@
 Top_HLA_list(
   reads_1,
   reads_2 = NULL,
-  allogeneic_entities = 2,
+  k = 2,
   seu = NULL,
   CB_rev_com = FALSE,
   hla_with_counts_above = 0,
@@ -40,7 +40,7 @@ Top_HLA_list(
 
 \item{reads_2}{is the secondary scrHLAtag count file (the alternative file vs. the one designated in '\code{reads_1}' argument). It includes columns for CB, UMI, and HLA alleles (https://github.com/furlan-lab/scrHLAtag). Default is \code{NULL}, in which case it will not be able to count alternative aligment.}
 
-\item{allogeneic_entities}{is the number 'k' of clusters to partition the UMAP space into, e.g. the number of entities or genotypes you 'think' there might be in your captured sample.}
+\item{k}{can be \code{NULL} or a fixed number of clusters to partition the datapoints into, e.g. the number of entities or genotypes you 'think' there might be in your captured sample. If \code{NULL}, each clustering method will automatically determine number of clusters (will not work for \code{"hclust"} and \code{"kmeans"}, which needs a defined \code{k}).}
 
 \item{seu}{is the Seurat object associated with the scrHLAtag count file (https://satijalab.org/seurat/index.html), and entered here if matching CBs in count file with Seurat colnames is desired.}
 
@@ -52,11 +52,11 @@ Top_HLA_list(
 
 \item{match_CB_with_seu}{is a logical, called \code{TRUE} if filtering CBs in the scrHLAtag count file with matching ones in the Seurat object is desired.}
 
-\item{clust_method}{is the graph-based clustering method to be used for partitioning cells based on their HLA count patterns. The choice is between a Density-based method: \code{"dbscan"}, Connectivity-based method: \code{"hclust"}, a Centroid-based method: \code{"kmeans"}, or a Distribution-based method: \code{"gmm"} (for Gaussian Mixture Model). The methods are run with their respective Default algorithms. Some of those methods may predict "true" clusters with better accuracy than others; as we cannot know a priori which is the best method, we propose the method: \code{"consensus"} (set as Default) which groups cells in the same cluster if they agree on membership in > 50% of methods, otherwise they are unclassified (\code{NA}s).}
+\item{clust_method}{is the graph-based clustering method to be used for partitioning cells based on their HLA count patterns. The choice is between a Community structure detection method: \code{"leiden"}, a Density-based method: \code{"dbscan"}, a Connectivity-based method: \code{"hclust"}, a Centroid-based method: \code{"kmeans"}, or a Distribution-based method: \code{"gmm"} (for Gaussian Mixture Model). The methods are run with their respective Default parameters. Some of those methods may predict "true" allogeneic entities with better accuracy than others; as we cannot know a priori which is the best method, we propose the method: \code{"consensus"}, which groups cells in the same cluster if they agree on membership in > 50% of methods, otherwise they are unclassified (\code{NA}s).}
 
 \item{n_PCs}{is a numeric, representing the number of top principal components to retain in downstream clustering and umap analyses; default is \code{50} or the top 80% of PCs, whichever is smaller.}
 
-\item{dbscan_minPts}{only works for the  \code{"dbscan"} clust_method: number of minimum points required in the epsilon neighborhood (\code{eps}) of core points. While the other methods require 1 parameter (i.e., \code{k}), \code{"dbscan"} requires 2: \code{eps} and \code{minPts}. To acheive desired \code{k} clusters, a range of \code{eps} parameter is tested against a fixed \code{minPts}, which is provided here. Default at \code{30}, but can be adjusted higher or lower depending on how small and 'clumped' an allogeneic entity is suspected to be.}
+\item{dbscan_minPts}{only works for the  \code{"dbscan"} clust_method: number of minimum points required in the epsilon neighborhood radius (\code{eps}) of core points. While the other methods require 1 parameter (i.e., \code{k}), \code{"dbscan"} requires 2: \code{eps} and \code{minPts}. To acheive desired \code{k} clusters, a range of \code{eps} parameter is tested against a fixed \code{minPts}, which is provided here. Default at \code{30}, but can be adjusted higher or lower depending on how small and 'clumped' an allogeneic entity is suspected to be.}
 
 \item{QC_mm2}{is a logical, called \code{TRUE} if removing low quality reads based on minimap2 tags is desired.}
 
