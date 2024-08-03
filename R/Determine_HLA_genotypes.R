@@ -26,6 +26,7 @@
 #' @param umap_spread for \code{uwot::umap()}; effective scale of embedded points determining how clustered/clumped the embedded points are.
 #' @param umap_min_dist for \code{uwot::umap()}; effective minimum distance between embedded points. Smaller values will result in a more clustered/clumped embedding.
 #' @param umap_repulsion for \code{uwot::umap()}; weighting applied to negative samples in low dimensional embedding optimization.
+#' @param suppress_plots  called \code{TRUE} to suppress plots from appearing while running the function.
 #' @param seed  is a numeric (or \code{NULL}), to set seed (or not) in the environment for reproducibility
 #' @param ... other arguments passed onto \code{uwot::umap()}.
 #' @import stringr
@@ -74,7 +75,7 @@ Top_HLA_list <- function(reads_1, reads_2 = NULL, k = 2, seu = NULL, CB_rev_com 
                          top_cumulative_frac = 0.85, bulk_to_perCB_threshold = 2500,
                          allowed_alleles_per_cell = c(1, 200), stringent_mode = TRUE, correct_alleles = TRUE,                         
                          field_resolution = 3, parallelize = TRUE, 
-                         umap_spread = 5, umap_min_dist = 0.001, umap_repulsion = 0.001, seed = 1, ...) {
+                         umap_spread = 5, umap_min_dist = 0.001, umap_repulsion = 0.001, seed = 1, suppress_plots = TRUE, ...) {
   if (!requireNamespace("mclust", quietly = TRUE)) { stop("Package 'mclust' needed for this function to work. Please install it.", call. = FALSE) }
   if (!"package:mclust" %in% search()) {library(mclust)}
   s <- Sys.time()
@@ -90,8 +91,8 @@ Top_HLA_list <- function(reads_1, reads_2 = NULL, k = 2, seu = NULL, CB_rev_com 
                                     AS_percent_pass_score = AS_percent_pass_score, NM_thresh = NM_thresh, de_thresh = de_thresh,
                                     return_heavy = TRUE, n_PCs = n_PCs,
                                     method = clust_method, dbscan_minPts = dbscan_minPts,
-                                    spread = umap_spread, min_dist = umap_min_dist, repulsion_strength = umap_repulsion, seed = seed, ...)
-  print(HLA_umap_clusters[[2]]+scale_color_manual(values=pals::glasbey())+theme_classic())
+                                    spread = umap_spread, min_dist = umap_min_dist, repulsion_strength = umap_repulsion, seed = seed, suppress_plots = suppress_plots, ...)
+  if (!suppress_plots) print(HLA_umap_clusters[[2]]+scale_color_manual(values=pals::glasbey())+theme_classic())
   if ((reads_1$gene %>% unique() %>% length()) > bulk_to_perCB_threshold) {
     message(cat("\nReads count file shows greater than ", bulk_to_perCB_threshold, " uniquely mapped HLA alleles; extracting top alleles using the Pseudo-Bulk Algorithm", sep = ""))
     reads_1 <- map_HLA_clusters(reads.list = reads_1, HLA_umap_clusters[[1]], CB_rev_com = CB_rev_com)

@@ -32,6 +32,7 @@ Top_HLA_list(
   umap_min_dist = 0.001,
   umap_repulsion = 0.001,
   seed = 1,
+  suppress_plots = TRUE,
   ...
 )
 }
@@ -89,6 +90,8 @@ Top_HLA_list(
 \item{umap_repulsion}{for \code{uwot::umap()}; weighting applied to negative samples in low dimensional embedding optimization.}
 
 \item{seed}{is a numeric (or \code{NULL}), to set seed (or not) in the environment for reproducibility}
+
+\item{suppress_plots}{called \code{TRUE} to suppress plots from appearing while running the function.}
 
 \item{...}{other arguments passed onto \code{uwot::umap()}.}
 }
