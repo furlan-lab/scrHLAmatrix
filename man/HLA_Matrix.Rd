@@ -23,35 +23,35 @@ HLA_Matrix(
 )
 }
 \arguments{
-\item{reads}{is the scrHLAtag count file including columns for CB, UMI, and HLA alleles (https://github.com/furlan-lab/scrHLAtag).}
+\item{reads}{is the scrHLAtag count file including columns for CB, UMI, and HLA alleles (\url{https://github.com/furlan-lab/scrHLAtag}).}
 
-\item{seu}{is the Seurat object associated with the scrHLAtag count file (https://satijalab.org/seurat/index.html).}
+\item{seu}{is the Seurat object associated with the scrHLAtag count file (\url{https://satijalab.org/seurat/index.html}).}
 
-\item{hla_recip}{is a character list of recipient-specific HLA alleles if known; default is an empty character vector.}
+\item{hla_recip}{a character list of recipient-specific HLA alleles if known; default is an empty character vector.}
 
-\item{hla_donor}{is a character list of donor-specific HLA alleles if known; default is an empty character vector.}
+\item{hla_donor}{a character list of donor-specific HLA alleles if known; default is an empty character vector.}
 
-\item{QC_mm2}{is a logical, called \code{TRUE} if removing low quality reads based on minimap2 tags is desired.}
+\item{QC_mm2}{logical, called \code{TRUE} if removing low quality reads based on minimap2 tags is desired.}
 
-\item{res_conflict_per_gene}{is a logical, called \code{TRUE} if resolving per-HLA genotype conflicts is desired, with the assumption that each Cell can have no more than 2 alleles of the same HLA gene.}
+\item{res_conflict_per_gene}{logical, called \code{TRUE} if resolving per-HLA genotype conflicts is desired, with the assumption that each Cell can have no more than 2 alleles of the same HLA gene.}
 
-\item{LD_correct}{is a logical, called \code{TRUE} if Linkage Diseqilibrium (LD) correction in the HLA-DR locus is desired, with the assumption of a very strong LD between certain DRB1 allele families and the DRB2, DRB3, DRB4, DRB5, DRB6, DRB7, DRB8, and DRB9 loci.}
+\item{LD_correct}{logical, called \code{TRUE} if Linkage Diseqilibrium (LD) correction in the HLA-DR locus is desired, with the assumption of a very strong LD between certain \emph{DRB1} allele families and the \emph{DRB2}, \emph{DRB3}, \emph{DRB4}, \emph{DRB5}, \emph{DRB6}, \emph{DRB7}, \emph{DRB8}, and \emph{DRB9} loci.}
 
-\item{remove_alleles}{is a character list of HLA alleles to be removed from the count file if desired; default is an empty character vector.}
+\item{remove_alleles}{a character list of HLA alleles to be removed from the count file if desired; default is an empty character vector.}
 
-\item{s1_percent_pass_score}{is a percentage (\code{0} to \code{100}) cuttoff from the maximum score (best quality) of the minimap2 's1' tag, which a read needs to acheive to pass as acceptable; default at \code{80} and becomes less inclusive if value increases.}
+\item{s1_percent_pass_score}{percentage, \code{0} to \code{100}, cuttoff from the maximum score (best quality) of the minimap2 's1' tag, which a read needs to acheive to pass as acceptable; default at \code{80} and becomes less inclusive if value increases.}
 
-\item{AS_percent_pass_score}{is a percentage (\code{0} to \code{100}) cuttoff from the maximum score (best quality) of the minimap2 'AS' tag, which a read needs to acheive to pass as acceptable; default at \code{80} and becomes less inclusive if value increases.}
+\item{AS_percent_pass_score}{percentage, \code{0} to \code{100}, cuttoff from the maximum score (best quality) of the minimap2 'AS' tag, which a read needs to acheive to pass as acceptable; default at \code{80} and becomes less inclusive if value increases.}
 
-\item{NM_thresh}{is the number of mismatches and gaps in the minimap2 alignment at or below which the quality of the read is acceptable; default is \code{15}.}
+\item{NM_thresh}{number of mismatches and gaps in the minimap2 alignment at or below which the quality of the read is acceptable; default is \code{15}.}
 
-\item{de_thresh}{is the gap-compressed per-base sequence divergence in the minimap2 alignment at or below which the quality of the read is acceptable; the number is between \code{0} and \code{1}, and default is \code{0.01}.}
+\item{de_thresh}{gap-compressed per-base sequence divergence in the minimap2 alignment at or below which the quality of the read is acceptable; the number is between \code{0} and \code{1}, and default is \code{0.01}.}
 
-\item{parallelize}{is a logical, called \code{TRUE} if using parallel processing (multi-threading) is desired; default is \code{FALSE}.}
+\item{parallelize}{logical, called \code{TRUE} if using parallel processing (multi-threading) is desired; default is \code{FALSE}.}
 
-\item{CB_rev_com}{is a logical, called \code{TRUE} if the need to obtained the reverse complement of Cell Barcodes (CBs) is desired; default is \code{FALSE}.}
+\item{CB_rev_com}{logical, called \code{TRUE} if the need to obtain the reverse complement of Cell Barcodes (CBs) is desired; default is \code{FALSE}.}
 
-\item{return_stats}{is a logical, when \code{TRUE} returns step-by-step read statistics and UMI duplication rate in a list of dataframes and plot, in addition to the Seurat-compatible count matrix; will require additional computations which may noticeably slow down the function; defualt is \code{FALSE}.}
+\item{return_stats}{logical, when \code{TRUE} returns step-by-step read statistics and UMI duplication rate in a list of dataframes and plot, in addition to the Seurat-compatible count matrix; will require additional computations which may noticeably slow down the function; defualt is \code{FALSE}.}
 }
 \value{
 an Assay type matrix

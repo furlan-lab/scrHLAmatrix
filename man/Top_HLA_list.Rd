@@ -37,51 +37,51 @@ Top_HLA_list(
 )
 }
 \arguments{
-\item{reads_1}{is the primary scrHLAtag count file (1 of 2 files containing either the mRNA molecular info or the genomic (gene) molecular info). It includes columns for CB, UMI, and HLA alleles (https://github.com/furlan-lab/scrHLAtag).}
+\item{reads_1}{is the primary scrHLAtag count file (1 of 2 files containing either the mRNA molecular info or the genomic (gene) molecular info). It includes columns for CB, UMI, and HLA alleles (\url{https://github.com/furlan-lab/scrHLAtag}).}
 
-\item{reads_2}{is the secondary scrHLAtag count file (the alternative file vs. the one designated in '\code{reads_1}' argument). It includes columns for CB, UMI, and HLA alleles (https://github.com/furlan-lab/scrHLAtag). Default is \code{NULL}, in which case it will not be able to count alternative aligment.}
+\item{reads_2}{is the secondary scrHLAtag count file (the alternative file vs. the one designated in '\code{reads_1}' argument). It includes columns for CB, UMI, and HLA alleles (\url{https://github.com/furlan-lab/scrHLAtag}). Default is \code{NULL}, in which case it will not be able to count alternative aligment.}
 
-\item{k}{can be \code{NULL} or a fixed number of clusters to partition the datapoints into, e.g. the number of entities or genotypes you 'think' there might be in your captured sample. If \code{NULL}, each clustering method will automatically determine number of clusters (will not work for \code{"hclust"} and \code{"kmeans"}, which needs a defined \code{k}).}
+\item{k}{can be \code{NULL} or a fixed number (descrete) of clusters to partition the datapoints into, e.g. the number of entities or genotypes you \emph{think} there might be in your captured sample. If \code{NULL}, each clustering method will automatically determine \code{k} clusters on its own (will not work for \code{"hclust"} and \code{"kmeans"}, which need defined \code{k}s).}
 
-\item{seu}{is the Seurat object associated with the scrHLAtag count file (https://satijalab.org/seurat/index.html), and entered here if matching CBs in count file with Seurat colnames is desired.}
+\item{seu}{is the Seurat object associated with the scrHLAtag count file (\url{https://satijalab.org/seurat/index.html}), and entered here if matching CBs in count file with Seurat colnames is desired.}
 
-\item{CB_rev_com}{is a logical, called \code{TRUE} if the need to obtained the reverse complement of Cell Barcodes (CBs) is desired; default is \code{FALSE}.}
+\item{CB_rev_com}{a logical, called \code{TRUE} if the need to obtain the reverse complement of Cell Barcodes (CBs) is desired; default is \code{FALSE}.}
 
-\item{hla_with_counts_above}{is the number of total reads accross CBs at or above which an HLA allele is retained in the matrix.}
+\item{hla_with_counts_above}{number of total reads accross CBs at or above which an HLA allele is retained in the matrix.}
 
-\item{CBs_with_counts_above}{is the number of total reads accross HLA alleles at or above which a CB is retained in the matrix. Note: at present, the function will make sure that number of CBs is equal or more than available HLA alleles in the matrix.}
+\item{CBs_with_counts_above}{number of total reads accross HLA alleles at or above which a CB is retained in the matrix. Note: at present, the function will make sure that number of CBs is equal or more than available HLA alleles in the matrix.}
 
-\item{match_CB_with_seu}{is a logical, called \code{TRUE} if filtering CBs in the scrHLAtag count file with matching ones in the Seurat object is desired.}
+\item{match_CB_with_seu}{a logical, called \code{TRUE} if filtering CBs in the scrHLAtag count file with matching ones in the Seurat object is desired.}
 
-\item{clust_method}{is the graph-based clustering method to be used for partitioning cells based on their HLA count patterns. The choice is between a Community structure detection method: \code{"leiden"}, a Density-based method: \code{"dbscan"}, a Connectivity-based method: \code{"hclust"}, a Centroid-based method: \code{"kmeans"}, or a Distribution-based method: \code{"gmm"} (for Gaussian Mixture Model). The methods are run with their respective Default parameters. Some of those methods may predict "true" allogeneic entities with better accuracy than others; as we cannot know a priori which is the best method, we propose the method: \code{"consensus"}, which groups cells in the same cluster if they agree on membership in > 50% of methods, otherwise they are unclassified (\code{NA}s).}
+\item{clust_method}{the name of the graph-based clustering method to be used for partitioning cells based on their HLA count patterns. The choice is between a Community structure detection method: \code{"leiden"}, a Density-based method: \code{"dbscan"}, a Connectivity-based method: \code{"hclust"}, a Centroid-based method: \code{"kmeans"}, or a Distribution-based method: \code{"gmm"} (for Gaussian Mixture Model). The methods are run with their respective Default parameters. Some of those methods may predict \emph{true} allogeneic entities with better accuracy than others; as we cannot know a priori which is the best method, we propose the method: \code{"consensus"}, which groups cells in the same cluster if they agree on membership in > 50 percent of methods, otherwise they are unclassified (\code{NA}s).}
 
-\item{n_PCs}{is a numeric, representing the number of top principal components to retain in downstream clustering and umap analyses; default is \code{50} or the top 80% of PCs, whichever is smaller.}
+\item{n_PCs}{the number of top principal components to retain in downstream clustering and umap analyses; default is \code{50} or the top 80 percent of PCs, whichever is smaller.}
 
-\item{dbscan_minPts}{only works for the  \code{"dbscan"} clust_method: number of minimum points required in the epsilon neighborhood radius (\code{eps}) of core points. While the other methods require 1 parameter (i.e., \code{k}), \code{"dbscan"} requires 2: \code{eps} and \code{minPts}. To acheive desired \code{k} clusters, a range of \code{eps} parameter is tested against a fixed \code{minPts}, which is provided here. Default at \code{30}, but can be adjusted higher or lower depending on how small and 'clumped' an allogeneic entity is suspected to be.}
+\item{dbscan_minPts}{only works for the  \code{"dbscan"} clust_method: number of minimum points required in the epsilon neighborhood radius (\code{eps}) of core points. While the other methods require 1 parameter (e.g., \code{k}), \code{"dbscan"} requires 2: \code{eps} and \code{minPts}. To acheive desired \code{k} clusters, a range of \code{eps} parameter is tested against a fixed \code{minPts}, which is provided here. Default at \code{30}, but can be adjusted higher or lower depending on how small and \emph{clumped} an allogeneic entity is suspected to be.}
 
-\item{QC_mm2}{is a logical, called \code{TRUE} if removing low quality reads based on minimap2 tags is desired.}
+\item{QC_mm2}{a logical, called \code{TRUE} if removing low quality reads based on minimap2 tags is desired.}
 
-\item{s1_percent_pass_score}{is a percentage (\code{0} to \code{100}) cuttoff from the maximum score (best quality) of the minimap2 's1' tag, which a read needs to acheive to pass as acceptable; default at \code{80} and becomes less inclusive if value increases.}
+\item{s1_percent_pass_score}{percentage, \code{0} to \code{100}, cuttoff from the maximum score (best quality) of the minimap2 's1' tag, which a read needs to acheive to pass as acceptable; default at \code{80} and becomes less inclusive if value increases.}
 
-\item{AS_percent_pass_score}{is a percentage (\code{0} to \code{100}) cuttoff from the maximum score (best quality) of the minimap2 'AS' tag, which a read needs to acheive to pass as acceptable; default at \code{80} and becomes less inclusive if value increases.}
+\item{AS_percent_pass_score}{percentage, \code{0} to \code{100}, cuttoff from the maximum score (best quality) of the minimap2 'AS' tag, which a read needs to acheive to pass as acceptable; default at \code{80} and becomes less inclusive if value increases.}
 
-\item{NM_thresh}{is the number of mismatches and gaps in the minimap2 alignment at or below which the quality of the read is acceptable; default is \code{15}.}
+\item{NM_thresh}{the number of mismatches and gaps in the minimap2 alignment at or below which the quality of the read is acceptable; default is \code{15}.}
 
-\item{de_thresh}{is the gap-compressed per-base sequence divergence in the minimap2 alignment at or below which the quality of the read is acceptable; the number is between \code{0} and \code{1}, and default is \code{0.01}.}
+\item{de_thresh}{the gap-compressed per-base sequence divergence in the minimap2 alignment at or below which the quality of the read is acceptable; the number is between \code{0} and \code{1}, and default is \code{0.01}.}
 
-\item{top_cumulative_frac}{is the fraction (\code{0} to \code{1}) of total counts for a particular HLA locus, where the highest-ranking alleles (or genotypes) cumulatively accounting for that fraction of the total, shall be retained in the candidate list of alleles; default at \code{0.85}.}
+\item{top_cumulative_frac}{fraction, \code{0} to \code{1}, of total counts for a particular HLA locus, where the highest-ranking alleles (or genotypes) cumulatively accounting for that fraction of the total, shall be retained in the candidate list of alleles; default at \code{0.85}.}
 
-\item{bulk_to_perCB_threshold}{is a numeric, a threshold of number of uniquely mapped HLA alleles in the primary count file \code{reads_1} above which listing the top alleles uses the Pseudo-Bulk Algorithm and below which it uses the Per Single-Cell Algorithm. Default is \code{2500}.}
+\item{bulk_to_perCB_threshold}{threshold of number of uniquely mapped HLA alleles in the primary count file \code{reads_1} above which listing the top alleles uses the Pseudo-Bulk Algorithm and below which it uses the Per Single-Cell Algorithm. Default is \code{2500}.}
 
-\item{allowed_alleles_per_cell}{is a numeric (single or range) determining the minimum and maximum number of highest ranking allele genotypes per cell to keep if such number is beyond those limits after filtering by fraction; default is \code{c(1, 200)}, usefull in the early scrHLAtag iterations to give minimap2 lots of room to align; once you are ready to finalize the top HLA allele list, you can try \code{c(1, 2)} if you assume a cell can have a min of 1 allele (homozygous) and a max of 2 (heterozygous).}
+\item{allowed_alleles_per_cell}{a numeric (single integer or range) determining the minimum and maximum number of highest ranking allele genotypes per cell to keep if such number is beyond those limits after filtering by fraction; default is \code{c(1, 200)}, usefull in the early scrHLAtag iterations to give minimap2 lots of room to align; once you are ready to finalize the top HLA allele list, you can try \code{c(1, 2)} if you assume a cell can have a min of 1 allele (homozygous) and a max of 2 (heterozygous).}
 
-\item{stringent_mode}{is a logical, when called \code{TRUE}, the algorithm detects when the final iteration is near (unique alleles in read file is equal or less than 200 per allogeneic entity); thus, getting top alleles becomes more stringent, with \code{allowed_alleles_per_cell} switching to \code{c(1, 2)}. This argument, however, will be ignored if the user inputs values for \code{allowed_alleles_per_cell} other than its default or if the Pseudo-Bulk algorithm is running instead of the per Single-Cell algorithm.}
+\item{stringent_mode}{a logical, when called \code{TRUE}, the algorithm detects when the final iteration is near (unique alleles in read file is equal or less than 200 per allogeneic entity); thus, getting top alleles becomes more stringent, with \code{allowed_alleles_per_cell} switching to \code{c(1, 2)}. This argument, however, will be ignored if the \emph{Pseudo-Bulk} algorithm is running instead of the \emph{Per Single-Cell} algorithm.}
 
-\item{correct_alleles}{is a logical. Minimap2 of scrHLAtag preferentially maps reads that are in fact DPA1*02:02:02, A*03:01:01, B*13:02:01, C*02:02:02, or C*04:01:01, to DPA1*02:38Q, A*03:437Q, B*13:123Q, C*02:205Q, or C*04:09N/C*04:61N, respectively. When called \code{TRUE}, the algorithm will replace the unlikely allele(s) with their 'correct' version(s). Will work if \code{stringent_mode} is \code{TRUE} and its own conditions to work are met (as explained above).}
+\item{correct_alleles}{a logical. Minimap2 of scrHLAtag will preferentially map reads that are in reality \emph{DPA1*02:02:02}, \emph{A*03:01:01}, \emph{B*13:02:01}, \emph{C*02:02:02}, or \emph{C*04:01:01}, to the presumed erroneous \emph{DPA1*02:38Q}, \emph{A*03:437Q}, \emph{B*13:123Q}, \emph{C*02:205Q}, or \emph{C*04:09N/C*04:61N}, respectively. When called \code{TRUE}, the algorithm will replace the unlikely allele(s) with their putative \emph{correct} version(s). Will work if \code{stringent_mode} is \code{TRUE}.}
 
-\item{field_resolution}{is a numeric, to select the HLA nomenclature level of Field resolution, where \code{1}, \code{2}, or \code{3} will take into consideration the first, the first two, or the first three field(s) of HLA designation; default is \code{3}.}
+\item{field_resolution}{integer fron \code{1} to \code{3}, to select the HLA nomenclature level of Field resolution, where \code{1}, \code{2}, or \code{3} will take into consideration the first, the first two, or the first three field(s) of HLA designation; default is \code{3}.}
 
-\item{parallelize}{is a logical, called \code{TRUE} if using parallel processing (multi-threading) is desired; default is \code{TRUE}.}
+\item{parallelize}{a logical, called \code{TRUE} if using parallel processing (multi-threading) is desired; default is \code{TRUE}.}
 
 \item{umap_spread}{for \code{uwot::umap()}; effective scale of embedded points determining how clustered/clumped the embedded points are.}
 
@@ -89,7 +89,7 @@ Top_HLA_list(
 
 \item{umap_repulsion}{for \code{uwot::umap()}; weighting applied to negative samples in low dimensional embedding optimization.}
 
-\item{seed}{is a numeric (or \code{NULL}), to set seed (or not) in the environment for reproducibility}
+\item{seed}{numeric (or \code{NULL}), to set seed (or not) in the environment for reproducibility}
 
 \item{suppress_plots}{called \code{TRUE} to suppress plots from appearing while running the function.}
 

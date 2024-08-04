@@ -25,39 +25,39 @@ Top_HLA_plot_byCB(
 )
 }
 \arguments{
-\item{reads}{is the scrHLAtag count file including columns for CB, UMI, and HLA alleles (https://github.com/furlan-lab/scrHLAtag).}
+\item{reads}{is the scrHLAtag count file including columns for CB, UMI, and HLA alleles (\url{https://github.com/furlan-lab/scrHLAtag}).}
 
-\item{seu}{is the Seurat object associated with the scrHLAtag count file (https://satijalab.org/seurat/index.html), and entered here if matching CBs in count file with Seurat colnames is desired.}
+\item{seu}{is the Seurat object associated with the scrHLAtag count file (\url{https://satijalab.org/seurat/index.html}), and entered here if matching CBs in count file with Seurat colnames is desired.}
 
-\item{CB_rev_com}{is a logical, called \code{TRUE} if the need to obtained the reverse complement of Cell Barcodes (CBs) is desired; default is \code{FALSE}.}
+\item{CB_rev_com}{logical, called \code{TRUE} if the need to obtain the reverse complement of Cell Barcodes (CBs) is desired; default is \code{FALSE}.}
 
-\item{hla_with_counts_above}{is the number of total reads accross CBs at or above which an HLA allele is retained in the matrix.}
+\item{hla_with_counts_above}{the number of total reads accross CBs at or above which an HLA allele is retained in the matrix.}
 
-\item{CBs_with_counts_above}{is the number of total reads accross HLA alleles at or above which a CB is retained in the matrix. Note: at present, the function will make sure that number of CBs is equal or more than available HLA alleles in the matrix.}
+\item{CBs_with_counts_above}{the number of total reads accross HLA alleles at or above which a CB is retained in the matrix. Note: at present, the function will make sure that number of CBs is equal or more than available HLA alleles in the matrix.}
 
-\item{match_CB_with_seu}{is a logical, called \code{TRUE} if filtering CBs in the scrHLAtag count file with matching ones in the Seurat object is desired.}
+\item{match_CB_with_seu}{logical, called \code{TRUE} if filtering CBs in the scrHLAtag count file with matching ones in the Seurat object is desired.}
 
-\item{cluster_index}{is a numeric or integer, representing the index of the HLA cluster present in the counts data (as previously analyzed by 'HLA_clusters()' and mapped back to the data by 'map_HLA_clusters()'). It allows to subset the visualization based on the selected HLA cluster. 'NULL' is the default in which case the counts data will not be subsetted.}
+\item{cluster_index}{a numeric or integer, representing the index of the HLA cluster present in the counts data (as previously analyzed by \code{HLA_clusters()} and mapped back to the data by \code{map_HLA_clusters()}). It allows to subset the visualization based on the selected HLA cluster. \code{NULL} is the default in which case the counts data will not be subsetted.}
 
-\item{top_hla}{is a numeric, representing the number of top HLA alleles (i.e. with the highest number of reads) per HLA gene to display in the plot; default is \code{10}.}
+\item{top_hla}{the number of top HLA alleles (i.e. with the highest number of reads) per HLA gene to display in the plot; default is \code{10}.}
 
-\item{field_resolution}{is a numeric, to select the HLA nomenclature level of Field resolution, where \code{1}, \code{2}, or \code{3} will take into consideration the first, the first two, or the first three field(s) of HLA designation; default is \code{3}.}
+\item{field_resolution}{integer fron \code{1} to \code{3}, to select the HLA nomenclature level of Field resolution, where \code{1}, \code{2}, or \code{3} will take into consideration the first, the first two, or the first three field(s) of HLA designation; default is \code{3}.}
 
-\item{QC_mm2}{is a logical, called \code{TRUE} if removing low quality reads based on minimap2 tags is desired.}
+\item{QC_mm2}{logical, called \code{TRUE} if removing low quality reads based on minimap2 tags is desired.}
 
-\item{s1_percent_pass_score}{is a percentage (\code{0} to \code{100}) cuttoff from the maximum score (best quality) of the minimap2 's1' tag, which a read needs to acheive to pass as acceptable; default at \code{80} and becomes less inclusive if value increases.}
+\item{s1_percent_pass_score}{percentage, \code{0} to \code{100}, cuttoff from the maximum score (best quality) of the minimap2 's1' tag, which a read needs to acheive to pass as acceptable; default at \code{80} and becomes less inclusive if value increases.}
 
-\item{AS_percent_pass_score}{is a percentage (\code{0} to \code{100}) cuttoff from the maximum score (best quality) of the minimap2 'AS' tag, which a read needs to acheive to pass as acceptable; default at \code{80} and becomes less inclusive if value increases.}
+\item{AS_percent_pass_score}{percentage, \code{0} to \code{100}, cuttoff from the maximum score (best quality) of the minimap2 'AS' tag, which a read needs to acheive to pass as acceptable; default at \code{80} and becomes less inclusive if value increases.}
 
-\item{NM_thresh}{is the number of mismatches and gaps in the minimap2 alignment at or below which the quality of the read is acceptable; default is \code{15}.}
+\item{NM_thresh}{number of mismatches and gaps in the minimap2 alignment at or below which the quality of the read is acceptable; default is \code{15}.}
 
-\item{de_thresh}{is the gap-compressed per-base sequence divergence in the minimap2 alignment at or below which the quality of the read is acceptable; the number is between \code{0} and \code{1}, and default is \code{0.01}.}
+\item{de_thresh}{gap-compressed per-base sequence divergence in the minimap2 alignment at or below which the quality of the read is acceptable; the number is between \code{0} and \code{1}, and default is \code{0.01}.}
 
-\item{default_theme}{is a logical, called \code{TRUE} by default to output a 'plot_grid' of all HLA alleles in the count file in a single figure; if \code{FALSE} the output is a list of plots without a specified theme.}
+\item{default_theme}{logical, called \code{TRUE} by default to output a 'plot_grid' of all HLA alleles in the count file in a single figure; if \code{FALSE} the output is a list of plots without a specified theme.}
 
-\item{return_genotype_data}{is a logical, called \code{TRUE} if the HLA genotypes of each CB, ordered in a dataframe, is desired in addition to the plots; \code{FALSE} by default.}
+\item{return_genotype_data}{logical, called \code{TRUE} if the HLA genotypes of each CB, ordered in a dataframe, is desired in addition to the plots; \code{FALSE} by default.}
 
-\item{parallelize}{is a logical, called \code{TRUE} if using parallel processing (multi-threading) is desired; default is \code{TRUE}.}
+\item{parallelize}{logical, called \code{TRUE} if using parallel processing (multi-threading) is desired; default is \code{TRUE}.}
 }
 \value{
 ggplot of HLA genotypes per Cell Barcodes and the number of times they occur

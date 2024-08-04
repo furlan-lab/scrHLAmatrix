@@ -1,24 +1,24 @@
 #' Getting raw scrHLAtag counts and analyzing distribution of HLA alleles per Cell Barcodes in UMAP space
 #' 
-#' @param reads  is the scrHLAtag count file including columns for CB, UMI, and HLA alleles (https://github.com/furlan-lab/scrHLAtag).
-#' @param k  can be \code{NULL} or a fixed number of clusters to partition the datapoints into, e.g. the number of entities or genotypes you 'think' there might be in your captured sample. If \code{NULL}, each clustering method will automatically determine number of clusters (will not work for \code{"hclust"} and \code{"kmeans"}, which needs a defined \code{k}).
-#' @param seu  is the Seurat object associated with the scrHLAtag count file (https://satijalab.org/seurat/index.html).
-#' @param CB_rev_com  a logical, called \code{TRUE} if the need to obtained the reverse complement of Cell Barcodes (CBs) is desired; default is \code{FALSE}. 
+#' @param reads  is the scrHLAtag count file including columns for CB, UMI, and HLA alleles (\url{https://github.com/furlan-lab/scrHLAtag}).
+#' @param k  can be \code{NULL} or a fixed number (descrete) of clusters to partition the datapoints into, e.g. the number of entities or genotypes you \emph{think} there might be in your captured sample. If \code{NULL}, each clustering method will automatically determine \code{k} clusters on its own (will not work for \code{"hclust"} and \code{"kmeans"}, which need defined \code{k}s).
+#' @param seu  is the Seurat object associated with the scrHLAtag count file (\url{https://satijalab.org/seurat/index.html}).
+#' @param CB_rev_com  logical, called \code{TRUE} if the need to obtain the reverse complement of Cell Barcodes (CBs) is desired; default is \code{FALSE}. 
 #' @param geno_metadata_id  a character, the column ID of the Seurat metadata designated to distinguish genotypes, if this information is available. \code{NULL} by default or when genotyping information is not available. 
-#' @param hla_with_counts_above  the number of total reads accross CBs at or above which an HLA allele is retained in the matrix.
-#' @param CBs_with_counts_above  the number of total reads accross HLA alleles at or above which a CB is retained in the matrix. Note: \code{stats::princomp()} can only be used with at least as many units (CBs) as variables (HLAs), thus the function will make sure that number of CBs is equal or more than available HLA alleles in the matrix.
-#' @param match_CB_with_seu  a logical, called \code{TRUE} if filtering CBs in the scrHLAtag count file with matching ones in the Seurat object is desired. 
-#' @param method  the graph-based clustering method to be used for partitioning cells based on their HLA count patterns. The choice is between a Community structure detection method: \code{"leiden"}, a Density-based method: \code{"dbscan"}, a Connectivity-based method: \code{"hclust"}, a Centroid-based method: \code{"kmeans"}, or a Distribution-based method: \code{"gmm"} (for Gaussian Mixture Model). The methods are run with their respective Default parameters. Some of those methods may predict "true" allogeneic entities with better accuracy than others; as we cannot know a priori which is the best method, we propose the method: \code{"consensus"}, which groups cells in the same cluster if they agree on membership in > 50% of methods, otherwise they are unclassified (\code{NA}s).
-#' @param n_PCs  the number of top principal components to retain in downstream clustering and umap analyses; default is \code{50} or the top 80% of PCs, whichever is smaller.
+#' @param hla_with_counts_above  number of total reads accross CBs at or above which an HLA allele is retained in the matrix.
+#' @param CBs_with_counts_above  number of total reads accross HLA alleles at or above which a CB is retained in the matrix. Note: \code{stats::princomp()} can only be used with at least as many units (CBs) as variables (HLAs), thus the function will make sure that number of CBs is equal or more than available HLA alleles in the matrix.
+#' @param match_CB_with_seu  logical, called \code{TRUE} if filtering CBs in the scrHLAtag count file with matching ones in the Seurat object is desired. 
+#' @param method  the name of the graph-based clustering method to be used for partitioning cells based on their HLA count patterns. The choice is between a Community structure detection method: \code{"leiden"}, a Density-based method: \code{"dbscan"}, a Connectivity-based method: \code{"hclust"}, a Centroid-based method: \code{"kmeans"}, or a Distribution-based method: \code{"gmm"} (for Gaussian Mixture Model). The methods are run with their respective Default parameters. Some of those methods may predict \emph{true} allogeneic entities with better accuracy than others; as we cannot know a priori which is the best method, we propose the method: \code{"consensus"}, which groups cells in the same cluster if they agree on membership in > 50 percent of methods, otherwise they are unclassified (\code{NA}s).
+#' @param n_PCs  the number of top principal components to retain in downstream clustering and umap analyses; default is \code{50} or the top 80 percent of PCs, whichever is smaller.
 #' @param dbscan_minPts  only works for the  \code{"dbscan"} method: number of minimum points required in the epsilon neighborhood radius (\code{eps}) of core points. While the other methods require 1 parameter (e.g., \code{k}), \code{"dbscan"} requires 2: \code{eps} and \code{minPts}. To acheive desired \code{k} clusters, a range of \code{eps} parameter is tested against a fixed \code{minPts}, which is provided here. Default at \code{30}, but can be adjusted higher or lower depending on how small and 'clumped' an allogeneic entity is suspected to be. 
-#' @param QC_mm2  a logical, called \code{TRUE} if removing low quality reads based on minimap2 tags is desired.
-#' @param s1_percent_pass_score  a percentage (\code{0} to \code{100}) cuttoff from the maximum score (best quality) of the minimap2 's1' tag, which a read needs to acheive to pass as acceptable; default at \code{80} and becomes less inclusive if value increases.
-#' @param AS_percent_pass_score  a percentage (\code{0} to \code{100}) cuttoff from the maximum score (best quality) of the minimap2 'AS' tag, which a read needs to acheive to pass as acceptable; default at \code{80} and becomes less inclusive if value increases.
+#' @param QC_mm2  logical, called \code{TRUE} if removing low quality reads based on minimap2 tags is desired.
+#' @param s1_percent_pass_score  percentage, \code{0} to \code{100}, cuttoff from the maximum score (best quality) of the minimap2 's1' tag, which a read needs to acheive to pass as acceptable; default at \code{80} and becomes less inclusive if value increases.
+#' @param AS_percent_pass_score  percentage, \code{0} to \code{100}, cuttoff from the maximum score (best quality) of the minimap2 'AS' tag, which a read needs to acheive to pass as acceptable; default at \code{80} and becomes less inclusive if value increases.
 #' @param NM_thresh  the number of mismatches and gaps in the minimap2 alignment at or below which the quality of the read is acceptable; default is \code{15}.
 #' @param de_thresh  the gap-compressed per-base sequence divergence in the minimap2 alignment at or below which the quality of the read is acceptable; the number is between \code{0} and \code{1}, and default is \code{0.01}.
-#' @param parallelize  a logical, called \code{TRUE} if using parallel processing (multi-threading) is desired; default is \code{FALSE}.
+#' @param parallelize  logical, called \code{TRUE} if using parallel processing (multi-threading) is desired; default is \code{FALSE}.
 #' @param pt_size   a number, the size of the geometric point displayed by ggplot2. 
-#' @param return_heavy   a logical, if \code{TRUE} it also returns the now processed scrHLAtag count file (minimap2 QCed, CB reverse comp'ed, etc..) which is usually a heavy object memory-wise; default is \code{FALSE}. 
+#' @param return_heavy   logical, if \code{TRUE} it also returns the now processed scrHLAtag count file (minimap2 QCed, CB reverse comp'ed, etc..) which is usually a heavy object memory-wise; default is \code{FALSE}. 
 #' @param seed   numeric (or \code{NULL}), to set seed (or not) in the environment for reproducibility
 #' @param suppress_plots  called \code{TRUE} to suppress plots from appearing while running the function.
 #' @param ...  arguments passed onto \code{uwot::umap()}.
@@ -387,11 +387,11 @@ HLA_clusters <- function(reads, k = 2, seu = NULL, CB_rev_com = FALSE, geno_meta
 
 #' Mapping the HLA clusters found by the 'HLA_clusters()' function back into the scrHLAtag count files
 #'
-#' @param reads.list  is a scrHLAtag count file (or a list of scrHLAtag count files) including columns for CB, UMI, and HLA alleles (https://github.com/furlan-lab/scrHLAtag).
+#' @param reads.list  is a scrHLAtag count file (or a list of scrHLAtag count files) including columns for CB, UMI, and HLA alleles (\url{https://github.com/furlan-lab/scrHLAtag}).
 #' @param cluster_coordinates  is the UMAP coordinates dataframe with HLA clustering information (found by the \code{scrHLAmatrix::HLA_clusters()} function) from which clusters are extracted and mapped into the scrHLAtag count files by matching Cell Barcodes. Currently the barcode format supported is: SAMPLE_AATGCTTGGTCCATTA-1
-#' @param CB_rev_com  is a logical, called \code{TRUE} if the need to obtained the reverse complement of Cell Barcodes (CBs) is desired; default is \code{FALSE}.
+#' @param CB_rev_com  logical, called \code{TRUE} if the need to obtain the reverse complement of Cell Barcodes (CBs) is desired; default is \code{FALSE}.
 #' @param additional_col_id  is a character; if mapping of any additional column ID of the Seurat metadata collected in the \code{cluster_coordinates} dataframe, to the scrHLAtag count files is desired. \code{NULL} by default.
-#' @param parallelize  is a logical, called \code{TRUE} if using parallel processing (multi-threading) is desired; default is \code{FALSE}.
+#' @param parallelize  logical, called \code{TRUE} if using parallel processing (multi-threading) is desired; default is \code{FALSE}.
 #' @import stringr
 #' @return a large list containing scrHLAtag count file(s) including columns for CB, UMI, and HLA alleles, with the addition of HLA_clusters
 #' @examples

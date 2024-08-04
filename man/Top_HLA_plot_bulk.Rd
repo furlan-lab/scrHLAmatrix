@@ -15,17 +15,17 @@ Top_HLA_plot_bulk(
 )
 }
 \arguments{
-\item{reads_1}{is the primary scrHLAtag count file (1 of 2 files containing either the mRNA molecular info or the genomic (gene) molecular info). It includes columns for CB, UMI, and HLA alleles (https://github.com/furlan-lab/scrHLAtag).}
+\item{reads_1}{is the primary scrHLAtag count file (1 of 2 files containing either the mRNA molecular info or the genomic (gene) molecular info). It includes columns for CB, UMI, and HLA alleles (\url{https://github.com/furlan-lab/scrHLAtag}).}
 
-\item{reads_2}{is the secondary scrHLAtag count file (the alternative file vs. the one designated in \code{reads_1} argument). It includes columns for CB, UMI, and HLA alleles (https://github.com/furlan-lab/scrHLAtag). Default is \code{NULL}, in which case it will not be able to count alternative aligment and argument \code{use_alt_align_ABC} will become irrelevant.}
+\item{reads_2}{is the secondary scrHLAtag count file (the alternative file vs. the one designated in \code{reads_1} argument). It includes columns for CB, UMI, and HLA alleles (\url{https://github.com/furlan-lab/scrHLAtag}). Default is \code{NULL}, in which case it will not be able to count alternative aligment and argument \code{use_alt_align_ABC} will become irrelevant.}
 
-\item{cluster_index}{is a numeric or integer, representing the index of the HLA cluster present in the counts data (as previously analyzed by 'HLA_clusters()' and mapped back to the data by 'map_HLA_clusters()'). It allows to subset the visualization based on the selected HLA cluster. \code{NULL} is the default in which case the counts data will not be subsetted.}
+\item{cluster_index}{a numeric or integer, representing the index of the HLA cluster present in the counts data (as previously analyzed by \code{HLA_clusters()} and mapped back to the data by \code{map_HLA_clusters()}). It allows to subset the visualization based on the selected HLA cluster. \code{NULL} is the default in which case the counts data will not be subsetted.}
 
-\item{top_hla}{is a numeric, representing the number of top HLA alleles (i.e. with the highest number of reads) per HLA gene to display in the plot; default is \code{10}.}
+\item{top_hla}{numeric, representing the number of top HLA alleles (i.e. with the highest number of reads) per HLA gene to display in the plot; default is \code{10}.}
 
-\item{min_reads_per_gene}{is a numeric representing minimum number of total reads per HLA gene (including all its alleles) below which the gene is filtered out; default is \code{20}.}
+\item{min_reads_per_gene}{numeric representing minimum number of total reads per HLA gene (including all its alleles) below which the gene is filtered out; default is \code{20}.}
 
-\item{use_alt_align_ABC}{is a logical, whether to use the count file from the alternative alignment (rather than the primary alignment) to count reads for the HLA-A, -B, and -C genes. It was observed in some cases that using genomic alignments has better accuracy in predicting genotype versus mRNA alignments (not the case for Class-II and other HLA genes); default is \code{FALSE}.}
+\item{use_alt_align_ABC}{logical, whether to use the count file from the alternative alignment (rather than the primary alignment) to count reads for the HLA-A, -B, and -C genes. It was observed in some cases that using genomic alignments has better accuracy in predicting genotype versus mRNA alignments (not the case for Class-II and other HLA genes); default is \code{FALSE}.}
 
 \item{color_pal}{is a character list of colors to visualize HLA polulation frequencies when available. When \code{color_pal} is not provided (\code{NULL}), it defaults to \code{viridis::viridis(n = 10, option = "C")}.}
 }
