@@ -76,8 +76,6 @@ Top_HLA_list <- function(reads_1, reads_2 = NULL, k = 2, seu = NULL, CB_rev_com 
                          allowed_alleles_per_cell = c(1, 200), stringent_mode = TRUE, correct_alleles = TRUE,                         
                          field_resolution = 3, parallelize = TRUE, 
                          umap_spread = 5, umap_min_dist = 0.001, umap_repulsion = 0.001, seed = 1, suppress_plots = TRUE, ...) {
-  if (!requireNamespace("mclust", quietly = TRUE)) { stop("Package 'mclust' needed for this function to work. Please install it.", call. = FALSE) }
-  if (!"package:mclust" %in% search()) {library(mclust)}
   s <- Sys.time()
   # creating HLA umap clusters
   HLA_umap_clusters <- HLA_clusters(reads = reads_1, 
@@ -158,7 +156,7 @@ Top_HLA_list <- function(reads_1, reads_2 = NULL, k = 2, seu = NULL, CB_rev_com 
                     sep = ""))
       }
       if (correct_alleles & length(is_the_allele_correct) > 0) {
-        message(cat("\nReplacing problematic allele(s) with their suspected 'correct' version(s). \n  Note: 'correct_alleles = FALSE' to turn off this feature."))
+        message(cat("\nReplacing problematic allele(s) with their alternative version(s). \n  Note: 'correct_alleles = FALSE' to turn off this feature."))
         top_alleles_HLA <- sapply(top_alleles_HLA, function(x) if (x %in% is_the_allele_correct) names(is_the_allele_correct)[is_the_allele_correct == x] else x)
         names(top_alleles_HLA) <- NULL
         top_alleles_HLA <- top_alleles_HLA %>% sort()
