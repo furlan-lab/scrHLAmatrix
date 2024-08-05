@@ -8,7 +8,7 @@
 #' @param hla_with_counts_above  number of total reads accross CBs at or above which an HLA allele is retained in the matrix.
 #' @param CBs_with_counts_above  number of total reads accross HLA alleles at or above which a CB is retained in the matrix. Note: \code{stats::princomp()} can only be used with at least as many units (CBs) as variables (HLAs), thus the function will make sure that number of CBs is equal or more than available HLA alleles in the matrix.
 #' @param match_CB_with_seu  logical, called \code{TRUE} if filtering CBs in the scrHLAtag count file with matching ones in the Seurat object is desired. 
-#' @param method  the name of the graph-based clustering method to be used for partitioning cells based on their HLA count patterns. The choice is between a Community structure detection method: \code{"leiden"}, a Density-based method: \code{"dbscan"}, a Connectivity-based method: \code{"hclust"}, a Centroid-based method: \code{"kmeans"}, or a Distribution-based method: \code{"gmm"} (for Gaussian Mixture Model). The methods are run with their respective Default parameters. Some of those methods may predict \emph{true} allogeneic entities with better accuracy than others; as we cannot know a priori which is the best method, we propose the method: \code{"consensus"}, which groups cells in the same cluster if they agree on membership in > 50 percent of methods, otherwise they are unclassified (\code{NA}s).
+#' @param method  the name of the graph-based clustering method to be used for partitioning cells based on their HLA count patterns. The choice is between a Community structure detection method: \code{"leiden"}, a Density-based method: \code{"dbscan"}, a Connectivity-based method: \code{"hclust"}, a Centroid-based method: \code{"kmeans"}, or a Distribution-based method: \code{"gmm"} (for Gaussian Mixture Model). The methods are run with their respective Default parameters. Some of those methods may predict \emph{true} allogeneic entities with better accuracy than others; as we cannot know a priori which is the best method, we propose the method: \code{"consensus"}, which groups cells in the same cluster if they agree on membership in > 65 percent of methods, otherwise they are unclassified (\code{NA}s).
 #' @param n_PCs  the number of top principal components to retain in downstream clustering and umap analyses; default is \code{50} or the top 80 percent of PCs, whichever is smaller.
 #' @param dbscan_minPts  only works for the  \code{"dbscan"} method: number of minimum points required in the epsilon neighborhood radius (\code{eps}) of core points. While the other methods require 1 parameter (e.g., \code{k}), \code{"dbscan"} requires 2: \code{eps} and \code{minPts}. To acheive desired \code{k} clusters, a range of \code{eps} parameter is tested against a fixed \code{minPts}, which is provided here. Default at \code{30}, but can be adjusted higher or lower depending on how small and 'clumped' an allogeneic entity is suspected to be. 
 #' @param QC_mm2  logical, called \code{TRUE} if removing low quality reads based on minimap2 tags is desired.
@@ -374,8 +374,8 @@ HLA_clusters <- function(reads, k = 2, seu = NULL, CB_rev_com = FALSE, geno_meta
       unique_clust <- unique_clust[!stringr::str_detect(unique_clust, "/")]
     }
     umapout$hla_clusters <- NA
-    # register only if it most probably belongs to a unique cluster and that probability is > 0.5
-    umapout$hla_clusters <- ifelse(cons$consensus %in% unique_clust & cons$probability > 0.5, cons$consensus, NA)
+    # register only if it most probably belongs to a unique cluster and that probability is > 0.65
+    umapout$hla_clusters <- ifelse(cons$consensus %in% unique_clust & cons$probability > 0.65, cons$consensus, NA)
     g1 <- ggplot(umapout, aes(x=umap1, y=umap2, color=hla_clust_cons))+geom_point(size=pt_size)
   } else {g1 <- NULL}
   umapout$hla_clusters <- as.factor(umapout$hla_clusters)
