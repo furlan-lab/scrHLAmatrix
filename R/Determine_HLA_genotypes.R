@@ -75,21 +75,21 @@ Top_HLA_list <- function(reads_1, reads_2 = NULL, k = 2, seu = NULL, CB_rev_com 
                          top_cumulative_frac = 0.85, bulk_to_perCB_threshold = 2500,
                          allowed_alleles_per_cell = c(1, 200), stringent_mode = TRUE, correct_alleles = TRUE,                         
                          field_resolution = 3, parallelize = TRUE, 
-                         umap_spread = 5, umap_min_dist = 0.001, umap_repulsion = 0.001, seed = 1, suppress_plots = TRUE, ...) {
+                         umap_spread = 5, umap_min_dist = 0.001, umap_repulsion = 0.001, seed = NULL, suppress_plots = TRUE, ...) {
   s <- Sys.time()
   # creating HLA umap clusters
-  HLA_umap_clusters <- HLA_clusters(reads = reads_1, 
-                                    k = k, 
-                                    seu = seu, 
-                                    CB_rev_com = CB_rev_com,  # TRUE for 3prime 10x on pacbio
-                                    match_CB_with_seu = match_CB_with_seu,
-                                    hla_with_counts_above = hla_with_counts_above, 
-                                    CBs_with_counts_above = CBs_with_counts_above,
-                                    QC_mm2 = QC_mm2, s1_percent_pass_score = s1_percent_pass_score, 
-                                    AS_percent_pass_score = AS_percent_pass_score, NM_thresh = NM_thresh, de_thresh = de_thresh,
-                                    return_heavy = TRUE, n_PCs = n_PCs,
-                                    method = clust_method, dbscan_minPts = dbscan_minPts,
-                                    spread = umap_spread, min_dist = umap_min_dist, repulsion_strength = umap_repulsion, seed = seed, suppress_plots = suppress_plots, ...)
+  HLA_umap_clusters <- scrHLAmatrix::HLA_clusters(reads = reads_1, 
+                                                  k = k, 
+                                                  seu = seu, 
+                                                  CB_rev_com = CB_rev_com,  # TRUE for 3prime 10x on pacbio
+                                                  match_CB_with_seu = match_CB_with_seu,
+                                                  hla_with_counts_above = hla_with_counts_above, 
+                                                  CBs_with_counts_above = CBs_with_counts_above,
+                                                  QC_mm2 = QC_mm2, s1_percent_pass_score = s1_percent_pass_score, 
+                                                  AS_percent_pass_score = AS_percent_pass_score, NM_thresh = NM_thresh, de_thresh = de_thresh,
+                                                  return_heavy = TRUE, n_PCs = n_PCs,
+                                                  method = clust_method, dbscan_minPts = dbscan_minPts,
+                                                  spread = umap_spread, min_dist = umap_min_dist, repulsion_strength = umap_repulsion, seed = seed, suppress_plots = suppress_plots, ...)
   if (!suppress_plots) print(HLA_umap_clusters[[2]]+scale_color_manual(values=pals::glasbey())+theme_classic())
   if ((reads_1$gene %>% unique() %>% length()) > bulk_to_perCB_threshold) {
     message(cat("\nReads count file shows greater than ", bulk_to_perCB_threshold, " uniquely mapped HLA alleles; extracting top alleles using the Pseudo-Bulk Algorithm", sep = ""))
@@ -103,17 +103,17 @@ Top_HLA_list <- function(reads_1, reads_2 = NULL, k = 2, seu = NULL, CB_rev_com 
     for (i in seq_along(cluster)) {
       top_alle <- c()
       for (j in seq_along(reads.list)) {
-        top_al <- Top_HLA_list_bulk(reads_1 = reads.list[[j]][reads.list[[j]]$hla_clusters %in% cluster[i], ], 
-                                    frac = top_cumulative_frac,
-                                    insert_pop_most_freq = T,   # recommended to be TRUE for first iteration
-                                    use_alt_align_ABC = F)
+        top_al <- scrHLAmatrix:::Top_HLA_list_bulk(reads_1 = reads.list[[j]][reads.list[[j]]$hla_clusters %in% cluster[i], ], 
+                                                   frac = top_cumulative_frac,
+                                                   insert_pop_most_freq = T,   # recommended to be TRUE for first iteration
+                                                   use_alt_align_ABC = F)
         top_alle <- c(top_alle, top_al)
       }
       top_alleles_HLA <- c(top_alleles_HLA, top_alle)
     }
     top_alleles_HLA <- top_alleles_HLA %>% unique() %>% sort()
   } else {
-    reads_1 <- map_HLA_clusters(reads.list = HLA_umap_clusters[["reads"]], HLA_umap_clusters[[1]], CB_rev_com = F)
+    reads_1 <- scrHLAmatrix::map_HLA_clusters(reads.list = HLA_umap_clusters[["reads"]], HLA_umap_clusters[[1]], CB_rev_com = F)
     cl <- unique(reads_1$hla_clusters)
     cl <- cl[!is.na(cl)]
     unique_alleles <- lapply(cl, function(x) {
@@ -130,15 +130,15 @@ Top_HLA_list <- function(reads_1, reads_2 = NULL, k = 2, seu = NULL, CB_rev_com 
     } else {
       message(cat("\nReads count file shows ", bulk_to_perCB_threshold, " or fewer uniquely mapped HLA alleles; extracting top alleles using the Per Single-Cell Algorithm", sep = ""))
     }
-    top_alleles_HLA <- Top_HLA_list_byCB_preprocessed(reads = reads_1,
-                                                      seu = seu,
-                                                      match_CB_with_seu = match_CB_with_seu,
-                                                      hla_with_counts_above = hla_with_counts_above,
-                                                      CBs_with_counts_above = CBs_with_counts_above,
-                                                      frac = top_cumulative_frac,
-                                                      allowed_alleles_per_cell = allowed_alleles_per_cell,
-                                                      field_resolution = field_resolution,
-                                                      parallelize = parallelize)
+    top_alleles_HLA <- scrHLAmatrix:::Top_HLA_list_byCB_preprocessed(reads = reads_1,
+                                                                     seu = seu,
+                                                                     match_CB_with_seu = match_CB_with_seu,
+                                                                     hla_with_counts_above = hla_with_counts_above,
+                                                                     CBs_with_counts_above = CBs_with_counts_above,
+                                                                     frac = top_cumulative_frac,
+                                                                     allowed_alleles_per_cell = allowed_alleles_per_cell,
+                                                                     field_resolution = field_resolution,
+                                                                     parallelize = parallelize)
     if (all(unique_alleles <= 200) & stringent_mode) {
       problematic_alleles <- c("DPA1*02:38Q", "A*03:437Q", "B*13:123Q", "C*02:205Q", "C*04:09N", "C*04:61N")
       names(problematic_alleles) <- c("DPA1*02:02:02", "A*03:01:01", "B*13:02:01", "C*02:02:02", "C*04:01:01", "C*04:01:01")

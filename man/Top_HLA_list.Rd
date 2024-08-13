@@ -31,7 +31,7 @@ Top_HLA_list(
   umap_spread = 5,
   umap_min_dist = 0.001,
   umap_repulsion = 0.001,
-  seed = 1,
+  seed = NULL,
   suppress_plots = TRUE,
   ...
 )

@@ -65,7 +65,7 @@ Top_HLA_plot_byCB <- function(reads, seu = NULL, CB_rev_com = FALSE, hla_with_co
   }
   ## if HLA clusters based on distribution on UMAP was analyzed, and visualizing top alleles per cluster is desired
   if (!is.null(cluster_index)) {
-    if (!(is.numeric(cluster_index) | is.integer(cluster_index))) {stop("'cluster_index' must be numeric or integer")}
+    if (!(is.numeric(cluster_index) | is.integer(cluster_index))) {stop("'cluster_index' must be numeric or integer", call. = FALSE)}
     if ("hla_clusters" %in% colnames(reads)) {
       cl <- unique(reads$hla_clusters) %>% as.factor()
       #cl <- cl[!is.na(cl)]
@@ -150,7 +150,7 @@ Top_HLA_plot_byCB <- function(reads, seu = NULL, CB_rev_com = FALSE, hla_with_co
   if (is.null(seu)) {
     part_HLA<- HLA.matrix
   } else {
-    if (class(seu) == "Seurat") {
+    if ("Seurat" %in% class(seu)) {
       message(cat("\nObject of class 'Seurat' detected"))
       message(cat(crayon::green("Note: "), "Currently the Seurat Barcode (i.e. colnames or Cells) supported format is: SAMPLE_AATGCTTGGTCCATTA-1", sep = ""))
       if(match_CB_with_seu) {
@@ -159,7 +159,7 @@ Top_HLA_plot_byCB <- function(reads, seu = NULL, CB_rev_com = FALSE, hla_with_co
         part_HLA<- HLA.matrix
       }
     } else {
-      stop("Single-cell dataset container must be of class 'Seurat'")
+      stop("Single-cell dataset container (in argument 'seu') must be of class 'Seurat'", call. = FALSE)
     }
   }
   ## removing HLA alleles with low counts overall
@@ -339,7 +339,7 @@ Top_HLA_plot_byCB <- function(reads, seu = NULL, CB_rev_com = FALSE, hla_with_co
 Top_HLA_plot_bulk <- function(reads_1, reads_2 = NULL, cluster_index = NULL, top_hla = 10, min_reads_per_gene = 20, use_alt_align_ABC = FALSE, color_pal = NULL){
   if (is.null(reads_2)) {
     if (!is.null(cluster_index)) {
-      if (!(is.numeric(cluster_index) | is.integer(cluster_index))) {stop("'cluster_index' must be numeric or integer")}
+      if (!(is.numeric(cluster_index) | is.integer(cluster_index))) {stop("'cluster_index' must be numeric or integer", call. = FALSE)}
       if ("hla_clusters" %in% colnames(reads_1)) {
         cl <- unique(reads_1$hla_clusters) %>% as.factor()
         idx <- cluster_index
@@ -354,7 +354,7 @@ Top_HLA_plot_bulk <- function(reads_1, reads_2 = NULL, cluster_index = NULL, top
     #warning("The molecule_info_gene.txt.gz count file does not seem to be included. The function will run but the argument 'use_alt_align_ABC' will be irrelevant.")
   } else {
     if (!is.null(cluster_index)) {
-      if (!(is.numeric(cluster_index) | is.integer(cluster_index))) {stop("'cluster_index' must be numeric or integer")}
+      if (!(is.numeric(cluster_index) | is.integer(cluster_index))) {stop("'cluster_index' must be numeric or integer", call. = FALSE)}
       if ("hla_clusters" %in% colnames(reads_1)) {
         cl <- unique(reads_1$hla_clusters) %>% as.factor()
         idx <- cluster_index
@@ -385,7 +385,7 @@ Top_HLA_plot_bulk <- function(reads_1, reads_2 = NULL, cluster_index = NULL, top
   cts_abc <- unique(reads_2$hla)[order(unique(reads_2$hla))]
   if (use_alt_align_ABC) {
     if (length(cts_abc[which(cts_abc %in% c("A", "B", "C"))]) != 3) {
-      stop("the secondary molecule info count file does not contain alleles belonging to all of HLA-A, -B, and -C")
+      stop("the secondary molecule info count file does not contain alleles belonging to all of HLA-A, -B, and -C", call. = FALSE)
     }
   }
   cts_notabc <- unique(reads_1$hla)[order(unique(reads_1$hla))]

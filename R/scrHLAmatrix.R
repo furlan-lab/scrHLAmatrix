@@ -54,11 +54,11 @@ HLA_Matrix <- function(reads, seu, hla_recip = character(), hla_donor = characte
     message(cat(crayon::green("Note: "), "Multi-threading errors had been more frequently experienced while running large count files; it is recommended to maintain 'parallelize = FALSE'", sep = ""))
   }
   ## check Seurat object
-  if (class(seu) == "Seurat") {
+  if ("Seurat" %in% class(seu)) {
     message(cat("\nObject of class 'Seurat' detected"))
     message(cat(crayon::green("Note: "), "Currently the Seurat Barcode (i.e. colnames or Cells) supported format is: SAMPLE_AATGCTTGGTCCATTA-1", sep = ""))
   } else {
-    stop("Single-cell dataset container must be of class 'Seurat'")
+    stop("Single-cell dataset container (in argument 'seu') must be of class 'Seurat'", call. = FALSE)
   }
   ## parallelize
   if (parallelize) {
@@ -69,7 +69,7 @@ HLA_Matrix <- function(reads, seu, hla_recip = character(), hla_donor = characte
   }
   ## check relevant col names exist
   if (!all(c("CB", "UMI", "gene", "samp") %in% colnames(reads))){
-    stop("scrHLAtag output 'reads' dataframe must at least contain the columns 'CB', 'UMI', 'gene' (with HLA alleles), and 'samp' (matching the sample names in the corresponding Seurat object)")
+    stop("scrHLAtag output 'reads' dataframe must at least contain the columns 'CB', 'UMI', 'gene' (with HLA alleles), and 'samp' (matching the sample names in the corresponding Seurat object)", call. = FALSE)
   }
   ## jettison unused columns
   reads <- reads[, colnames(reads) %in% c("CB", "UMI", "gene", "NM", "AS", "s1", "de", "samp"), drop = F]
@@ -88,7 +88,7 @@ HLA_Matrix <- function(reads, seu, hla_recip = character(), hla_donor = characte
     reads$leftover <- NULL
     reads$gene <- NULL
   } else {
-    stop("The HLA allele column is unrecognizable or has incorrect format. \nMake sure gene and allele are separated by standard nomenclature asterisk (or other special character)")
+    stop("The HLA allele column is unrecognizable or has incorrect format. \nMake sure gene and allele are separated by standard nomenclature asterisk (or other special character)", call. = FALSE)
   }
   reads$cbumi <- stringr::str_c(reads$samp, ":", reads$CB, ":", reads$UMI)
   reads$UMI <- NULL # no longer needed 
@@ -98,24 +98,24 @@ HLA_Matrix <- function(reads, seu, hla_recip = character(), hla_donor = characte
   } else if (all(grepl("-", hla_recip))) {
     hla_recip <- hla_recip
   } else {
-    stop("Incorrect format for recipient-defined and/or donor-defined HLA alleles. \nMake sure gene and allele are separated by standard nomenclature asterisk (or other special character)")
+    stop("Incorrect format for recipient-defined and/or donor-defined HLA alleles. \nMake sure gene and allele are separated by standard nomenclature asterisk (or other special character)", call. = FALSE)
   }
   if (any(grepl(special, hla_donor))) {
     hla_donor <- gsub(special, "-", hla_donor)
   } else if (all(grepl("-", hla_donor))) {
     hla_donor <- hla_donor
   } else {
-    stop("Incorrect format for recipient-defined and/or donor-defined HLA alleles. \nMake sure gene and allele are separated by standard nomenclature asterisk (or other special character)")
+    stop("Incorrect format for recipient-defined and/or donor-defined HLA alleles. \nMake sure gene and allele are separated by standard nomenclature asterisk (or other special character)", call. = FALSE)
   }
   ## check class of 'NM_thresh'
   if (class(NM_thresh) != "integer"){
     if (class(NM_thresh) != "numeric"){
-      stop("NM tag threshold 'NM_thresh' must be numeric or integer")
+      stop("NM tag threshold 'NM_thresh' must be numeric or integer", call. = FALSE)
     }
   }
   ## check 's1_percent_pass_score/100', 'AS_percent_pass_score/100', and 'de_thresh' thresholds are between 0 and 1
   if (!all(between(c((s1_percent_pass_score/100), (AS_percent_pass_score/100), de_thresh), 0, 1))){
-    stop("'s1_percent_pass_score', 'AS_percent_pass_score', should be numerics between 0 and 100, and 'de_thresh' between 0 and 1")
+    stop("'s1_percent_pass_score', 'AS_percent_pass_score', should be numerics between 0 and 100, and 'de_thresh' between 0 and 1", call. = FALSE)
   }
   ## Reverse Complement the CB
   if (CB_rev_com) {

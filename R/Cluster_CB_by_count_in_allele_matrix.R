@@ -62,7 +62,7 @@ HLA_clusters <- function(reads, k = 2, seu = NULL, CB_rev_com = FALSE, geno_meta
   if (!requireNamespace("dbscan", quietly = TRUE)) { stop("Package 'dbscan' needed for this function to work. Please install it.", call. = FALSE) }
   if (!requireNamespace("FNN", quietly = TRUE)) { stop("Package 'FNN' needed for this function to work. Please install it.", call. = FALSE) }
   if (!all(sapply(c("leiden", "igraph", "reticulate"), requireNamespace, quietly = TRUE))) { stop("Install 'leiden' and associated 'igraph' and 'reticulate' pakages for this function to work.\nMoreover, install the python dependencies in R (if you haven't already):\n  reticulate::install_python(version = '<version>') #example '3.8.2'\n  reticulate::py_install('python-igraph')\n  reticulate::py_install('leidenalg', forge = TRUE)\n  reticulate::py_config()", call. = FALSE) }
-  if (!is.null(k)) if (abs(k)!=as.integer(k)) { stop("'k' must be a whole positive number or 'NULL'.", call. = FALSE)}
+  if (!is.null(k)) if (abs(k)!=as.integer(k) | k==0) { stop("'k' must be a whole positive number or 'NULL'.", call. = FALSE)}
   if (is.null(k) & !(method %in% c("leiden", "dbscan","gmm"))) { stop("'k' cannot be 'NULL' while using methods 'hclust', 'kmeans', or 'consensus'.", call. = FALSE)}
   if (!"package:mclust" %in% search()) {suppressPackageStartupMessages({library(mclust)})}
   if (!is.null(seed)) set.seed(seed)
@@ -135,16 +135,17 @@ HLA_clusters <- function(reads, k = 2, seu = NULL, CB_rev_com = FALSE, geno_meta
   if (is.null(seu)) {
     part_HLA<- HLA.matrix
   } else {
-    if (class(seu) == "Seurat") {
+    if ("Seurat" %in% class(seu)) {
       message(cat("\nObject of class 'Seurat' detected"))
       message(cat(crayon::green("Note: "), "Currently the Seurat Barcode (i.e. colnames or Cells) supported format is: SAMPLE_AATGCTTGGTCCATTA-1", sep = ""))
-      if(match_CB_with_seu) {
+      if (match_CB_with_seu) {
         part_HLA<- HLA.matrix[,colnames(HLA.matrix) %in% Cells(seu)]
+        if (ncol(part_HLA) == 0) { stop("Seurat Barcodes did not match any of the CBs in the scrHLAtag counts object. Make sure `seu` and `reads` objects are related.", call. = FALSE) }
       } else {
         part_HLA<- HLA.matrix
       }
     } else {
-      stop("Single-cell dataset container must be of class 'Seurat'")
+      stop("Single-cell dataset container (in argument 'seu') must be of class 'Seurat'", call. = FALSE)
     }
   }
   ## removing HLA alleles with low counts overall
@@ -428,7 +429,7 @@ map_HLA_clusters <- function(reads.list, cluster_coordinates, CB_rev_com = FALSE
     reads.list <- list(reads.list=reads.list)
   } else {
     if (!(sapply(reads.list, function(x) class(x)) %in% list("data.frame", "data.table", c("data.table", "data.frame"), c("data.frame", "data.table")) %>% all()) | class(reads.list) != "list") {
-      stop("The class of 'reads.list' should be either a 'data.frame', a 'data.table', or a 'list' of the formers")
+      stop("The class of 'reads.list' should be either a 'data.frame', a 'data.table', or a 'list' of the formers", call. = FALSE)
     }
   }
   if (CB_rev_com) {
