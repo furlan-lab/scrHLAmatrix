@@ -7,7 +7,8 @@
 #' @param QC_mm2  logical, called \code{TRUE} if removing low quality reads based on minimap2 tags is desired.
 #' @param res_conflict_per_gene  logical, called \code{TRUE} if resolving per-HLA genotype conflicts is desired, with the assumption that each Cell can have no more than 2 alleles of the same HLA gene.
 #' @param LD_correct  logical, called \code{TRUE} if Linkage Diseqilibrium (LD) correction in the HLA-DR locus is desired, with the assumption of a very strong LD between certain \emph{DRB1} allele families and the \emph{DRB2}, \emph{DRB3}, \emph{DRB4}, \emph{DRB5}, \emph{DRB6}, \emph{DRB7}, \emph{DRB8}, and \emph{DRB9} loci.
-#' @param remove_alleles  a character list of HLA alleles to be removed from the count file if desired; default is an empty character vector.
+#' @param drop_if_fewer_than  number of deduped reads an allele gets across all the Cells, below which they are considered too few and dropped out of the matrix as potential noise; default is \code{20}.
+#' @param remove_alleles  a character list of HLA alleles to be manually removed from the count file if desired; default is an empty character vector.
 #' @param s1_percent_pass_score  percentage, \code{0} to \code{100}, cuttoff from the maximum score (best quality) of the minimap2 's1' tag, which a read needs to acheive to pass as acceptable; default at \code{80} and becomes less inclusive if value increases.
 #' @param AS_percent_pass_score  percentage, \code{0} to \code{100}, cuttoff from the maximum score (best quality) of the minimap2 'AS' tag, which a read needs to acheive to pass as acceptable; default at \code{80} and becomes less inclusive if value increases.
 #' @param NM_thresh  number of mismatches and gaps in the minimap2 alignment at or below which the quality of the read is acceptable; default is \code{15}.
@@ -26,26 +27,18 @@
 #' @import dplyr
 #' @return an Assay type matrix
 #' @examples
-#' samples <- c("AML_101_BM", "AML_101_34")
-#' mol_info <- c("molecule_info_gene.txt.gz", "molecule_info_mRNA.txt.gz")
-#' for (i in 1:length(mol_info)){
-#'   dl<-lapply(samples, function(sample){
-#'     d<-read.table(file.path("path/to/scrHLAtag/out/files", sample,
-#'                             mol_info[i]), header = F, sep=" ", fill = T) 
-#'     d$V1<-paste0(sample, "_", d$V1, "-1")
-#'     colnames(d)<-c("name","CB", "nb", "UMI", "gene", "query_len","start", "mapq", "cigar", "NM", "AS", "s1", "de", "seq")
-#'     d$samp <- sample
-#'     d
-#'   })
-#'   ctsu<-do.call(rbind,dl)
-#'   rm(dl)
-#'   cts[[str_sub(strsplit(mol_info[i], "\\.")[[1]][1], start= -4)]] <- ctsu
-#'   rm(ctsu)
-#' }
-#' HLA_Matrix(reads = cts[["mRNA"]], seu = your_Seurat_obj, hla_recip = c("A*24:02:01", "DRB1*04:01:01", "DRB4*01:03:02"), hla_donor = c("A*33:03:01", "B*42:01:01"))
+#' dirs_path <- "path/to/scrHLAtag/out/files"
+#' dirs<-list.dirs(path=dirs_path, full.names = T, recursive = F)
+#' dirs<- lapply(dirs, list.dirs, recursive = F) %>% unlist
+#' dirs<- lapply(dirs, dir, pattern = "unguided_hla_align_corrected", recursive = F, full.names = T) %>% unlist
+#' dirnames <- c("AML_101_BM", "AML_101_34", "TN_BM", "TN_34") # this is how the samples were organized in the directories
+#' ## Load the counts files
+#' cts <- HLA_load(directories = dirs, dir_names = dirnames, seu = your_Seurat_obj)
+#' ## Process those count files
+#' HLAassay <- HLA_Matrix(reads = cts[["mRNA"]], seu = your_Seurat_obj, hla_recip = c("A*24:02:01", "DRB1*04:01:01", "DRB4*01:03:02"), hla_donor = c("A*33:03:01", "B*42:01:01"))
 #' @export
 
-HLA_Matrix <- function(reads, seu, hla_recip = character(), hla_donor = character(), QC_mm2 = TRUE, res_conflict_per_gene = TRUE, LD_correct = TRUE, remove_alleles = character(), s1_percent_pass_score = 80, AS_percent_pass_score = 80, NM_thresh = 15, de_thresh = 0.01, parallelize = FALSE, CB_rev_com = FALSE, return_stats = FALSE) {
+HLA_Matrix <- function(reads, seu, hla_recip = character(), hla_donor = character(), QC_mm2 = TRUE, res_conflict_per_gene = TRUE, LD_correct = TRUE, drop_if_fewer_than = 20, remove_alleles = character(), s1_percent_pass_score = 80, AS_percent_pass_score = 80, NM_thresh = 15, de_thresh = 0.01, parallelize = FALSE, CB_rev_com = FALSE, return_stats = FALSE) {
   s <- Sys.time()
   #message(cat(format(s, "%F %H:%M:%S")))
   n_reads <- nrow(reads)
@@ -54,12 +47,7 @@ HLA_Matrix <- function(reads, seu, hla_recip = character(), hla_donor = characte
     message(cat(crayon::green("Note: "), "Multi-threading errors had been more frequently experienced while running large count files; it is recommended to maintain 'parallelize = FALSE'", sep = ""))
   }
   ## check Seurat object
-  if ("Seurat" %in% class(seu)) {
-    message(cat("\nObject of class 'Seurat' detected"))
-    message(cat(crayon::green("Note: "), "Currently the Seurat Barcode (i.e. colnames or Cells) supported format is: SAMPLE_AATGCTTGGTCCATTA-1", sep = ""))
-  } else {
-    stop("Single-cell dataset container (in argument 'seu') must be of class 'Seurat'", call. = FALSE)
-  }
+  if (!("Seurat" %in% class(seu))) { stop("Single-cell dataset container (in argument 'seu') must be of class 'Seurat'", call. = FALSE) }
   ## parallelize
   if (parallelize) {
     multi_thread <- parallel::detectCores()
@@ -68,11 +56,11 @@ HLA_Matrix <- function(reads, seu, hla_recip = character(), hla_donor = characte
     multi_thread <- 1
   }
   ## check relevant col names exist
-  if (!all(c("CB", "UMI", "gene", "samp") %in% colnames(reads))){
-    stop("scrHLAtag output 'reads' dataframe must at least contain the columns 'CB', 'UMI', 'gene' (with HLA alleles), and 'samp' (matching the sample names in the corresponding Seurat object)", call. = FALSE)
+  if (!all(c("CB", "UMI", "gene", "NM", "AS", "s1", "de", "samp", "id_cb_separator", "id_cb_suffix") %in% colnames(reads))){
+    stop("scrHLAtag output 'reads' dataframe must contain the columns 'CB', 'UMI', 'gene' (with HLA alleles), the minimap2 'NM', 'AS', 's1', and 'de' tags, and the CB prefix 'samp', the prefix-CB separator 'id_cb_separator', and the CB suffix 'id_cb_suffix' to match with the Seurat colnames.", call. = FALSE)
   }
   ## jettison unused columns
-  reads <- reads[, colnames(reads) %in% c("CB", "UMI", "gene", "NM", "AS", "s1", "de", "samp"), drop = F]
+  reads <- reads[, colnames(reads) %in% c("CB", "UMI", "gene", "NM", "AS", "s1", "de", "samp", "id_cb_separator", "id_cb_suffix"), drop = F]
   ## add the dash into the HLA allele as it is the one accepted in the names of the Seurat assay features
   special <- "[_*|?.+$^]"
   if (any(grepl(special, reads$gene))) {
@@ -124,8 +112,8 @@ HLA_Matrix <- function(reads, seu, hla_recip = character(), hla_donor = characte
     reads$CB <- pbmcapply::pbmclapply(reads$CB, function(x) intToUtf8(rev(utf8ToInt(chartr('ATGC', 'TACG', x)))), mc.cores = multi_thread) %>% unlist()        # fast
   } 
   ## Estimating number of reads and number of CBs
-  reads$seu_barcode <- stringr::str_c(reads$samp,"_",reads$CB,"-1")
-  reads$samp <- NULL # no longer needed
+  reads$seu_barcode <- stringr::str_c(reads$samp, reads$id_cb_separator, reads$CB, reads$id_cb_suffix)
+  reads[ ,c("samp", "id_cb_separator", "id_cb_suffix")] <- list(NULL) # no longer needed
   stats_df <- data.frame(reads = numeric(), reads_found = numeric(), cbs = numeric(), cbs_found = numeric(), cbs_seu = numeric(), cb_seu_match_rate = numeric(), step = character())
   reads_in_seu <- as.numeric(reads$seu_barcode %in% colnames(seu) %>% table())[2]
   ureads_in_seu <- as.numeric(unique(reads$seu_barcode) %in% colnames(seu) %>% table())[2]
@@ -605,6 +593,8 @@ HLA_Matrix <- function(reads, seu, hla_recip = character(), hla_donor = characte
   HLA.matrix <- HLA.matrix[,which(colSums(HLA.matrix)>0)]
   HLA.matrix <- as.matrix(t(HLA.matrix))
   HLA.matrix <- Matrix(HLA.matrix,sparse = T)
+  drop_if_fewer <- drop_if_fewer_than
+  HLA.matrix <- HLA.matrix[rownames(HLA.matrix) %in% names(apply(as.data.frame(HLA.matrix), 1, sum)[apply(as.data.frame(HLA.matrix), 1, sum) >= drop_if_fewer]), ]
   HLA <- CreateAssayObject(counts = HLA.matrix)
   #message(cat("\nDone!!  ", format(Sys.time(), "%F %H:%M:%S"), " (runtime: ", difftime(Sys.time(), s, units = "min") %>% as.numeric() %>% abs(), " min)", sep = ""))
   e <- difftime(Sys.time(), s, units = "sec") %>% as.numeric() %>% abs()

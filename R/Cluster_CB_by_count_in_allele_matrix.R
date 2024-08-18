@@ -33,23 +33,14 @@
 #' @import dplyr
 #' @return a large list containing DataFrame with UMAP coordinates and ggplot of HLA clusters
 #' @examples
-#' samples <- c("AML_101_BM", "AML_101_34")
-#' mol_info <- c("molecule_info_gene.txt.gz", "molecule_info_mRNA.txt.gz")
-#' cts <- list()
-#' for (i in 1:length(mol_info)){
-#'   dl<-lapply(samples, function(sample){
-#'     d<-read.table(file.path("path/to/scrHLAtag/out/files", sample,
-#'                             mol_info[i]), header = F, sep=" ", fill = T) 
-#'     d$V1<-paste0(sample, "_", d$V1, "-1")
-#'     colnames(d)<-c("name","CB", "nb", "UMI", "gene", "query_len","start", "mapq", "cigar", "NM", "AS", "s1", "de", "seq")
-#'     d$samp <- sample
-#'     d
-#'   })
-#'   ctsu<-do.call(rbind,dl)
-#'   rm(dl)
-#'   cts[[str_sub(strsplit(mol_info[i], "\\.")[[1]][1], start= -4)]] <- ctsu
-#'   rm(ctsu)
-#' }
+#' dirs_path <- "path/to/scrHLAtag/out/files"
+#' dirs<-list.dirs(path=dirs_path, full.names = T, recursive = F)
+#' dirs<- lapply(dirs, list.dirs, recursive = F) %>% unlist
+#' dirs<- lapply(dirs, dir, pattern = "unguided_hla_align_corrected", recursive = F, full.names = T) %>% unlist
+#' dirnames <- c("AML_101_BM", "AML_101_34", "TN_BM", "TN_34") # this is how the samples were organized in the directories
+#' ## Load the counts files
+#' cts <- HLA_load(directories = dirs, dir_names = dirnames, seu = your_Seurat_obj)
+#' ## Process those count files
 #' HLA_umap <- HLA_clusters(reads = cts[["mRNA"]], k = 2, seu = your_Seurat_Obj, geno_metadata_id = "geno", hla_with_counts_above = 5, CBs_with_counts_above = 35)
 #' @export
 
@@ -110,7 +101,7 @@ HLA_clusters <- function(reads, k = 2, seu = NULL, CB_rev_com = FALSE, geno_meta
   rm(mic)
   ## Matrix formation
   alleles <- unique(reads$gene) %>% sort()
-  reads$seu_barcode <- paste0(reads$samp,"_",reads$CB,"-1")
+  reads$seu_barcode <- stringr::str_c(reads$samp, reads$id_cb_separator, reads$CB, reads$id_cb_suffix)
   message(cat("\nCreating an HLA Count Matrix"))
   reads <- split(data.table::setDT(reads), by = "seu_barcode")
   reads <- parallel::mclapply(reads, data.table::setDF, mc.cores = multi_thread)
@@ -136,8 +127,6 @@ HLA_clusters <- function(reads, k = 2, seu = NULL, CB_rev_com = FALSE, geno_meta
     part_HLA<- HLA.matrix
   } else {
     if ("Seurat" %in% class(seu)) {
-      message(cat("\nObject of class 'Seurat' detected"))
-      message(cat(crayon::green("Note: "), "Currently the Seurat Barcode (i.e. colnames or Cells) supported format is: SAMPLE_AATGCTTGGTCCATTA-1", sep = ""))
       if (match_CB_with_seu) {
         part_HLA<- HLA.matrix[,colnames(HLA.matrix) %in% Cells(seu)]
         if (ncol(part_HLA) == 0) { stop("Seurat Barcodes did not match any of the CBs in the scrHLAtag counts object. Make sure `seu` and `reads` objects are related.", call. = FALSE) }
@@ -238,7 +227,7 @@ HLA_clusters <- function(reads, k = 2, seu = NULL, CB_rev_com = FALSE, geno_meta
         umapout$hla_clusters  <- NA
         umapout$clust_leiden  <- NA
         method <- "consensus"
-        message(cat(crayon::red("could not compute dbscan with desired number of clusters, defaulting to method: '", method, "'", sep = ""), sep = ""))
+        message(cat(crayon::red("could not compute 'leiden' with desired number of clusters, attempting 'dbscan', 'hclust', 'kmeans', 'gmm', and their 'consensus'"), sep = ""))
       }
     }
   }
@@ -300,7 +289,7 @@ HLA_clusters <- function(reads, k = 2, seu = NULL, CB_rev_com = FALSE, geno_meta
         umapout$hla_clusters  <- NA
         umapout$clust_dbscan  <- NA
         method <- "consensus"
-        message(cat(crayon::red("could not compute dbscan with desired number of clusters, defaulting to method: '", method, "'", sep = ""), sep = ""))
+        message(cat(crayon::red("could not compute 'dbscan' with desired number of clusters, attempting 'hclust', 'kmeans', 'gmm', and their 'consensus'"), sep = ""))
       }
     }
   }  
@@ -390,30 +379,21 @@ HLA_clusters <- function(reads, k = 2, seu = NULL, CB_rev_com = FALSE, geno_meta
 #' Mapping the HLA clusters found by the 'HLA_clusters()' function back into the scrHLAtag count files
 #'
 #' @param reads.list  is a scrHLAtag count file (or a list of scrHLAtag count files) including columns for CB, UMI, and HLA alleles (\url{https://github.com/furlan-lab/scrHLAtag}).
-#' @param cluster_coordinates  is the UMAP coordinates dataframe with HLA clustering information (found by the \code{scrHLAmatrix::HLA_clusters()} function) from which clusters are extracted and mapped into the scrHLAtag count files by matching Cell Barcodes. Currently the barcode format supported is: SAMPLE_AATGCTTGGTCCATTA-1
+#' @param cluster_coordinates  is the UMAP coordinates dataframe with HLA clustering information (found by the \code{scrHLAmatrix::HLA_clusters()} function) from which clusters are extracted and mapped into the scrHLAtag count files by matching Cell Barcodes.
 #' @param CB_rev_com  logical, called \code{TRUE} if the need to obtain the reverse complement of Cell Barcodes (CBs) is desired; default is \code{FALSE}.
 #' @param additional_col_id  is a character; if mapping of any additional column ID of the Seurat metadata collected in the \code{cluster_coordinates} dataframe, to the scrHLAtag count files is desired. \code{NULL} by default.
 #' @param parallelize  logical, called \code{TRUE} if using parallel processing (multi-threading) is desired; default is \code{FALSE}.
 #' @import stringr
 #' @return a large list containing scrHLAtag count file(s) including columns for CB, UMI, and HLA alleles, with the addition of HLA_clusters
 #' @examples
-#' samples <- c("AML_101_BM", "AML_101_34")
-#' mol_info <- c("molecule_info_gene.txt.gz", "molecule_info_mRNA.txt.gz")
-#' cts <- list()
-#' for (i in 1:length(mol_info)){
-#'   dl<-lapply(samples, function(sample){
-#'     d<-read.table(file.path("path/to/scrHLAtag/out/files", sample,
-#'                             mol_info[i]), header = F, sep=" ", fill = T) 
-#'     d$V1<-paste0(sample, "_", d$V1, "-1")
-#'     colnames(d)<-c("name","CB", "nb", "UMI", "gene", "query_len","start", "mapq", "cigar", "NM", "AS", "s1", "de", "seq")
-#'     d$samp <- sample
-#'     d
-#'   })
-#'   ctsu<-do.call(rbind,dl)
-#'   rm(dl)
-#'   cts[[str_sub(strsplit(mol_info[i], "\\.")[[1]][1], start= -4)]] <- ctsu
-#'   rm(ctsu)
-#' }
+#' dirs_path <- "path/to/scrHLAtag/out/files"
+#' dirs<-list.dirs(path=dirs_path, full.names = T, recursive = F)
+#' dirs<- lapply(dirs, list.dirs, recursive = F) %>% unlist
+#' dirs<- lapply(dirs, dir, pattern = "unguided_hla_align_corrected", recursive = F, full.names = T) %>% unlist
+#' dirnames <- c("AML_101_BM", "AML_101_34", "TN_BM", "TN_34") # this is how the samples were organized in the directories
+#' ## Load the counts files
+#' cts <- HLA_load(directories = dirs, dir_names = dirnames, seu = your_Seurat_obj)
+#' ## Process those count files
 #' cts <- map_HLA_clusters(reads.list = cts, cluster_coordinates = UMAP_dataframe_from_HLA_clusters_function, additional_col_id = "geno")
 #' @export
 
@@ -431,19 +411,19 @@ map_HLA_clusters <- function(reads.list, cluster_coordinates, CB_rev_com = FALSE
     if (!(sapply(reads.list, function(x) class(x)) %in% list("data.frame", "data.table", c("data.table", "data.frame"), c("data.frame", "data.table")) %>% all()) | class(reads.list) != "list") {
       stop("The class of 'reads.list' should be either a 'data.frame', a 'data.table', or a 'list' of the formers", call. = FALSE)
     }
-  }
+  } 
   if (CB_rev_com) {
     for (i in 1:length(reads.list)) {
       if (!is.null(additional_col_id)) {
         reads.list[[i]][, additional_col_id] <-  NA
         reads.list[[i]][, additional_col_id] <- cluster_coordinates[, additional_col_id][
-          match(paste0(reads.list[[i]]$samp,"_", parallel::mclapply(reads.list[[i]]$CB, function(x) intToUtf8(rev(utf8ToInt(chartr('ATGC', 'TACG', x)))), mc.cores = multi_thread) %>% unlist(),"-1"), 
+          match(paste0(reads.list[[i]]$samp,reads.list[[i]]$id_cb_separator, parallel::mclapply(reads.list[[i]]$CB, function(x) intToUtf8(rev(utf8ToInt(chartr('ATGC', 'TACG', x)))), mc.cores = multi_thread) %>% unlist(),reads.list[[i]]$id_cb_suffix), 
                 rownames(cluster_coordinates))
         ]
       }
       reads.list[[i]]$hla_clusters <- NA
       reads.list[[i]]$hla_clusters <- cluster_coordinates$hla_clusters[
-        match(paste0(reads.list[[i]]$samp,"_", parallel::mclapply(reads.list[[i]]$CB, function(x) intToUtf8(rev(utf8ToInt(chartr('ATGC', 'TACG', x)))), mc.cores = multi_thread) %>% unlist(),"-1"), 
+        match(paste0(reads.list[[i]]$samp,reads.list[[i]]$id_cb_separator, parallel::mclapply(reads.list[[i]]$CB, function(x) intToUtf8(rev(utf8ToInt(chartr('ATGC', 'TACG', x)))), mc.cores = multi_thread) %>% unlist(),reads.list[[i]]$id_cb_suffix), 
               rownames(cluster_coordinates))
       ]
     }
@@ -452,13 +432,13 @@ map_HLA_clusters <- function(reads.list, cluster_coordinates, CB_rev_com = FALSE
       if (!is.null(additional_col_id)) {
         reads.list[[i]][, additional_col_id] <-  NA
         reads.list[[i]][, additional_col_id] <- cluster_coordinates[, additional_col_id][
-          match(paste0(reads.list[[i]]$samp,"_",reads.list[[i]]$CB,"-1"), 
+          match(paste0(reads.list[[i]]$samp, reads.list[[i]]$id_cb_separator, reads.list[[i]]$CB, reads.list[[i]]$id_cb_suffix), 
                 rownames(cluster_coordinates))
         ]
       }
       reads.list[[i]]$hla_clusters <- NA
       reads.list[[i]]$hla_clusters <- cluster_coordinates$hla_clusters[
-        match(paste0(reads.list[[i]]$samp,"_",reads.list[[i]]$CB,"-1"), 
+        match(paste0(reads.list[[i]]$samp, reads.list[[i]]$id_cb_separator, reads.list[[i]]$CB, reads.list[[i]]$id_cb_suffix), 
               rownames(cluster_coordinates))
       ]
     }

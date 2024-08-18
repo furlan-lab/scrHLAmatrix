@@ -36,22 +36,13 @@ a Vector of the top HLA alleles in the count files (in terms of reads).
 Plotting the top HLA alleles extracted in a Pseudo-Bulk approach from the scrHLAtag count files
 }
 \examples{
-samples <- c("AML_101_BM", "AML_101_34")
-mol_info <- c("molecule_info_gene.txt.gz", "molecule_info_mRNA.txt.gz")
-cts <- list()
-for (i in 1:length(mol_info)){
-  dl<-lapply(samples, function(sample){
-    d<-read.table(file.path("path/to/scrHLAtag/out/files", sample,
-                            mol_info[i]), header = F, sep=" ", fill = T) 
-    d$V1<-paste0(sample, "_", d$V1, "-1")
-    colnames(d)<-c("name","CB", "nb", "UMI", "gene", "query_len","start", "mapq", "cigar", "NM", "AS", "s1", "de", "seq")
-    d$samp <- sample
-    d
-  })
-  ctsu<-do.call(rbind,dl)
-  rm(dl)
-  cts[[str_sub(strsplit(mol_info[i], "\\\\.")[[1]][1], start= -4)]] <- ctsu
-  rm(ctsu)
-}
+dirs_path <- "path/to/scrHLAtag/out/files"
+dirs<-list.dirs(path=dirs_path, full.names = T, recursive = F)
+dirs<- lapply(dirs, list.dirs, recursive = F) \%>\% unlist
+dirs<- lapply(dirs, dir, pattern = "unguided_hla_align_corrected", recursive = F, full.names = T) \%>\% unlist
+dirnames <- c("AML_101_BM", "AML_101_34", "TN_BM", "TN_34") # this is how the samples were organized in the directories
+## Load the counts files
+cts <- HLA_load(directories = dirs, dir_names = dirnames, seu = your_Seurat_obj)
+## Process those count files
 Top_HLA_plot_bulk(reads_1 = cts[["mRNA"]], reads_2 = cts[["gene"]], use_alt_align_ABC = TRUE)
 }

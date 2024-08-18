@@ -127,7 +127,7 @@ Top_HLA_list_byCB <- function(reads, seu = NULL, CB_rev_com = FALSE, hla_with_co
   # creating as many count matrices as there are elements (an element for each HLA umap "cluster") in the "reads" list
   matrices <- mclapply(1:length(reads), function(m) {
     alleles <- unique(reads[[m]]$gene) %>% sort()
-    reads[[m]]$seu_barcode <- paste0(reads[[m]]$samp,"_",reads[[m]]$CB,"-1")
+    reads[[m]]$seu_barcode <- paste0(reads[[m]]$samp, reads[[m]]$id_cb_separator, reads[[m]]$CB, reads[[m]]$id_cb_suffix)
     reads[[m]] <- with(reads[[m]], split(reads[[m]], list(seu_barcode=seu_barcode)))
     HLA.matrix <- matrix(0, nrow = length(alleles), ncol = length(reads[[m]]), dimnames = list(alleles, names(reads[[m]])))
     pb <- pbmcapply::progressBar(min = 0, max = length(reads[[m]]), style = "ETA", char = "=")
@@ -143,16 +143,14 @@ Top_HLA_list_byCB <- function(reads, seu = NULL, CB_rev_com = FALSE, hla_with_co
     if (is.null(seu)) {
       part_HLA<- HLA.matrix
     } else {
-      if (class(seu) == "Seurat") {
-        message(cat("\nObject of class 'Seurat' detected"))
-        message(cat(crayon::green("Note: "), "Currently the Seurat Barcode (i.e. colnames or Cells) supported format is: SAMPLE_AATGCTTGGTCCATTA-1", sep = ""))
+      if ("Seurat" %in% class(seu)) {
         if(match_CB_with_seu) {
           part_HLA<- HLA.matrix[,colnames(HLA.matrix) %in% Cells(seu)]
         } else {
           part_HLA<- HLA.matrix
         }
       } else {
-        stop("Single-cell dataset container must be of class 'Seurat'")
+        stop("Single-cell dataset container must be of class 'Seurat'", call. = FALSE)
       }
     }
     ## removing HLA alleles with low counts overall
@@ -324,11 +322,11 @@ Top_HLA_list_byCB_preprocessed <- function(reads, seu = NULL, hla_with_counts_ab
   } else {
     reads <- list(reads = reads)
     message(cat(crayon::green("Recommended:"), "To refine your results, first analyze distribution of alleles per Cell Barcodes in UMAP space using 'HLA_clusters()', then map the generated HLA Clusters back to your count data using 'map_HLA_clusters()'."))
-  }  
+  }  #stringr::str_c(reads$samp, reads$id_cb_separator, reads$CB, reads$id_cb_suffix)
   # creating as many count matrices as there are elements (an element for each HLA umap "cluster") in the "reads" list
   matrices <- mclapply(1:length(reads), function(m) {
     alleles <- unique(reads[[m]]$gene) %>% sort()
-    reads[[m]]$seu_barcode <- paste0(reads[[m]]$samp,"_",reads[[m]]$CB,"-1")
+    reads[[m]]$seu_barcode <- paste0(reads[[m]]$samp, reads[[m]]$id_cb_separator, reads[[m]]$CB, reads[[m]]$id_cb_suffix)
     reads[[m]] <- with(reads[[m]], split(reads[[m]], list(seu_barcode=seu_barcode)))
     HLA.matrix <- matrix(0, nrow = length(alleles), ncol = length(reads[[m]]), dimnames = list(alleles, names(reads[[m]])))
     pb <- pbmcapply::progressBar(min = 0, max = length(reads[[m]]), style = "ETA", char = "=")
@@ -344,16 +342,14 @@ Top_HLA_list_byCB_preprocessed <- function(reads, seu = NULL, hla_with_counts_ab
     if (is.null(seu)) {
       part_HLA<- HLA.matrix
     } else {
-      if (class(seu) == "Seurat") {
-        #message(cat("\nObject of class 'Seurat' detected"))
-        #message(cat(crayon::green("Note: "), "Currently the Seurat Barcode (i.e. colnames or Cells) supported format is: SAMPLE_AATGCTTGGTCCATTA-1", sep = ""))
+      if ("Seurat" %in% class(seu)) {
         if(match_CB_with_seu) {
           part_HLA<- HLA.matrix[,colnames(HLA.matrix) %in% Cells(seu)]
         } else {
           part_HLA<- HLA.matrix
         }
       } else {
-        stop("Single-cell dataset container must be of class 'Seurat'")
+        stop("Single-cell dataset container must be of class 'Seurat'", call. = FALSE)
       }
     }
     ## removing HLA alleles with low counts overall
@@ -519,7 +515,7 @@ Top_HLA_list_bulk <- function(reads_1, reads_2 = NULL, frac = 0.85, min_alleles_
   cts_abc <- unique(reads_2$hla)[order(unique(reads_2$hla))]
   if (use_alt_align_ABC) {
     if (length(cts_abc[which(cts_abc %in% c("A", "B", "C"))]) != 3) {
-      stop("the secondary molecule info count file does not contain alleles belonging to all of HLA-A, -B, and -C")
+      stop("the secondary molecule info count file does not contain alleles belonging to all of HLA-A, -B, and -C", call. = FALSE)
     }
   }
   cts_notabc <- unique(reads_1$hla)[order(unique(reads_1$hla))]

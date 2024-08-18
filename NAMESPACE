@@ -2,6 +2,7 @@
 
 export(HLA_Matrix)
 export(HLA_clusters)
+export(HLA_load)
 export(Top_HLA_list)
 export(Top_HLA_plot_bulk)
 export(Top_HLA_plot_byCB)

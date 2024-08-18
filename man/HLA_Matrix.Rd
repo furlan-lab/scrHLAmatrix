@@ -12,6 +12,7 @@ HLA_Matrix(
   QC_mm2 = TRUE,
   res_conflict_per_gene = TRUE,
   LD_correct = TRUE,
+  drop_if_fewer_than = 20,
   remove_alleles = character(),
   s1_percent_pass_score = 80,
   AS_percent_pass_score = 80,
@@ -37,7 +38,9 @@ HLA_Matrix(
 
 \item{LD_correct}{logical, called \code{TRUE} if Linkage Diseqilibrium (LD) correction in the HLA-DR locus is desired, with the assumption of a very strong LD between certain \emph{DRB1} allele families and the \emph{DRB2}, \emph{DRB3}, \emph{DRB4}, \emph{DRB5}, \emph{DRB6}, \emph{DRB7}, \emph{DRB8}, and \emph{DRB9} loci.}
 
-\item{remove_alleles}{a character list of HLA alleles to be removed from the count file if desired; default is an empty character vector.}
+\item{drop_if_fewer_than}{number of deduped reads an allele gets across all the Cells, below which they are considered too few and dropped out of the matrix as potential noise; default is \code{20}.}
+
+\item{remove_alleles}{a character list of HLA alleles to be manually removed from the count file if desired; default is an empty character vector.}
 
 \item{s1_percent_pass_score}{percentage, \code{0} to \code{100}, cuttoff from the maximum score (best quality) of the minimap2 's1' tag, which a read needs to acheive to pass as acceptable; default at \code{80} and becomes less inclusive if value increases.}
 
@@ -60,21 +63,13 @@ an Assay type matrix
 Deduping and Correcting scrHLAtag counts and Creating Seurat-compatible Matrices
 }
 \examples{
-samples <- c("AML_101_BM", "AML_101_34")
-mol_info <- c("molecule_info_gene.txt.gz", "molecule_info_mRNA.txt.gz")
-for (i in 1:length(mol_info)){
-  dl<-lapply(samples, function(sample){
-    d<-read.table(file.path("path/to/scrHLAtag/out/files", sample,
-                            mol_info[i]), header = F, sep=" ", fill = T) 
-    d$V1<-paste0(sample, "_", d$V1, "-1")
-    colnames(d)<-c("name","CB", "nb", "UMI", "gene", "query_len","start", "mapq", "cigar", "NM", "AS", "s1", "de", "seq")
-    d$samp <- sample
-    d
-  })
-  ctsu<-do.call(rbind,dl)
-  rm(dl)
-  cts[[str_sub(strsplit(mol_info[i], "\\\\.")[[1]][1], start= -4)]] <- ctsu
-  rm(ctsu)
-}
-HLA_Matrix(reads = cts[["mRNA"]], seu = your_Seurat_obj, hla_recip = c("A*24:02:01", "DRB1*04:01:01", "DRB4*01:03:02"), hla_donor = c("A*33:03:01", "B*42:01:01"))
+dirs_path <- "path/to/scrHLAtag/out/files"
+dirs<-list.dirs(path=dirs_path, full.names = T, recursive = F)
+dirs<- lapply(dirs, list.dirs, recursive = F) \%>\% unlist
+dirs<- lapply(dirs, dir, pattern = "unguided_hla_align_corrected", recursive = F, full.names = T) \%>\% unlist
+dirnames <- c("AML_101_BM", "AML_101_34", "TN_BM", "TN_34") # this is how the samples were organized in the directories
+## Load the counts files
+cts <- HLA_load(directories = dirs, dir_names = dirnames, seu = your_Seurat_obj)
+## Process those count files
+HLAassay <- HLA_Matrix(reads = cts[["mRNA"]], seu = your_Seurat_obj, hla_recip = c("A*24:02:01", "DRB1*04:01:01", "DRB4*01:03:02"), hla_donor = c("A*33:03:01", "B*42:01:01"))
 }

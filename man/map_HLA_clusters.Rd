@@ -15,7 +15,7 @@ map_HLA_clusters(
 \arguments{
 \item{reads.list}{is a scrHLAtag count file (or a list of scrHLAtag count files) including columns for CB, UMI, and HLA alleles (\url{https://github.com/furlan-lab/scrHLAtag}).}
 
-\item{cluster_coordinates}{is the UMAP coordinates dataframe with HLA clustering information (found by the \code{scrHLAmatrix::HLA_clusters()} function) from which clusters are extracted and mapped into the scrHLAtag count files by matching Cell Barcodes. Currently the barcode format supported is: SAMPLE_AATGCTTGGTCCATTA-1}
+\item{cluster_coordinates}{is the UMAP coordinates dataframe with HLA clustering information (found by the \code{scrHLAmatrix::HLA_clusters()} function) from which clusters are extracted and mapped into the scrHLAtag count files by matching Cell Barcodes.}
 
 \item{CB_rev_com}{logical, called \code{TRUE} if the need to obtain the reverse complement of Cell Barcodes (CBs) is desired; default is \code{FALSE}.}
 
@@ -30,22 +30,13 @@ a large list containing scrHLAtag count file(s) including columns for CB, UMI, a
 Mapping the HLA clusters found by the 'HLA_clusters()' function back into the scrHLAtag count files
 }
 \examples{
-samples <- c("AML_101_BM", "AML_101_34")
-mol_info <- c("molecule_info_gene.txt.gz", "molecule_info_mRNA.txt.gz")
-cts <- list()
-for (i in 1:length(mol_info)){
-  dl<-lapply(samples, function(sample){
-    d<-read.table(file.path("path/to/scrHLAtag/out/files", sample,
-                            mol_info[i]), header = F, sep=" ", fill = T) 
-    d$V1<-paste0(sample, "_", d$V1, "-1")
-    colnames(d)<-c("name","CB", "nb", "UMI", "gene", "query_len","start", "mapq", "cigar", "NM", "AS", "s1", "de", "seq")
-    d$samp <- sample
-    d
-  })
-  ctsu<-do.call(rbind,dl)
-  rm(dl)
-  cts[[str_sub(strsplit(mol_info[i], "\\\\.")[[1]][1], start= -4)]] <- ctsu
-  rm(ctsu)
-}
+dirs_path <- "path/to/scrHLAtag/out/files"
+dirs<-list.dirs(path=dirs_path, full.names = T, recursive = F)
+dirs<- lapply(dirs, list.dirs, recursive = F) \%>\% unlist
+dirs<- lapply(dirs, dir, pattern = "unguided_hla_align_corrected", recursive = F, full.names = T) \%>\% unlist
+dirnames <- c("AML_101_BM", "AML_101_34", "TN_BM", "TN_34") # this is how the samples were organized in the directories
+## Load the counts files
+cts <- HLA_load(directories = dirs, dir_names = dirnames, seu = your_Seurat_obj)
+## Process those count files
 cts <- map_HLA_clusters(reads.list = cts, cluster_coordinates = UMAP_dataframe_from_HLA_clusters_function, additional_col_id = "geno")
 }

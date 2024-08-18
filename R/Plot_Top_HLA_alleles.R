@@ -29,23 +29,14 @@
 #' @import dplyr
 #' @return ggplot of HLA genotypes per Cell Barcodes and the number of times they occur
 #' @examples
-#' samples <- c("AML_101_BM", "AML_101_34")
-#' mol_info <- c("molecule_info_gene.txt.gz", "molecule_info_mRNA.txt.gz")
-#' cts <- list()
-#' for (i in 1:length(mol_info)){
-#'   dl<-lapply(samples, function(sample){
-#'     d<-read.table(file.path("path/to/scrHLAtag/out/files", sample,
-#'                             mol_info[i]), header = F, sep=" ", fill = T) 
-#'     d$V1<-paste0(sample, "_", d$V1, "-1")
-#'     colnames(d)<-c("name","CB", "nb", "UMI", "gene", "query_len","start", "mapq", "cigar", "NM", "AS", "s1", "de", "seq")
-#'     d$samp <- sample
-#'     d
-#'   })
-#'   ctsu<-do.call(rbind,dl)
-#'   rm(dl)
-#'   cts[[str_sub(strsplit(mol_info[i], "\\.")[[1]][1], start= -4)]] <- ctsu
-#'   rm(ctsu)
-#' }
+#' dirs_path <- "path/to/scrHLAtag/out/files"
+#' dirs<-list.dirs(path=dirs_path, full.names = T, recursive = F)
+#' dirs<- lapply(dirs, list.dirs, recursive = F) %>% unlist
+#' dirs<- lapply(dirs, dir, pattern = "unguided_hla_align_corrected", recursive = F, full.names = T) %>% unlist
+#' dirnames <- c("AML_101_BM", "AML_101_34", "TN_BM", "TN_34") # this is how the samples were organized in the directories
+#' ## Load the counts files
+#' cts <- HLA_load(directories = dirs, dir_names = dirnames, seu = your_Seurat_obj)
+#' ## Process those count files
 #' top_per_cb_plot <- Top_HLA_plot_byCB(reads = cts[["mRNA"]], seu = your_Seurat_Obj, hla_with_counts_above = 5, CBs_with_counts_above = 35)
 #' top_per_cb_plot %>% gridExtra::grid.arrange()
 #' # 
@@ -130,7 +121,7 @@ Top_HLA_plot_byCB <- function(reads, seu = NULL, CB_rev_com = FALSE, hla_with_co
   }
   ## Matrix formation
   alleles <- unique(reads$gene) %>% sort()
-  reads$seu_barcode <- paste0(reads$samp,"_",reads$CB,"-1")
+  reads$seu_barcode <- stringr::str_c(reads$samp, reads$id_cb_separator, reads$CB, reads$id_cb_suffix)
   reads <- split(data.table::setDT(reads), by = "seu_barcode")
   reads <- parallel::mclapply(reads, data.table::setDF, mc.cores = multi_thread)
   # matrix
@@ -151,8 +142,6 @@ Top_HLA_plot_byCB <- function(reads, seu = NULL, CB_rev_com = FALSE, hla_with_co
     part_HLA<- HLA.matrix
   } else {
     if ("Seurat" %in% class(seu)) {
-      message(cat("\nObject of class 'Seurat' detected"))
-      message(cat(crayon::green("Note: "), "Currently the Seurat Barcode (i.e. colnames or Cells) supported format is: SAMPLE_AATGCTTGGTCCATTA-1", sep = ""))
       if(match_CB_with_seu) {
         part_HLA<- HLA.matrix[,colnames(HLA.matrix) %in% Cells(seu)]
       } else {
@@ -296,9 +285,6 @@ Top_HLA_plot_byCB <- function(reads, seu = NULL, CB_rev_com = FALSE, hla_with_co
 }
 
 
-
-
-
 #' Plotting the top HLA alleles extracted in a Pseudo-Bulk approach from the scrHLAtag count files 
 #' 
 #' @param reads_1  is the primary scrHLAtag count file (1 of 2 files containing either the mRNA molecular info or the genomic (gene) molecular info). It includes columns for CB, UMI, and HLA alleles (\url{https://github.com/furlan-lab/scrHLAtag}).
@@ -316,23 +302,14 @@ Top_HLA_plot_byCB <- function(reads, seu = NULL, CB_rev_com = FALSE, hla_with_co
 #' @import dplyr
 #' @return a Vector of the top HLA alleles in the count files (in terms of reads).
 #' @examples
-#' samples <- c("AML_101_BM", "AML_101_34")
-#' mol_info <- c("molecule_info_gene.txt.gz", "molecule_info_mRNA.txt.gz")
-#' cts <- list()
-#' for (i in 1:length(mol_info)){
-#'   dl<-lapply(samples, function(sample){
-#'     d<-read.table(file.path("path/to/scrHLAtag/out/files", sample,
-#'                             mol_info[i]), header = F, sep=" ", fill = T) 
-#'     d$V1<-paste0(sample, "_", d$V1, "-1")
-#'     colnames(d)<-c("name","CB", "nb", "UMI", "gene", "query_len","start", "mapq", "cigar", "NM", "AS", "s1", "de", "seq")
-#'     d$samp <- sample
-#'     d
-#'   })
-#'   ctsu<-do.call(rbind,dl)
-#'   rm(dl)
-#'   cts[[str_sub(strsplit(mol_info[i], "\\.")[[1]][1], start= -4)]] <- ctsu
-#'   rm(ctsu)
-#' }
+#' dirs_path <- "path/to/scrHLAtag/out/files"
+#' dirs<-list.dirs(path=dirs_path, full.names = T, recursive = F)
+#' dirs<- lapply(dirs, list.dirs, recursive = F) %>% unlist
+#' dirs<- lapply(dirs, dir, pattern = "unguided_hla_align_corrected", recursive = F, full.names = T) %>% unlist
+#' dirnames <- c("AML_101_BM", "AML_101_34", "TN_BM", "TN_34") # this is how the samples were organized in the directories
+#' ## Load the counts files
+#' cts <- HLA_load(directories = dirs, dir_names = dirnames, seu = your_Seurat_obj)
+#' ## Process those count files
 #' Top_HLA_plot_bulk(reads_1 = cts[["mRNA"]], reads_2 = cts[["gene"]], use_alt_align_ABC = TRUE)
 #' @export
 
