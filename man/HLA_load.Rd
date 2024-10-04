@@ -7,7 +7,7 @@
 HLA_load(
   directories,
   dir_names = NULL,
-  seu,
+  seu = NULL,
   scrHLAtag_outs = c("molecule_info_mRNA.txt.gz", "molecule_info_gene.txt.gz"),
   colnames = NULL
 )

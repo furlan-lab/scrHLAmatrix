@@ -20,38 +20,47 @@
 #' cts <- HLA_load(directories = dirs, dir_names = dirnames, seu = your_Seurat_obj)
 #' @export
 
-HLA_load <- function(directories, dir_names = NULL, seu, scrHLAtag_outs = c("molecule_info_mRNA.txt.gz", "molecule_info_gene.txt.gz"), colnames = NULL) {
+HLA_load <- function(directories, dir_names = NULL, seu = NULL, scrHLAtag_outs = c("molecule_info_mRNA.txt.gz", "molecule_info_gene.txt.gz"), colnames = NULL) {
   s <- Sys.time()
   if (!requireNamespace("stringdist", quietly = TRUE)) { stop("Package 'stringdist' needed for this function to work. Please install it.", call. = FALSE) }
   mol_info <- scrHLAtag_outs
   if (is.null(names(directories))) {
-    if (is.null(dir_names)) { stop("'directories' need names. Please provide the names in 'dir_names' and make sure the naming order is strictly as organized in your directories.", call. = FALSE) }
+    if (is.null(dir_names)) { 
+      if (length(directories)==1) {
+        dir_names <- ""
+      } else { stop("'directories' need names. Please provide the names in 'dir_names' and make sure the naming order is strictly as organized in your directories.", call. = FALSE) }
+    }
     if (length(directories) != length(dir_names)) { stop("Number of 'directories' should match number of sample names in 'dir_names'. Also, make sure the naming order is strictly as organized in your directories.", call. = FALSE) }
     names(directories) <- dir_names
   }
-  ## extract sample names from the Seurat colnames 'Cells(seu)'
-  if (!("Seurat" %in% class(seu))) { stop("The function will extract sample ID(s) concatenated to Seurat barcodes. Object in 'seu' must be of class 'Seurat'", call. = FALSE) }
-  v <- colnames(seu)
-  prefx <- substr(v, 1, nchar(v) - sapply(base::gsub(".*[ATGC]+(.*)$", "\\1", v), nchar))
-  prefx <- substr(prefx, 1, sapply(base::gregexpr("[^A-Za-z0-9]", prefx), function(pos) if (max(pos)>0) max(pos) else 0))
-  sepr <- sapply(prefx, function(x) substr(x, nchar(x), nchar(x)))
-  smpl <- substr(prefx, 1, nchar(prefx) - sapply(sepr, nchar))
-  sufx <- base::gsub(".*[ATGC]+(.*)$", "\\1", v)
-  prefx.sufx <- paste0(prefx, "*", sufx)
-  rv <- unlist(lapply(v, function(x) intToUtf8(rev(utf8ToInt(x)))))
-  cbrv <- gsub("^[^ATGC]*([ATGC]+).*", "\\1", rv)
-  cbrv <- unlist(lapply(cbrv, function(x) intToUtf8(rev(utf8ToInt(x)))))
-  smpls <- unique(smpl)
-  prefxs <- unique(prefx)
-  prefx.sufxs <- unique(prefx.sufx)
-  if (length(smpls) < length(prefx.sufxs)) {
-    message(cat("Sample IDs found in Seurat:", crayon::bgWhite(" ", prefx.sufxs, " ")))
+  if (!is.null(seu)) {
+    ## extract sample names from the Seurat colnames 'Cells(seu)'
+    if (!("Seurat" %in% class(seu))) { stop("The function will extract sample ID(s) concatenated to Seurat barcodes. Object in 'seu' must be of class 'Seurat'", call. = FALSE) }
+    v <- colnames(seu)
+    prefx <- substr(v, 1, nchar(v) - sapply(base::gsub(".*[ATGC]+(.*)$", "\\1", v), nchar))
+    prefx <- substr(prefx, 1, sapply(base::gregexpr("[^A-Za-z0-9]", prefx), function(pos) if (max(pos)>0) max(pos) else 0))
+    sepr <- sapply(prefx, function(x) substr(x, nchar(x), nchar(x)))
+    smpl <- substr(prefx, 1, nchar(prefx) - sapply(sepr, nchar))
+    sufx <- base::gsub(".*[ATGC]+(.*)$", "\\1", v)
+    prefx.sufx <- paste0(prefx, "*", sufx)
+    rv <- unlist(lapply(v, function(x) intToUtf8(rev(utf8ToInt(x)))))
+    cbrv <- gsub("^[^ATGC]*([ATGC]+).*", "\\1", rv)
+    cbrv <- unlist(lapply(cbrv, function(x) intToUtf8(rev(utf8ToInt(x)))))
+    smpls <- unique(smpl)
+    prefxs <- unique(prefx)
+    prefx.sufxs <- unique(prefx.sufx)
+    if (length(smpls) < length(prefx.sufxs)) {
+      message(cat("Sample IDs found in Seurat:", crayon::bgWhite(" ", prefx.sufxs, " ")))
     } else {
-    message(cat("Sample IDs found in Seurat:", crayon::bgWhite(" ", smpls, " ")))
+      message(cat("Sample IDs found in Seurat:", crayon::bgWhite(" ", smpls, " ")))
     }
-  # length(unique(sepr))
-  if (length(unique(sapply(cbrv, nchar))) > 1) { message(cat(crayon::red("The Barcode DNA sequences in the Seurat object have different lengths. Does the object contains different capture chemistries?"), sep = "")) }
-  if (length(prefx.sufxs) > length(directories)) { stop("More samples found in Seurat than scrHLAtag selected directories. Make sure to select all experiements linked to the Seurate object, or subset your Seurat to the corresponding samples in your scrHLAtag experiments", call. = FALSE) }
+    # length(unique(sepr))
+    if (length(unique(sapply(cbrv, nchar))) > 1) { message(cat(crayon::red("The Barcode DNA sequences in the Seurat object have different lengths. Does the object contains different capture chemistries?"), sep = "")) }
+    if (length(prefx.sufxs) > length(directories)) { stop("More samples found in Seurat than scrHLAtag selected directories. Make sure to select all experiements linked to the Seurate object, or subset your Seurat to the corresponding samples in your scrHLAtag experiments", call. = FALSE) }
+  } else {
+    if (length(directories) > 1) { stop("Only 1 directory can be specified when the Seurat object is not specified (i.e. 'seu = NULL')", call. = FALSE) }
+    prefx.sufxs <- "*" 
+  }
   message(cat("Loading..."))
   cts <- lapply(mol_info, function(x) {
     dl<-lapply(prefx.sufxs, function(sample){
