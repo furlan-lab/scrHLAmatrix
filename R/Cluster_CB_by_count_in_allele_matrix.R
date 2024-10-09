@@ -307,7 +307,7 @@ HLA_clusters <- function(reads, k = 2, seu = NULL, CB_rev_com = FALSE, geno_meta
   }  
   if (method %in% c("gmm", "consensus")) {
     message(cat(crayon::red(format(Sys.time(), "%H:%M:%S"), "- Gaussian Mixture Model on PCA space"), sep = ""))
-    humapout <- mclust::Mclust(umat[, 1:min(50, ncol(umat))], G = k) # beyond 50 cols, the algorithm takes forever
+    humapout <- mclust::Mclust(umat[, 1:min(25, ncol(umat))], G = k) # beyond 25 cols, the algorithm takes forever
     umapout$hla_clusters <- humapout$classification
     umapout$clust_gmm   <-  humapout$classification
   }  
