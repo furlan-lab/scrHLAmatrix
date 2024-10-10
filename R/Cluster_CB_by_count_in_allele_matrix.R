@@ -366,6 +366,10 @@ HLA_clusters <- function(reads, k = 2, seu = NULL, CB_rev_com = FALSE, geno_meta
     umapout$hla_clusters <- NA
     # register only if it most probably belongs to a unique cluster and that probability is > 0.65
     umapout$hla_clusters <- ifelse(cons$consensus %in% unique_clust & cons$probability > 0.65, cons$consensus, NA)
+    # if the number of consensus clusters is smaller than is supposed to (smaller than k), re-attempt to register with less stringency, i.e. with probability > 0.5
+    if (length(na.omit(unique(umapout$hla_clusters))) < k) {
+      umapout$hla_clusters <- ifelse(cons$consensus %in% unique_clust & cons$probability > 0.5, cons$consensus, NA)
+    }
     g1 <- ggplot(umapout, aes(x=umap1, y=umap2, color=hla_clust_cons))+geom_point(size=pt_size)
   } else {g1 <- NULL}
   umapout$hla_clusters <- as.factor(umapout$hla_clusters)
