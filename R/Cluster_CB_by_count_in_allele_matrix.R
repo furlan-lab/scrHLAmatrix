@@ -8,7 +8,7 @@
 #' @param hla_with_counts_above  number of total reads accross CBs at or above which an HLA allele is retained in the matrix.
 #' @param CBs_with_counts_above  number of total reads accross HLA alleles at or above which a CB is retained in the matrix. Note: \code{stats::princomp()} can only be used with at least as many units (CBs) as variables (HLAs), thus the function will make sure that number of CBs is equal or more than available HLA alleles in the matrix.
 #' @param match_CB_with_seu  logical, called \code{TRUE} if filtering CBs in the scrHLAtag count file with matching ones in the Seurat object is desired. 
-#' @param method  the name of the graph-based clustering method to be used for partitioning cells based on their HLA count patterns. The choice is between a Community structure detection method: \code{"leiden"}, a Density-based method: \code{"dbscan"}, a Connectivity-based method: \code{"hclust"}, a Centroid-based method: \code{"kmeans"}, or a Distribution-based method: \code{"gmm"} (for Gaussian Mixture Model). The methods are run with their respective Default parameters. Some of those methods may predict \emph{true} allogeneic entities with better accuracy than others; as we cannot know a priori which is the best method, we propose the method: \code{"consensus"}, which groups cells in the same cluster if they agree on membership in > 65 percent of methods, otherwise they are unclassified (\code{NA}s).
+#' @param method  the name(s) of the graph-based clustering method(s) to be used for partitioning cells based on their HLA count patterns. The choice is between one or a combination of a Community structure detection method: \code{"leiden"}, a Density-based method: \code{"dbscan"}, a Connectivity-based method: \code{"hclust"}, a Centroid-based method: \code{"kmeans"}, and a Distribution-based method: \code{"gmm"} (for Gaussian Mixture Model). The methods are run with their respective Default parameters. Some of those methods may predict \emph{true} allogeneic entities with better accuracy than others; as we cannot know a priori which is the best method, we propose the method: \code{"consensus"}, which groups cells in the same cluster if they agree on membership in a majority of methods, otherwise they are unclassified (\code{NA}s). Note: \code{"consensus"} is equivalent to \code{c("leiden", "hclust", "kmeans", "gmm", "dbscan", "consensus")}.
 #' @param n_PCs  the number of top principal components to retain in downstream clustering and umap analyses; default is \code{50} or the top 80 percent of PCs, whichever is smaller.
 #' @param dbscan_minPts  only works for the  \code{"dbscan"} method: number of minimum points required in the epsilon neighborhood radius (\code{eps}) of core points. While the other methods require 1 parameter (e.g., \code{k}), \code{"dbscan"} requires 2: \code{eps} and \code{minPts}. To acheive desired \code{k} clusters, a range of \code{eps} parameter is tested against a fixed \code{minPts}, which is provided here. Default at \code{30}, but can be adjusted higher or lower depending on how small and 'clumped' an allogeneic entity is suspected to be. 
 #' @param QC_mm2  logical, called \code{TRUE} if removing low quality reads based on minimap2 tags is desired.
@@ -54,7 +54,7 @@ HLA_clusters <- function(reads, k = 2, seu = NULL, CB_rev_com = FALSE, geno_meta
   if (!requireNamespace("FNN", quietly = TRUE)) { stop("Package 'FNN' needed for this function to work. Please install it.", call. = FALSE) }
   if (!all(sapply(c("leiden", "igraph", "reticulate"), requireNamespace, quietly = TRUE))) { stop("Install 'leiden' and associated 'igraph' and 'reticulate' pakages for this function to work.\nMoreover, install the python dependencies in R (if you haven't already):\n  reticulate::install_python(version = '<version>') #example '3.8.2'\n  reticulate::py_install('python-igraph')\n  reticulate::py_install('leidenalg', forge = TRUE)\n  reticulate::py_config()", call. = FALSE) }
   if (!is.null(k)) if (abs(k)!=as.integer(k) | k==0) { stop("'k' must be a whole positive number or 'NULL'.", call. = FALSE)}
-  if (is.null(k) & !(method %in% c("leiden", "dbscan","gmm"))) { stop("'k' cannot be 'NULL' while using methods 'hclust', 'kmeans', or 'consensus'.", call. = FALSE)}
+  if (is.null(k) & !any(method %in% c("leiden", "dbscan", "gmm"))) { stop("'k' cannot be 'NULL' while using methods 'hclust', 'kmeans', or 'consensus'.", call. = FALSE)}
   if (!"package:mclust" %in% search()) {suppressPackageStartupMessages({library(mclust)})}
   if (!is.null(seed)) set.seed(seed)
   ## parallelize
@@ -166,12 +166,12 @@ HLA_clusters <- function(reads, k = 2, seu = NULL, CB_rev_com = FALSE, geno_meta
   } else {
     g0 <- NULL
   }
-  if (!(length(method) == 1L && method %in% c("leiden", "hclust", "kmeans", "gmm", "dbscan", "consensus"))) {
+  if (!any(method %in% c("leiden", "hclust", "kmeans", "gmm", "dbscan", "consensus"))) {
     method <- "consensus"
-    message(cat("\nArgument `method` should be one of 'leiden' 'dbscan', 'hclust', 'kmeans', 'gmm', or 'consensus'. Defaulting to: '", method, "'", sep = ""))
+    message(cat("\nArgument `method` should be one or a combination of 'leiden' 'dbscan', 'hclust', 'kmeans', 'gmm', or 'consensus'. Defaulting to: '", method, "'", sep = ""))
   } %>% suppressWarnings()
   message(cat("\nGraph-based Clustering:"))
-  if (method %in% c("leiden", "consensus")) {
+  if (any(c("leiden", "consensus") %in% method)) {
     message(cat(crayon::red(format(Sys.time(), "%H:%M:%S"), "- Community detection (leiden) on PCA space"), sep = ""))
     # Create a k-nearest neighbors graph, then convert to igraph
     make_knn_graph <- function(data, k) {
@@ -231,7 +231,7 @@ HLA_clusters <- function(reads, k = 2, seu = NULL, CB_rev_com = FALSE, geno_meta
       }
     }
   }
-  if (method %in% c("dbscan", "consensus")) {
+  if (any(c("dbscan", "consensus") %in% method)) {
     message(cat(crayon::red(format(Sys.time(), "%H:%M:%S"), "- Density-based (dbscan) on UMAP coordinates"), sep = ""))
     if (is.null(k)) {
       dbscan_knn <- dbscan::kNNdist(as.matrix(umapout[,1:2]), k =  (dbscan_minPts-1))
@@ -293,25 +293,25 @@ HLA_clusters <- function(reads, k = 2, seu = NULL, CB_rev_com = FALSE, geno_meta
       }
     }
   }  
-  if (method %in% c("hclust", "consensus")) {
+  if (any(c("hclust", "consensus") %in% method) & !is.null(k)) {
     message(cat(crayon::red(format(Sys.time(), "%H:%M:%S"), "- Hierarchical (agglomerative) on PCA space"), sep = ""))
     humapout <- stats::hclust(stats::dist(umat[, 1:min(250, ncol(umat))])) #limiting allowable number of PCs to 250 to prevent the algorithm from being needlessly slow
     umapout$hla_clusters <- stats::cutree(humapout, k = k)
     umapout$clust_hclust <- stats::cutree(humapout, k = k)
   }  
-  if (method %in% c("kmeans", "consensus")) {
+  if (any(c("kmeans", "consensus") %in% method) & !is.null(k)) {
     message(cat(crayon::red(format(Sys.time(), "%H:%M:%S"), "- k-means on PCA space"), sep = ""))
     humapout <- stats::kmeans(umat, centers = k)
     umapout$hla_clusters <- humapout$cluster
     umapout$clust_kmeans <- humapout$cluster
   }  
-  if (method %in% c("gmm", "consensus")) {
+  if (any(c("gmm", "consensus") %in% method)) {
     message(cat(crayon::red(format(Sys.time(), "%H:%M:%S"), "- Gaussian Mixture Model on PCA space"), sep = ""))
     humapout <- mclust::Mclust(umat[, 1:min(25, ncol(umat))], G = k) # beyond 25 cols, the algorithm takes forever
     umapout$hla_clusters <- humapout$classification
     umapout$clust_gmm   <-  humapout$classification
   }  
-  if (method == "consensus") {
+  if (sum(method %in% c("leiden", "hclust", "kmeans", "gmm", "dbscan", "consensus"), na.rm = TRUE) >= 3L | "consensus" %in% method) {
     message(cat(crayon::red(format(Sys.time(), "%H:%M:%S"), "- Finding Consensus: redraw clusters with cells agreeing on membership in a majority of methods"), sep = ""))
     metamat <- umapout[, grepl("^clust_", names(umapout))]
     metamat <- metamat[, !apply(metamat, 2, function(x) all(is.na(x)))] # make sure there are no cols entirely NAs
