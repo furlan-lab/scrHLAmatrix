@@ -383,7 +383,7 @@ Top_HLA_plot_bulk <- function(reads_1, reads_2 = NULL, cluster_index = NULL, top
     t<- t[order(-t$N, t$twofield),]
     row.names(t)<- NULL
     # the 3-field level resolution of HLA mRNA is actually 2-field for MICA and MICB. must fix this glitch:
-    if (strsplit(t$twofield, "\\*")[[1]][1] %in% c("MICA", "MICB")) {
+    if (strsplit(t$twofield, "\\*")[[1]][1] %in% c("MICA", "MICB") & !all(is.na(sapply(t$twofield, function(x) strsplit(x, ":")[[1]][3])))) {
       t$a <- sapply(t$twofield, function(x) strsplit(x, ":")[[1]][1])
       t$c <- sapply(t$twofield, function(x) strsplit(x, ":")[[1]][2])
       t$a <- ifelse(is.na(t$c), t$a, paste0(t$a, ":", t$c))
