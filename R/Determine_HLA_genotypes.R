@@ -115,8 +115,8 @@ Top_HLA_list <- function(reads_1, reads_2 = NULL, k = 2, seu = NULL, CB_rev_com 
       tmp <- x$gene %>% unique() %>% length()
       return(tmp)
     }) %>% unlist()
-    if (all(unique_alleles <= 200) & stringent_mode) {
-      message(cat("\nReads count file shows 200 or fewer uniquely mapped HLA alleles per allogeneic entity;\nStringent mode active: ", crayon::green("attempting to extract final list of top HLA alleles using the Single-Cell algorithm"), sep = ""))
+    if (all(unique_alleles <= length(cluster)*100) & stringent_mode) {
+      message(cat("\nReads count file shows ", length(cluster)*100, " or fewer uniquely mapped HLA alleles per allogeneic entity;\nStringent mode active: ", crayon::green("attempting to extract final list of top HLA alleles using the Single-Cell algorithm"), sep = ""))
       allowed_alleles_per_cell <- c(1, 2)
     } else {
       message(cat("\nReads count file shows ", bulk_to_perCB_threshold, " or fewer uniquely mapped HLA alleles; extracting top alleles using the Per Single-Cell Algorithm", sep = ""))
@@ -130,10 +130,10 @@ Top_HLA_list <- function(reads_1, reads_2 = NULL, k = 2, seu = NULL, CB_rev_com 
                                                                      allowed_alleles_per_cell = allowed_alleles_per_cell,
                                                                      field_resolution = field_resolution,
                                                                      parallelize = parallelize)
-    if (all(unique_alleles <= 200) & stringent_mode) {
+    if (all(unique_alleles <= length(cluster)*100) & stringent_mode) {
       problematic_alleles <- c("DPA1*02:38Q", "A*03:437Q", "B*13:123Q", "C*02:205Q", "C*04:09N", "C*04:61N")
       names(problematic_alleles) <- c("DPA1*02:02:02", "A*03:01:01", "B*13:02:01", "C*02:02:02", "C*04:01:01", "C*04:01:01")
-      is_the_allele_correct <- top_alleles_HLA[which(top_alleles_HLA %in% problematic_alleles)]
+      is_the_allele_correct <- problematic_alleles[which(problematic_alleles %in% top_alleles_HLA)]
       names(is_the_allele_correct) <- names(problematic_alleles)[which(problematic_alleles %in% is_the_allele_correct)]
       for (x in seq_along(top_alleles_HLA[which(top_alleles_HLA %in% is_the_allele_correct)])) {
         message(cat(crayon::red("\nWarning: "), 
