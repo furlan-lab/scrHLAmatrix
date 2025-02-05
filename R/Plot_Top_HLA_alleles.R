@@ -153,13 +153,17 @@ Top_HLA_plot_byCB <- function(reads, seu = NULL, CB_rev_com = FALSE, hla_with_co
   }
   ## removing HLA alleles with low counts overall
   r <- hla_with_counts_above
-  part_HLA <- part_HLA[which(rowSums(part_HLA)>=r),]
+  if (dim(part_HLA[which(rowSums(part_HLA)>=r), , drop = F])[1] < 2) { # must keep at least 2 rows in the matrix
+    part_HLA <- part_HLA[order(-rowSums(part_HLA))[1:2], , drop = F]
+  } else {
+    part_HLA <- part_HLA[which(rowSums(part_HLA)>=r), , drop = F]
+  }
   ## removing cell barcodes (CBs) with low counts overall
   n <- CBs_with_counts_above
-  if (dim(part_HLA[,which(colSums(part_HLA)>=n)])[2] < dim(part_HLA)[1]) {
-    part_HLA <- part_HLA[,order(-colSums(part_HLA))[1:dim(part_HLA)[1]]]
+  if (dim(part_HLA[,which(colSums(part_HLA)>=n), drop = F])[2] < dim(part_HLA)[1]) {
+    part_HLA <- part_HLA[,order(-colSums(part_HLA))[1:dim(part_HLA)[1]], drop = F]
   } else {
-    part_HLA <- part_HLA[,which(colSums(part_HLA)>=n)]
+    part_HLA <- part_HLA[,which(colSums(part_HLA)>=n), drop = F]
   }
   #-------------------------------------------------------------------------------
   message(cat("\nCounting Top Two alleles per HLA gene per Cell Barcode"))
