@@ -25,7 +25,8 @@ reticulate::py_config()
 ```
 
 ## Usage
-To iteratively predict HLA genotypes per single cell, first load HLA count files: 
+### To iteratively predict HLA genotypes per single cell
+Load HLA count files: 
 ```
 library(scrHLAmatrix)
 
@@ -45,6 +46,7 @@ write(top_alleles, file.path(dirs_path, "top_alleles.csv")))
 ```
 That's it!.. time for another scrHLAtag iteration, and repeat for typically ~4-5 iterations, until the `Top_HLA_list()` function tells you it converged and was the final iteration
 
+### To create the HLA count matrix
 Now, after the final scrHLAtag iteration, we are ready to create the count matrix:
 ```
 dirs_path <- c("path/to/scrHLAtag/out/files1", "path/to/scrHLAtag/out/files2")
