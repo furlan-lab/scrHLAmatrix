@@ -45,6 +45,19 @@ write(top_alleles, file.path(dirs_path, "top_alleles.csv")))
 ```
 That's it!.. time for another scrHLAtag iteration, and repeat for typically ~4-5 iterations, until the `Top_HLA_list()` function tells you it converged and was the final iteration
 
+Now, after the final scrHLAtag iteration, we are ready to create the count matrix:
+```
+dirs_path <- c("path/to/scrHLAtag/out/files1", "path/to/scrHLAtag/out/files2")
+dirnames <- c("samp1", "samp2") # this is how the samples were organized in the directories
+cts <- HLA_load(directories = dirs_path, dir_names = dirnames, seu = your_Seurat_obj) 
+
+hla <- HLA_Matrix(reads = cts[["mRNA"]], seu = your_Seurat_obj, 
+                  CB_rev_com = F,    # TRUE for 3prime 10x on pacbio
+                  return_stats = F,
+                  parallelize = F)
+your_Seurat_obj[["HLA"]] <- hla
+
+```
 For more information on the various functions and data, as well as examples to run, look into:
 ```
 ?HLA_load
