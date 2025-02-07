@@ -25,7 +25,7 @@ reticulate::py_config()
 ```
 
 ## Usage
-Load HLA count files 
+Load HLA count files: 
 ```
 library(scrHLAmatrix)
 
@@ -35,11 +35,11 @@ cts <- HLA_load(directories = dirs_path, dir_names = dirnames, seu = your_Seurat
 ```
 Note: The `seu` argument is optional, but very usefull when 2 or more samples/directories are present for the same "merged" Seurat object. Try to get the names as closely as possible to the sample ID names spposedly present in the corresponding Seurat object, which is usually concatenated to Seurat barcodes when experiments are merged with the Seurat `merge()` function; something that looks like `SAMPLE1_ACTAACTCAATATAGG-1`.
 
-Retrieve Top HLA allele candidates
+Retrieve Top HLA allele candidates:
 ```
 top_alleles <- Top_HLA_list(reads_1 = cts[["mRNA"]], reads_2 = cts[["gene"]], seu = your_Seurat_obj, suppress_plots = F)
 ```
-Write new 'alleles' file that you can provide back to scrHLAtag
+Write new 'alleles' file that you can provide back to scrHLAtag:
 ```
 write(top_alleles, file.path(dirs_path, "top_alleles.csv")))
 ```
