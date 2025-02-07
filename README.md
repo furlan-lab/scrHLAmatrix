@@ -1,7 +1,7 @@
 # scrHLAmatrix
 Operating on [scrHLAtag](https://github.com/furlan-lab/scrHLAtag) output to predict HLA genotypes in single cells, no matter if these cells belong to one or more allogeneic entity(ies), and to filter errors/remove PCR duplicates of the identified HLA reads in single cells, before finally summarizing them into [Seurat](https://github.com/satijalab/seurat)-compatible matrices.
 
-<p align="center"><img src="img/Artboard1.png" alt="" width="300"></a></p>
+<p align="center"><img src="img/Artboard1.png" alt="" width="400"></a></p>
 <hr>
 
 
@@ -25,28 +25,26 @@ reticulate::py_config()
 ```
 
 ## Usage
-Call the package using:
+Load HLA count files 
 ```
 library(scrHLAmatrix)
 
-## load HLA count files 
 dirs_path <- c("path/to/scrHLAtag/out/files1", "path/to/scrHLAtag/out/files2")
 dirnames <- c("samp1", "samp2") # this is how the samples were organized in the directories
 cts <- HLA_load(directories = dirs_path, dir_names = dirnames, seu = your_Seurat_obj) 
-
-#NOTE: the `seu` argument is optional, but very usefull when 2 or more samples/directories are present for the same "merged" Seurat object. 
-#try to get the names as closely as possible to the sample ID names spposedly present in the corresponding Seurat object 
-#which is usually concatenated to Seurat barcodes when experiments are merged with the Seurat `merge()` function.
-
-## Retrieving Top HLA alleles
-top_alleles <- Top_HLA_list(reads_1 = cts[["mRNA"]], reads_2 = cts[["gene"]], seu = your_Seurat_obj, suppress_plots = F)
-
-## write new 'alleles' file that you can provide back to scrHLAtag
-write(top_alleles, file.path(dirs_path, "top_alleles.csv")))
-
-## That's it!.. time for another scrHLAtag iteration, and repeat for typically ~4-5 iterations, 
-## until the `Top_HLA_list()` function tells you it converged and was the final iteration
 ```
+Note: The `seu` argument is optional, but very usefull when 2 or more samples/directories are present for the same "merged" Seurat object. Try to get the names as closely as possible to the sample ID names spposedly present in the corresponding Seurat object, which is usually concatenated to Seurat barcodes when experiments are merged with the Seurat `merge()` function; something that looks like `SAMPLE1_ACTAACTCAATATAGG-1`.
+
+Retrieve Top HLA allele candidates
+```
+top_alleles <- Top_HLA_list(reads_1 = cts[["mRNA"]], reads_2 = cts[["gene"]], seu = your_Seurat_obj, suppress_plots = F)
+```
+Write new 'alleles' file that you can provide back to scrHLAtag
+```
+write(top_alleles, file.path(dirs_path, "top_alleles.csv")))
+```
+That's it!.. time for another scrHLAtag iteration, and repeat for typically ~4-5 iterations, until the `Top_HLA_list()` function tells you it converged and was the final iteration
+
 For more information on the various functions and data, as well as examples to run, look into:
 ```
 ?HLA_load
