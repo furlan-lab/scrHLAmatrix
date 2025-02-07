@@ -25,7 +25,7 @@ reticulate::py_config()
 ```
 
 ## Usage
-Load HLA count files: 
+To iteratively predict HLA genotypes per single cell, first load HLA count files: 
 ```
 library(scrHLAmatrix)
 
@@ -56,8 +56,8 @@ hla <- HLA_Matrix(reads = cts[["mRNA"]], seu = your_Seurat_obj,
                   return_stats = F,
                   parallelize = F)
 your_Seurat_obj[["HLA"]] <- hla
-
 ```
+
 For more information on the various functions and data, as well as examples to run, look into:
 ```
 ?HLA_load
