@@ -166,11 +166,17 @@ HLA_clusters <- function(reads, k = 2, seu = NULL, CB_rev_com = FALSE, geno_meta
   } else {
     g0 <- NULL
   }
-  if (!any(method %in% c("leiden", "hclust", "kmeans", "gmm", "dbscan", "consensus"))) {
+  if (!any(method %in% c("leiden", "hclust", "kmeans", "gmm", "dbscan", "consensus")) & k!=1L) {
     method <- "consensus"
     message(cat("\nArgument `method` should be one or a combination of 'leiden' 'dbscan', 'hclust', 'kmeans', 'gmm', or 'consensus'. Defaulting to: '", method, "'", sep = ""))
   } %>% suppressWarnings()
   message(cat("\nGraph-based Clustering:"))
+  if (k == 1L){
+    method <- "k1"
+    message(cat(crayon::red(format(Sys.time(), "%H:%M:%S"), "- With 'k = 1', all cells are a single cluster"), sep = ""))
+    umapout$hla_clusters <- 1
+    umapout$clust_k1     <- 1
+  }
   if (any(c("leiden", "consensus") %in% method)) {
     message(cat(crayon::red(format(Sys.time(), "%H:%M:%S"), "- Community detection (leiden) on PCA space"), sep = ""))
     # Create a k-nearest neighbors graph, then convert to igraph
@@ -311,7 +317,7 @@ HLA_clusters <- function(reads, k = 2, seu = NULL, CB_rev_com = FALSE, geno_meta
     umapout$hla_clusters <- humapout$classification
     umapout$clust_gmm   <-  humapout$classification
   }  
-  if (sum(method %in% c("leiden", "hclust", "kmeans", "gmm", "dbscan", "consensus"), na.rm = TRUE) >= 3L | "consensus" %in% method) {
+  if (sum(method %in% c("leiden", "hclust", "kmeans", "gmm", "dbscan", "consensus", "k1"), na.rm = TRUE) >= 3L | "consensus" %in% method) {
     message(cat(crayon::red(format(Sys.time(), "%H:%M:%S"), "- Finding Consensus: redraw clusters with cells agreeing on membership in a majority of methods"), sep = ""))
     metamat <- umapout[, grepl("^clust_", names(umapout))]
     metamat <- metamat[, !apply(metamat, 2, function(x) all(is.na(x)))] # make sure there are no cols entirely NAs

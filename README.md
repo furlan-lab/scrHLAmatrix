@@ -17,7 +17,7 @@ In your R console, write the commande:
 ```
 remotes::install_github("https://github.com/furlan-lab/scrHLAmatrix")
 
-## make sure leiden and its python dependencies are installed:
+##make sure leiden and its python dependencies are installed:
 reticulate::install_python(version = '<version>') #example '3.8.2'
 reticulate::py_install('python-igraph')
 reticulate::py_install('leidenalg', forge = TRUE)
@@ -30,37 +30,46 @@ Load HLA count files:
 ```
 library(scrHLAmatrix)
 
+##specify your directories
 dirs_path <- c("path/to/scrHLAtag/out/files1", "path/to/scrHLAtag/out/files2")
 dirnames <- c("samp1", "samp2") # this is how the samples were organized in the directories
+
+##load counts
 cts <- HLA_load(directories = dirs_path, dir_names = dirnames, seu = your_Seurat_obj) 
 ```
-Note: The `seu` argument is optional, but very usefull when 2 or more samples/directories are present for the same "merged" Seurat object. Try to get the names as closely as possible to the sample ID names spposedly present in the corresponding Seurat object, which is usually concatenated to Seurat barcodes when experiments are merged with the Seurat `merge()` function; something that looks like `SAMPLE1_ACTAACTCAATATAGG-1`.
+Notes: 
+1. By default, the `HLA_load()` function will look for [scrHLAtag](https://github.com/furlan-lab/scrHLAtag) output files named `molecules_info_gene.txt.gz` and `molecules_info_mRNA.txt.gz` in each of the `dirs_path` directories.
+2. The `seu` argument is optional, but very usefull when 2 or more samples are present for the same "merged" Seurat object (in the above example, 2 samples are present in a hypothetical "merged" Seurat object, and 2 HLA-enriched libraries independently long-read sequenced, with scrHLAtag outs in 2 different directories: `./files1` and `./files2`). Try to get the names as closely as possible to the sample ID names supposedly present in the corresponding Seurat object, which is usually concatenated to Seurat barcodes when experiments are merged with the Seurat `merge()` function; something that looks like `SAMPLE1_ACTAACTCAATATAGG-1`.
 
 Retrieve Top HLA allele candidates:
 ```
-top_alleles <- Top_HLA_list(reads_1 = cts[["mRNA"]], reads_2 = cts[["gene"]], seu = your_Seurat_obj, suppress_plots = F)
+top_alleles <- Top_HLA_list(reads_1 = cts[["mRNA"]], reads_2 = cts[["gene"]], seu = your_Seurat_obj, suppress_plots = FALSE)
 ```
 Write new 'alleles' file that you can provide back to scrHLAtag:
 ```
-write(top_alleles, file.path(dirs_path, "top_alleles.csv")))
+write(top_alleles, file.path("path/to/save/candidate/hla/csv/file", "top_alleles.csv")))
 ```
-That's it!.. time for another scrHLAtag iteration, and repeat for typically ~4-5 iterations, until the `Top_HLA_list()` function tells you it converged and was the final iteration
+**That's it!..** time for another scrHLAtag iteration, and repeat for typically ~4-5 iterations, until the `Top_HLA_list()` function tells you it converged and that it was the final iteration.
 
 ### To create the HLA count matrix
 Now, after the final scrHLAtag iteration, we are ready to create the count matrix:
 ```
+##specify your directories
 dirs_path <- c("path/to/scrHLAtag/out/files1", "path/to/scrHLAtag/out/files2")
 dirnames <- c("samp1", "samp2") # this is how the samples were organized in the directories
+
+##load counts
 cts <- HLA_load(directories = dirs_path, dir_names = dirnames, seu = your_Seurat_obj) 
 
+##create assay
 hla <- HLA_Matrix(reads = cts[["mRNA"]], seu = your_Seurat_obj, 
-                  CB_rev_com = F,    # TRUE for 3prime 10x on pacbio
-                  return_stats = F,
-                  parallelize = F)
+                  CB_rev_com = FALSE,    # TRUE for 3prime 10x on pacbio
+                  return_stats = FALSE,
+                  parallelize = FALSE)
 your_Seurat_obj[["HLA"]] <- hla
 ```
 
-For more information on the various functions and data, as well as examples to run, look into:
+For more detailed documentation on the various functions and data, look into:
 ```
 ?HLA_load
 ?HLA_Matrix
