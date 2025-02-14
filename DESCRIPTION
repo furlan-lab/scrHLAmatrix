@@ -1,8 +1,8 @@
 Package: scrHLAmatrix
 Type: Package
 Title: Operating on scrHLAtag output to Determine HLA genotypes of the entity(ies) forming the barcoded cells, and to Correct/Deduplicate HLA genotyping reads, before finally Summarizing them into Seurat-compatible Matrices
-Version: 0.16.8
-Date: 2025-02-05
+Version: 0.16.9
+Date: 2025-02-14
 Authors@R:
     person(given="Sami B.", family="Kanaan", email="kanaan.sb@outlook.com", role = c("aut", "cre"),
            comment = c(ORCID = "0000-0002-4608-0953"))
