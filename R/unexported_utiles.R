@@ -124,6 +124,140 @@ Top_HLA_list_byCB <- function(reads, seu = NULL, CB_rev_com = FALSE, hla_with_co
     reads <- list(reads = reads)
     message(cat(crayon::green("Recommended:"), "To refine your results, first analyze distribution of alleles per Cell Barcodes in UMAP space using 'HLA_clusters()', then map the generated HLA Clusters back to your count data using 'map_HLA_clusters()'."))
   }  
+  # identifying potentially bad alleles
+  reads <- mclapply(1:length(reads), function(m) {
+    reads[[m]]$hla_field1 <- str_split_fixed(reads[[m]]$gene, ":", 4)[,1]
+    return(reads[[m]])
+  }, mc.cores = multi_thread)
+  # if this is the final top HLA list, try capture potentially bad alleles (based on mm2 metrics) in a list
+  if (!identical(allowed_alleles_per_cell, c(1, 2))) {
+    bad_alleles <- mclapply(1:length(reads), function(m) { # `m` is an unused arg
+      tmp <- character()
+      return(tmp)
+    }, mc.cores = multi_thread)
+  } else {
+    bad_alleles <- mclapply(1:length(reads), function(m) {
+      kw <- data.frame(matrix(ncol = 11, nrow = 0, dimnames = list(NULL, c("kw_s1", "kw_AS", "kw_NM", "kw_de", "ad_s1", "ad_AS", "ad_NM", "ad_de", "sum_kw", "sum_ad", "best")))) 
+      bad <- c()
+      for (j in 1:length(unique(reads[[m]]$hla_field1))) {
+        sub_ctsu <- reads[[m]][reads[[m]]$hla_field1 == unique(reads[[m]]$hla_field1)[j],]
+        max_s1 <- max(sub_ctsu$s1)
+        max_AS <- max(sub_ctsu$AS)
+        sc <- data.frame(matrix(ncol = length(colnames(sub_ctsu)), nrow = 0, dimnames = list(NULL, colnames(sub_ctsu)))) 
+        for (i in 1:length(unique(sub_ctsu$gene))){
+          if (nrow(sub_ctsu[sub_ctsu$gene == unique(sub_ctsu$gene)[i],]) > 1000) {
+            sct <- sub_ctsu[sub_ctsu$gene == unique(sub_ctsu$gene)[i],][sample(nrow(sub_ctsu[sub_ctsu$gene == unique(sub_ctsu$gene)[i],]), 1000),]
+            sct$s1 <- sct$s1*(max_s1/max(sct$s1)) #normalizing the s1 values among the gene alleles
+            sct$AS <- sct$AS*(max_AS/max(sct$AS)) #normalizing the AS values among the gene alleles
+          } else {
+            sct <- sub_ctsu[sub_ctsu$gene == unique(sub_ctsu$gene)[i],]
+            sct$s1 <- sct$s1*(max_s1/max(sct$s1)) #normalizing the s1 values among the gene alleles
+            sct$AS <- sct$AS*(max_AS/max(sct$AS)) #normalizing the AS values among the gene alleles
+          }
+          sc <- rbind(sc, sct)
+          rm(sct)
+        }
+        sub_ctsu <- sc
+        rm(sc)
+        if (length(unique(sub_ctsu$gene))==1){
+          k <- data.frame(kw_s1 = 0,
+                          kw_AS = 0,
+                          kw_NM = 0,
+                          kw_de = 0,
+                          ad_s1 = 0,
+                          ad_AS = 0,
+                          ad_NM = 0,
+                          ad_de = 0,
+                          sum_kw= 0,
+                          sum_ad= 0,
+                          best=NA)
+        } else {
+          k <- data.frame(kw_s1 = trunc(-log10(kruskal.test(s1 ~ gene, data = sub_ctsu)[["p.value"]])*10^2)/10^2,
+                          kw_AS = trunc(-log10(kruskal.test(AS ~ gene, data = sub_ctsu)[["p.value"]])*10^2)/10^2,
+                          kw_NM = trunc(-log10(kruskal.test(NM ~ gene, data = sub_ctsu)[["p.value"]])*10^2)/10^2,
+                          kw_de = trunc(-log10(kruskal.test(de ~ gene, data = sub_ctsu)[["p.value"]])*10^2)/10^2,
+                          ad_s1 = trunc(-log10(kSamples::ad.test(s1 ~ gene, data = sub_ctsu)[["ad"]][1,3])*10^2)/10^2,
+                          ad_AS = trunc(-log10(kSamples::ad.test(AS ~ gene, data = sub_ctsu)[["ad"]][1,3])*10^2)/10^2,
+                          ad_NM = trunc(-log10(kSamples::ad.test(NM ~ gene, data = sub_ctsu)[["ad"]][1,3])*10^2)/10^2,
+                          ad_de = trunc(-log10(kSamples::ad.test(de ~ gene, data = sub_ctsu)[["ad"]][1,3])*10^2)/10^2,
+                          sum_kw= 0,
+                          sum_ad= 0,
+                          best=NA)
+        }
+        row.names(k) <- unique(reads[[m]]$hla_field1)[j]
+        k$sum_kw <- rowSums(k[,1:4])
+        k$sum_ad <- rowSums(k[,5:8])
+        best <- c()
+        if (k$ad_s1 > 10 & k$sum_ad > 40) {
+          st <- group_by(sub_ctsu, gene) %>%
+            summarise(
+              count = n(),
+              mean = mean(s1, na.rm = TRUE),
+              sd = sd(s1, na.rm = TRUE),
+              q25 = quantile(s1, probs = .25, na.rm =TRUE),
+              median = median(s1, na.rm = TRUE),
+              q75 = quantile(s1, probs = .75, na.rm =TRUE),
+              IQR = IQR(s1, na.rm = TRUE),
+              peak_dn = density(s1)$x[which.max(density(s1)$y)]
+            )
+          best <- c(best, st$gene[which.max(st$mean)])
+        }
+        if (k$ad_AS > 10 & k$sum_ad > 40) {
+          st <- group_by(sub_ctsu, gene) %>%
+            summarise(
+              count = n(),
+              mean = mean(AS, na.rm = TRUE),
+              sd = sd(AS, na.rm = TRUE),
+              q25 = quantile(AS, probs = .25, na.rm =TRUE),
+              median = median(AS, na.rm = TRUE),
+              q75 = quantile(AS, probs = .75, na.rm =TRUE),
+              IQR = IQR(AS, na.rm = TRUE),
+              peak_dn = density(AS)$x[which.max(density(AS)$y)]
+            )
+          best <- c(best, st$gene[which.max(st$mean)])
+        }
+        if (k$ad_NM > 10 & k$sum_ad > 40) {
+          st <- group_by(sub_ctsu, gene) %>%
+            summarise(
+              count = n(),
+              mean = mean(NM, na.rm = TRUE),
+              sd = sd(NM, na.rm = TRUE),
+              q25 = quantile(NM, probs = .25, na.rm =TRUE),
+              median = median(NM, na.rm = TRUE),
+              q75 = quantile(NM, probs = .75, na.rm =TRUE),
+              IQR = IQR(NM, na.rm = TRUE),
+              peak_dn = density(NM)$x[which.max(density(NM)$y)]
+            )
+          best <- c(best, st$gene[which.min(st$mean)])
+        }
+        if (k$ad_de > 10 & k$sum_ad > 40) {
+          st <- group_by(sub_ctsu, gene) %>%
+            summarise(
+              count = n(),
+              mean = mean(de, na.rm = TRUE),
+              sd = sd(de, na.rm = TRUE),
+              q25 = quantile(de, probs = .25, na.rm =TRUE),
+              median = median(de, na.rm = TRUE),
+              q75 = quantile(de, probs = .75, na.rm =TRUE),
+              IQR = IQR(de, na.rm = TRUE),
+              peak_dn = density(de)$x[which.max(density(de)$y)]
+            )
+          best <- c(best, st$gene[which.min(st$mean)])
+        }
+        if (length(names(table(best))[which(table(best)==max(table(best)))]) == 1) {
+          best <- names(table(best))[which(table(best)==max(table(best)))]
+        } else {best <- NA} # if some metrics are best for an allele and equal number of other metrics are best for another allele, we cannot decide.
+        if (sum(k[,c(5:8)] > 10) < 2) {best <- NA} # the rule is that 2 of the log Pvals should be greater than 10
+        k$best <- best
+        if (!is.na(best)) {bad <- c(bad, setdiff(unique(st$gene), best))} #if there is a best allele, capture the bad ones in a list
+        bad <- sort(bad)
+        kw <- rbind(kw, k)
+        kw <- kw[order(row.names(kw)), ] #`kw` is a dataframe that is not return, only useful for debug
+        rm(k)
+      }
+      return(bad)
+    }, mc.cores = multi_thread)
+  } 
   # creating as many count matrices as there are elements (an element for each HLA umap "cluster") in the "reads" list
   matrices <- mclapply(1:length(reads), function(m) {
     alleles <- unique(reads[[m]]$gene) %>% sort()
@@ -252,6 +386,7 @@ Top_HLA_list_byCB <- function(reads, seu = NULL, CB_rev_com = FALSE, hla_with_co
     top_a <- unique(top_a)
     top_a <- top_a[top_a != "NA"]
     top_a <- top_a %>% sort()
+    top_a <- setdiff(top_a, bad_alleles[[m]])
     return(top_a)
   }, mc.cores = multi_thread)
   top_a_list <- do.call("c", top_a_list)
@@ -322,7 +457,141 @@ Top_HLA_list_byCB_preprocessed <- function(reads, seu = NULL, hla_with_counts_ab
   } else {
     reads <- list(reads = reads)
     message(cat(crayon::green("Recommended:"), "To refine your results, first analyze distribution of alleles per Cell Barcodes in UMAP space using 'HLA_clusters()', then map the generated HLA Clusters back to your count data using 'map_HLA_clusters()'."))
-  }  #stringr::str_c(reads$samp, reads$id_cb_separator, reads$CB, reads$id_cb_suffix)
+  }
+  # identifying potentially bad alleles
+  reads <- mclapply(1:length(reads), function(m) {
+    reads[[m]]$hla_field1 <- str_split_fixed(reads[[m]]$gene, ":", 4)[,1]
+    return(reads[[m]])
+  }, mc.cores = multi_thread)
+  # if this is the final top HLA list, try capture potentially bad alleles (based on mm2 metrics) in a list
+  if (!identical(allowed_alleles_per_cell, c(1, 2))) {
+    bad_alleles <- mclapply(1:length(reads), function(m) { # `m` is an unused arg
+      tmp <- character()
+      return(tmp)
+    }, mc.cores = multi_thread)
+  } else {
+    bad_alleles <- mclapply(1:length(reads), function(m) {
+      kw <- data.frame(matrix(ncol = 11, nrow = 0, dimnames = list(NULL, c("kw_s1", "kw_AS", "kw_NM", "kw_de", "ad_s1", "ad_AS", "ad_NM", "ad_de", "sum_kw", "sum_ad", "best")))) 
+      bad <- c()
+      for (j in 1:length(unique(reads[[m]]$hla_field1))) {
+        sub_ctsu <- reads[[m]][reads[[m]]$hla_field1 == unique(reads[[m]]$hla_field1)[j],]
+        max_s1 <- max(sub_ctsu$s1)
+        max_AS <- max(sub_ctsu$AS)
+        sc <- data.frame(matrix(ncol = length(colnames(sub_ctsu)), nrow = 0, dimnames = list(NULL, colnames(sub_ctsu)))) 
+        for (i in 1:length(unique(sub_ctsu$gene))){
+          if (nrow(sub_ctsu[sub_ctsu$gene == unique(sub_ctsu$gene)[i],]) > 1000) {
+            sct <- sub_ctsu[sub_ctsu$gene == unique(sub_ctsu$gene)[i],][sample(nrow(sub_ctsu[sub_ctsu$gene == unique(sub_ctsu$gene)[i],]), 1000),]
+            sct$s1 <- sct$s1*(max_s1/max(sct$s1)) #normalizing the s1 values among the gene alleles
+            sct$AS <- sct$AS*(max_AS/max(sct$AS)) #normalizing the AS values among the gene alleles
+          } else {
+            sct <- sub_ctsu[sub_ctsu$gene == unique(sub_ctsu$gene)[i],]
+            sct$s1 <- sct$s1*(max_s1/max(sct$s1)) #normalizing the s1 values among the gene alleles
+            sct$AS <- sct$AS*(max_AS/max(sct$AS)) #normalizing the AS values among the gene alleles
+          }
+          sc <- rbind(sc, sct)
+          rm(sct)
+        }
+        sub_ctsu <- sc
+        rm(sc)
+        if (length(unique(sub_ctsu$gene))==1){
+          k <- data.frame(kw_s1 = 0,
+                          kw_AS = 0,
+                          kw_NM = 0,
+                          kw_de = 0,
+                          ad_s1 = 0,
+                          ad_AS = 0,
+                          ad_NM = 0,
+                          ad_de = 0,
+                          sum_kw= 0,
+                          sum_ad= 0,
+                          best=NA)
+        } else {
+          k <- data.frame(kw_s1 = trunc(-log10(kruskal.test(s1 ~ gene, data = sub_ctsu)[["p.value"]])*10^2)/10^2,
+                          kw_AS = trunc(-log10(kruskal.test(AS ~ gene, data = sub_ctsu)[["p.value"]])*10^2)/10^2,
+                          kw_NM = trunc(-log10(kruskal.test(NM ~ gene, data = sub_ctsu)[["p.value"]])*10^2)/10^2,
+                          kw_de = trunc(-log10(kruskal.test(de ~ gene, data = sub_ctsu)[["p.value"]])*10^2)/10^2,
+                          ad_s1 = trunc(-log10(kSamples::ad.test(s1 ~ gene, data = sub_ctsu)[["ad"]][1,3])*10^2)/10^2,
+                          ad_AS = trunc(-log10(kSamples::ad.test(AS ~ gene, data = sub_ctsu)[["ad"]][1,3])*10^2)/10^2,
+                          ad_NM = trunc(-log10(kSamples::ad.test(NM ~ gene, data = sub_ctsu)[["ad"]][1,3])*10^2)/10^2,
+                          ad_de = trunc(-log10(kSamples::ad.test(de ~ gene, data = sub_ctsu)[["ad"]][1,3])*10^2)/10^2,
+                          sum_kw= 0,
+                          sum_ad= 0,
+                          best=NA)
+        }
+        row.names(k) <- unique(reads[[m]]$hla_field1)[j]
+        k$sum_kw <- rowSums(k[,1:4])
+        k$sum_ad <- rowSums(k[,5:8])
+        best <- c()
+        if (k$ad_s1 > 10 & k$sum_ad > 40) {
+          st <- group_by(sub_ctsu, gene) %>%
+            summarise(
+              count = n(),
+              mean = mean(s1, na.rm = TRUE),
+              sd = sd(s1, na.rm = TRUE),
+              q25 = quantile(s1, probs = .25, na.rm =TRUE),
+              median = median(s1, na.rm = TRUE),
+              q75 = quantile(s1, probs = .75, na.rm =TRUE),
+              IQR = IQR(s1, na.rm = TRUE),
+              peak_dn = density(s1)$x[which.max(density(s1)$y)]
+            )
+          best <- c(best, st$gene[which.max(st$mean)])
+        }
+        if (k$ad_AS > 10 & k$sum_ad > 40) {
+          st <- group_by(sub_ctsu, gene) %>%
+            summarise(
+              count = n(),
+              mean = mean(AS, na.rm = TRUE),
+              sd = sd(AS, na.rm = TRUE),
+              q25 = quantile(AS, probs = .25, na.rm =TRUE),
+              median = median(AS, na.rm = TRUE),
+              q75 = quantile(AS, probs = .75, na.rm =TRUE),
+              IQR = IQR(AS, na.rm = TRUE),
+              peak_dn = density(AS)$x[which.max(density(AS)$y)]
+            )
+          best <- c(best, st$gene[which.max(st$mean)])
+        }
+        if (k$ad_NM > 10 & k$sum_ad > 40) {
+          st <- group_by(sub_ctsu, gene) %>%
+            summarise(
+              count = n(),
+              mean = mean(NM, na.rm = TRUE),
+              sd = sd(NM, na.rm = TRUE),
+              q25 = quantile(NM, probs = .25, na.rm =TRUE),
+              median = median(NM, na.rm = TRUE),
+              q75 = quantile(NM, probs = .75, na.rm =TRUE),
+              IQR = IQR(NM, na.rm = TRUE),
+              peak_dn = density(NM)$x[which.max(density(NM)$y)]
+            )
+          best <- c(best, st$gene[which.min(st$mean)])
+        }
+        if (k$ad_de > 10 & k$sum_ad > 40) {
+          st <- group_by(sub_ctsu, gene) %>%
+            summarise(
+              count = n(),
+              mean = mean(de, na.rm = TRUE),
+              sd = sd(de, na.rm = TRUE),
+              q25 = quantile(de, probs = .25, na.rm =TRUE),
+              median = median(de, na.rm = TRUE),
+              q75 = quantile(de, probs = .75, na.rm =TRUE),
+              IQR = IQR(de, na.rm = TRUE),
+              peak_dn = density(de)$x[which.max(density(de)$y)]
+            )
+          best <- c(best, st$gene[which.min(st$mean)])
+        }
+        if (length(names(table(best))[which(table(best)==max(table(best)))]) == 1) {
+          best <- names(table(best))[which(table(best)==max(table(best)))]
+        } else {best <- NA} # if some metrics are best for an allele and equal number of other metrics are best for another allele, we cannot decide.
+        if (sum(k[,c(5:8)] > 10) < 2) {best <- NA} # the rule is that 2 of the log Pvals should be greater than 10
+        k$best <- best
+        if (!is.na(best)) {bad <- c(bad, setdiff(unique(st$gene), best))} #if there is a best allele, capture the bad ones in a list
+        bad <- sort(bad)
+        kw <- rbind(kw, k)
+        kw <- kw[order(row.names(kw)), ] #`kw` is a dataframe that is not return, only useful for debug
+        rm(k)
+      }
+      return(bad)
+    }, mc.cores = multi_thread)
+  } 
   # creating as many count matrices as there are elements (an element for each HLA umap "cluster") in the "reads" list
   matrices <- mclapply(1:length(reads), function(m) {
     alleles <- unique(reads[[m]]$gene) %>% sort()
@@ -451,6 +720,7 @@ Top_HLA_list_byCB_preprocessed <- function(reads, seu = NULL, hla_with_counts_ab
     top_a <- unique(top_a)
     top_a <- top_a[top_a != "NA"]
     top_a <- top_a %>% sort()
+    top_a <- setdiff(top_a, bad_alleles[[m]])
     return(top_a)
   }, mc.cores = multi_thread)
   top_a_list <- do.call("c", top_a_list)
