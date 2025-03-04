@@ -23,6 +23,7 @@
 #' @import htmltools
 #' @import Seurat
 #' @import dplyr
+#' @import kSamples
 #' @return a Vector of the top HLA alleles in the count files (in terms of reads per Cell Barcode).
 #' @examples
 #' samples <- c("AML_101_BM", "AML_101_34")
@@ -124,6 +125,16 @@ Top_HLA_list_byCB <- function(reads, seu = NULL, CB_rev_com = FALSE, hla_with_co
     reads <- list(reads = reads)
     message(cat(crayon::green("Recommended:"), "To refine your results, first analyze distribution of alleles per Cell Barcodes in UMAP space using 'HLA_clusters()', then map the generated HLA Clusters back to your count data using 'map_HLA_clusters()'."))
   }  
+  # is this the last round?
+  last_round <- mclapply(1:length(reads), function(m) {
+    sub_reads <- with(reads[[m]], split(reads[[m]], list(hla = hla)))
+    last_one <- lapply(1:length(sub_reads), function(o) {
+      tmp <- length(unique(sub_reads[[o]]$gene))>3
+      return(tmp)
+    })
+    last_one <- !any(last_one)
+    return(last_one)
+  }, mc.cores = multi_thread)  
   # identifying potentially bad alleles
   reads <- mclapply(1:length(reads), function(m) {
     reads[[m]]$hla_field1 <- str_split_fixed(reads[[m]]$gene, ":", 4)[,1]
@@ -248,11 +259,12 @@ Top_HLA_list_byCB <- function(reads, seu = NULL, CB_rev_com = FALSE, hla_with_co
           best <- names(table(best))[which(table(best)==max(table(best)))]
         } else {best <- NA} # if some metrics are best for an allele and equal number of other metrics are best for another allele, we cannot decide.
         if (sum(k[,c(5:8)] > 10) < 2) {best <- NA} # the rule is that 2 of the log Pvals should be greater than 10
+        if (!last_round[[m]]) {best <- NA} # if this is not the last round, no need to get best quality alleles just yet
         k$best <- best
         if (!is.na(best)) {bad <- c(bad, setdiff(unique(st$gene), best))} #if there is a best allele, capture the bad ones in a list
         bad <- sort(bad)
         kw <- rbind(kw, k)
-        kw <- kw[order(row.names(kw)), ] #`kw` is a dataframe that is not return, only useful for debug
+        kw <- kw[order(row.names(kw)), ] #`kw` is a dataframe that is not returned, only useful for debug
         rm(k)
       }
       return(bad)
@@ -415,6 +427,7 @@ Top_HLA_list_byCB <- function(reads, seu = NULL, CB_rev_com = FALSE, hla_with_co
 #' @import htmltools
 #' @import Seurat
 #' @import dplyr
+#' @import kSamples
 #' @return a Vector of the top HLA alleles in the count files (in terms of reads per Cell Barcode).
 #' @noRd
 
@@ -458,6 +471,16 @@ Top_HLA_list_byCB_preprocessed <- function(reads, seu = NULL, hla_with_counts_ab
     reads <- list(reads = reads)
     message(cat(crayon::green("Recommended:"), "To refine your results, first analyze distribution of alleles per Cell Barcodes in UMAP space using 'HLA_clusters()', then map the generated HLA Clusters back to your count data using 'map_HLA_clusters()'."))
   }
+  # is this the last round?
+  last_round <- mclapply(1:length(reads), function(m) {
+    sub_reads <- with(reads[[m]], split(reads[[m]], list(hla = hla)))
+    last_one <- lapply(1:length(sub_reads), function(o) {
+      tmp <- length(unique(sub_reads[[o]]$gene))>3
+      return(tmp)
+    })
+    last_one <- !any(last_one)
+    return(last_one)
+  }, mc.cores = multi_thread)  
   # identifying potentially bad alleles
   reads <- mclapply(1:length(reads), function(m) {
     reads[[m]]$hla_field1 <- str_split_fixed(reads[[m]]$gene, ":", 4)[,1]
@@ -582,11 +605,12 @@ Top_HLA_list_byCB_preprocessed <- function(reads, seu = NULL, hla_with_counts_ab
           best <- names(table(best))[which(table(best)==max(table(best)))]
         } else {best <- NA} # if some metrics are best for an allele and equal number of other metrics are best for another allele, we cannot decide.
         if (sum(k[,c(5:8)] > 10) < 2) {best <- NA} # the rule is that 2 of the log Pvals should be greater than 10
+        if (!last_round[[m]]) {best <- NA} # if this is not the last round, no need to get best quality alleles just yet
         k$best <- best
         if (!is.na(best)) {bad <- c(bad, setdiff(unique(st$gene), best))} #if there is a best allele, capture the bad ones in a list
         bad <- sort(bad)
         kw <- rbind(kw, k)
-        kw <- kw[order(row.names(kw)), ] #`kw` is a dataframe that is not return, only useful for debug
+        kw <- kw[order(row.names(kw)), ] #`kw` is a dataframe that is not returned, only useful for debug
         rm(k)
       }
       return(bad)
