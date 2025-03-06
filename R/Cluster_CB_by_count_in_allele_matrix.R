@@ -81,8 +81,7 @@ HLA_clusters <- function(reads, k = 2, seu = NULL, CB_rev_com = FALSE, geno_meta
   }  
   ## the 3-field level resolution of HLA is actually 2-field for MICA and MICB. must fix this glitch:
   special <- "[-_*|?.+$^]"
-  reads[c("hla", "leftover")] <- stringr::str_split_fixed(reads$gene, special, 2)
-  reads$leftover <- NULL
+  reads$hla <- stringr::str_split_fixed(reads$gene, special, 2)[ ,1]
   reads$a <- sapply(reads$gene, function(x) strsplit(x, ":")[[1]][1])
   reads$b <- sapply(reads$gene, function(x) strsplit(x, ":")[[1]][2])
   reads$c <- sapply(reads$gene, function(x) strsplit(x, ":")[[1]][3])

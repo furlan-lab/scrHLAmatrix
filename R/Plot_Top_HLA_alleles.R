@@ -84,8 +84,7 @@ Top_HLA_plot_byCB <- function(reads, seu = NULL, CB_rev_com = FALSE, hla_with_co
   }  
   ## the 3-field level resolution of HLA is actually 2-field for MICA and MICB. must fix this glitch:
   special <- "[-_*|?.+$^]"
-  reads[c("hla", "leftover")] <- stringr::str_split_fixed(reads$gene, special, 2)
-  reads$leftover <- NULL
+  reads$hla <- stringr::str_split_fixed(reads$gene, special, 2)[ ,1]
   reads$a <- sapply(reads$gene, function(x) strsplit(x, ":")[[1]][1])
   reads$b <- sapply(reads$gene, function(x) strsplit(x, ":")[[1]][2])
   reads$c <- sapply(reads$gene, function(x) strsplit(x, ":")[[1]][3])
@@ -165,8 +164,7 @@ Top_HLA_plot_byCB <- function(reads, seu = NULL, CB_rev_com = FALSE, hla_with_co
   message(cat("\nCounting Top Two alleles per HLA gene per Cell Barcode"))
   part_HLA <- part_HLA %>% as.data.frame()
   special <- "[-_*|?.+$^]"
-  part_HLA[c("hla", "leftover")] <- stringr::str_split_fixed(row.names(part_HLA), special, 2)
-  part_HLA$leftover <- NULL
+  part_HLA$hla <- stringr::str_split_fixed(row.names(part_HLA), special, 2)[ ,1]
   part_HLA <- with(part_HLA, split(part_HLA, list(hla=hla)))
   top2cb <- pbmclapply(1:length(part_HLA), function(j) {
     top2tab <- mclapply(1:(ncol(part_HLA[[j]])-1), function(i) {
@@ -353,11 +351,9 @@ Top_HLA_plot_bulk <- function(reads_1, reads_2 = NULL, cluster_index = NULL, top
   # extract the HLA genes that appear in the reads
   special <- "[_*|?.+$^]"
   reads_2$gene0 <- gsub(special, "-", reads_2$gene)
-  reads_2[c("hla", "leftover")] <- stringr::str_split_fixed(reads_2$gene, special, 2)
-  reads_2$leftover <- NULL
+  reads_2$hla <- stringr::str_split_fixed(reads_2$gene, special, 2)[ ,1]
   reads_1$gene0 <- gsub(special, "-", reads_1$gene)
-  reads_1[c("hla", "leftover")] <- stringr::str_split_fixed(reads_1$gene, special, 2)
-  reads_1$leftover <- NULL
+  reads_1$hla <- stringr::str_split_fixed(reads_1$gene, special, 2)[ ,1]
   # get the HLA genes in a list
   cts_abc <- unique(reads_2$hla)[order(unique(reads_2$hla))]
   if (use_alt_align_ABC) {

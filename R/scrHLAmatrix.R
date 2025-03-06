@@ -66,14 +66,12 @@ HLA_Matrix <- function(reads, seu, hla_recip = character(), hla_donor = characte
   if (any(grepl(special, reads$gene))) {
     reads$gene0 <- gsub(special, "-", reads$gene)
     reads <- reads %>% mutate(gene1 = strsplit(gene0, "-") %>% sapply(., function(x) c(x[1], substr(x[2], 1, 2))) %>% apply(., 2, function(x) paste(x, collapse = "-")))
-    reads[c("hla", "leftover")] <- stringr::str_split_fixed(reads$gene, special, 2)
-    reads$leftover <- NULL
+    reads$hla <- stringr::str_split_fixed(reads$gene, special, 2)[ ,1]
     reads$gene <- NULL
   } else if (all(grepl("-", reads$gene))){
     reads$gene0 <- reads$gene
     reads <- reads %>% mutate(gene1 = strsplit(gene0, "-") %>% sapply(., function(x) c(x[1], substr(x[2], 1, 2))) %>% apply(., 2, function(x) paste(x, collapse = "-")))
-    reads[c("hla", "leftover")] <- stringr::str_split_fixed(reads$gene, "-", 2)
-    reads$leftover <- NULL
+    reads$hla <- stringr::str_split_fixed(reads$gene, "-", 2)[ ,1]
     reads$gene <- NULL
   } else {
     stop("The HLA allele column is unrecognizable or has incorrect format. \nMake sure gene and allele are separated by standard nomenclature asterisk (or other special character)", call. = FALSE)

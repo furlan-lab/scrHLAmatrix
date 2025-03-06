@@ -76,8 +76,7 @@ Top_HLA_list_byCB <- function(reads, seu = NULL, CB_rev_com = FALSE, hla_with_co
   }  
   ## the 3-field level resolution of HLA is actually 2-field for MICA and MICB. must fix this glitch:
   special <- "[-_*|?.+$^]"
-  reads[c("hla", "leftover")] <- stringr::str_split_fixed(reads$gene, special, 2)
-  reads$leftover <- NULL
+  reads$hla <- stringr::str_split_fixed(reads$gene, special, 2)[ ,1]
   reads$a <- sapply(reads$gene, function(x) strsplit(x, ":")[[1]][1])
   reads$b <- sapply(reads$gene, function(x) strsplit(x, ":")[[1]][2])
   reads$c <- sapply(reads$gene, function(x) strsplit(x, ":")[[1]][3])
@@ -199,7 +198,7 @@ Top_HLA_list_byCB <- function(reads, seu = NULL, CB_rev_com = FALSE, hla_with_co
         k$sum_kw <- rowSums(k[,1:4])
         k$sum_ad <- rowSums(k[,5:8])
         best <- c()
-        if (k$ad_s1 > 10 & k$sum_ad > 40) {
+        if (k$ad_s1 > 10 & k$sum_ad > 30) {
           st <- group_by(sub_ctsu, gene) %>%
             summarise(
               count = n(),
@@ -213,7 +212,7 @@ Top_HLA_list_byCB <- function(reads, seu = NULL, CB_rev_com = FALSE, hla_with_co
             )
           best <- c(best, st$gene[which.max(st$mean)])
         }
-        if (k$ad_AS > 10 & k$sum_ad > 40) {
+        if (k$ad_AS > 10 & k$sum_ad > 30) {
           st <- group_by(sub_ctsu, gene) %>%
             summarise(
               count = n(),
@@ -227,7 +226,7 @@ Top_HLA_list_byCB <- function(reads, seu = NULL, CB_rev_com = FALSE, hla_with_co
             )
           best <- c(best, st$gene[which.max(st$mean)])
         }
-        if (k$ad_NM > 10 & k$sum_ad > 40) {
+        if (k$ad_NM > 10 & k$sum_ad > 30) {
           st <- group_by(sub_ctsu, gene) %>%
             summarise(
               count = n(),
@@ -241,7 +240,7 @@ Top_HLA_list_byCB <- function(reads, seu = NULL, CB_rev_com = FALSE, hla_with_co
             )
           best <- c(best, st$gene[which.min(st$mean)])
         }
-        if (k$ad_de > 10 & k$sum_ad > 40) {
+        if (k$ad_de > 10 & k$sum_ad > 30) {
           st <- group_by(sub_ctsu, gene) %>%
             summarise(
               count = n(),
@@ -318,8 +317,7 @@ Top_HLA_list_byCB <- function(reads, seu = NULL, CB_rev_com = FALSE, hla_with_co
   top2list <- mclapply(1:length(matrices), function(m) {
     matrices[[m]] <- matrices[[m]] %>% as.data.frame()
     special <- "[-_*|?.+$^]"
-    matrices[[m]][c("hla", "leftover")] <- stringr::str_split_fixed(row.names(matrices[[m]]), special, 2)
-    matrices[[m]]$leftover <- NULL
+    matrices[[m]]$hla <- stringr::str_split_fixed(row.names(matrices[[m]]), special, 2)[ ,1]
     matrices[[m]] <- with(matrices[[m]], split(matrices[[m]], list(hla=hla)))
     top2cb <- pbmclapply(1:length(matrices[[m]]), function(j) {
       top2tab <- mclapply(1:(ncol(matrices[[m]][[j]])-1), function(i) {
@@ -545,7 +543,7 @@ Top_HLA_list_byCB_preprocessed <- function(reads, seu = NULL, hla_with_counts_ab
         k$sum_kw <- rowSums(k[,1:4])
         k$sum_ad <- rowSums(k[,5:8])
         best <- c()
-        if (k$ad_s1 > 10 & k$sum_ad > 40) {
+        if (k$ad_s1 > 10 & k$sum_ad > 30) {
           st <- group_by(sub_ctsu, gene) %>%
             summarise(
               count = n(),
@@ -559,7 +557,7 @@ Top_HLA_list_byCB_preprocessed <- function(reads, seu = NULL, hla_with_counts_ab
             )
           best <- c(best, st$gene[which.max(st$mean)])
         }
-        if (k$ad_AS > 10 & k$sum_ad > 40) {
+        if (k$ad_AS > 10 & k$sum_ad > 30) {
           st <- group_by(sub_ctsu, gene) %>%
             summarise(
               count = n(),
@@ -573,7 +571,7 @@ Top_HLA_list_byCB_preprocessed <- function(reads, seu = NULL, hla_with_counts_ab
             )
           best <- c(best, st$gene[which.max(st$mean)])
         }
-        if (k$ad_NM > 10 & k$sum_ad > 40) {
+        if (k$ad_NM > 10 & k$sum_ad > 30) {
           st <- group_by(sub_ctsu, gene) %>%
             summarise(
               count = n(),
@@ -587,7 +585,7 @@ Top_HLA_list_byCB_preprocessed <- function(reads, seu = NULL, hla_with_counts_ab
             )
           best <- c(best, st$gene[which.min(st$mean)])
         }
-        if (k$ad_de > 10 & k$sum_ad > 40) {
+        if (k$ad_de > 10 & k$sum_ad > 30) {
           st <- group_by(sub_ctsu, gene) %>%
             summarise(
               count = n(),
@@ -664,8 +662,7 @@ Top_HLA_list_byCB_preprocessed <- function(reads, seu = NULL, hla_with_counts_ab
   top2list <- mclapply(1:length(matrices), function(m) {
     matrices[[m]] <- matrices[[m]] %>% as.data.frame()
     special <- "[-_*|?.+$^]"
-    matrices[[m]][c("hla", "leftover")] <- stringr::str_split_fixed(row.names(matrices[[m]]), special, 2)
-    matrices[[m]]$leftover <- NULL
+    matrices[[m]]$hla <- stringr::str_split_fixed(row.names(matrices[[m]]), special, 2)[ ,1]
     matrices[[m]] <- with(matrices[[m]], split(matrices[[m]], list(hla=hla)))
     top2cb <- pbmclapply(1:length(matrices[[m]]), function(j) {
       top2tab <- mclapply(1:(ncol(matrices[[m]][[j]])-1), function(i) {
@@ -800,11 +797,9 @@ Top_HLA_list_bulk <- function(reads_1, reads_2 = NULL, frac = 0.85, min_alleles_
   # extract the HLA genes that appear in the reads
   special <- "[_*|?.+$^]"
   reads_2$gene0 <- gsub(special, "-", reads_2$gene)
-  reads_2[c("hla", "leftover")] <- stringr::str_split_fixed(reads_2$gene, special, 2)
-  reads_2$leftover <- NULL
+  reads_2$hla <- stringr::str_split_fixed(reads_2$gene, special, 2)[ ,1]
   reads_1$gene0 <- gsub(special, "-", reads_1$gene)
-  reads_1[c("hla", "leftover")] <- stringr::str_split_fixed(reads_1$gene, special, 2)
-  reads_1$leftover <- NULL
+  reads_1$hla <- stringr::str_split_fixed(reads_1$gene, special, 2)[ ,1]
   # get the HLA genes in a list
   cts_abc <- unique(reads_2$hla)[order(unique(reads_2$hla))]
   if (use_alt_align_ABC) {
