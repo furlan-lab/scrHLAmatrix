@@ -2,7 +2,7 @@
 #' 
 #' @param reads_1  is the primary scrHLAtag count file (1 of 2 files containing either the mRNA molecular info or the genomic (gene) molecular info). It includes columns for CB, UMI, and HLA alleles (\url{https://github.com/furlan-lab/scrHLAtag}).
 #' @param reads_2  is the secondary scrHLAtag count file (the alternative file vs. the one designated in '\code{reads_1}' argument). It includes columns for CB, UMI, and HLA alleles (\url{https://github.com/furlan-lab/scrHLAtag}). Default is \code{NULL}, in which case it will not be able to count alternative aligment.
-#' @param k  can be \code{NULL} or a fixed number of cluster counts to partition the datapoints into, e.g. the number of entities or genotypes you \emph{think} there might be in your captured sample. If \code{NULL}, each clustering method will automatically determine \code{k} clusters on its own (will not work for \code{"hclust"} and \code{"kmeans"}, which need predefined \code{k}s).
+#' @param k  can be \code{NULL} or a positive integer setting the number of cluster counts to partition the datapoints into, e.g. the number of entities or genotypes you \emph{think} there might be in your captured sample. If \code{NULL}, each clustering method will automatically determine \code{k} clusters on its own (will not work for \code{"hclust"} and \code{"kmeans"}, which need predefined \code{k}s).
 #' @param seu  is the Seurat object associated with the scrHLAtag count file (\url{https://satijalab.org/seurat/index.html}), and entered here if matching CBs in count file with Seurat colnames is desired.
 #' @param CB_rev_com  a logical, called \code{TRUE} if the need to obtain the reverse complement of Cell Barcodes (CBs) is desired; default is \code{FALSE}. 
 #' @param hla_with_counts_above  number of total reads accross CBs at or above which an HLA allele is retained in the matrix.
@@ -59,7 +59,7 @@
 #' # there were no counts for that allele (all zeros).
 #' @export
 
-Top_HLA_list <- function(reads_1, reads_2 = NULL, k = 2, seu = NULL, CB_rev_com = FALSE,
+Top_HLA_list <- function(reads_1, reads_2 = NULL, k = 1, seu = NULL, CB_rev_com = FALSE,
                          hla_with_counts_above = 0, CBs_with_counts_above = 25, match_CB_with_seu = TRUE, 
                          clust_method = "consensus", n_PCs = 50, dbscan_minPts = 30,
                          QC_mm2 = TRUE, s1_percent_pass_score = 80, AS_percent_pass_score = 80, NM_thresh = 15, de_thresh = 0.01,
