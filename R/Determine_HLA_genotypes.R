@@ -143,6 +143,7 @@ Top_HLA_list <- function(reads_1, reads_2 = NULL, k = 1, seu = NULL, CB_rev_com 
     } else {
       message(cat("\nReads count file shows ", bulk_to_perCB_threshold, " or fewer uniquely mapped HLA alleles; extracting top alleles using the Per Single-Cell Algorithm", sep = ""))
     }
+    if (HLA_umap_clusters[["ignore_seu"]]) {seu <- NULL}
     top_alleles_HLA <- scrHLAmatrix:::Top_HLA_list_byCB_preprocessed(reads = reads_1,
                                                                      seu = seu,
                                                                      match_CB_with_seu = match_CB_with_seu,

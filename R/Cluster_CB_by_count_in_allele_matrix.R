@@ -140,13 +140,14 @@ HLA_clusters <- function(reads, k = 1, seu = NULL, CB_rev_com = FALSE, geno_meta
         part_HLA<- HLA.matrix
       }
     } else {
-      stop("Single-cell dataset container (in argument 'seu') must be of class 'Seurat'", call. = FALSE)
+      stop("Single-cell dataset container (in argument `seu`) must be of class 'Seurat'", call. = FALSE)
     }
   }
   if (ncol(part_HLA) < nrow(part_HLA)) {
     message(cat("Too few Seurat Barcodes matched the CBs in the scrHLAtag counts object. ",crayon::red("\nContinuing without Seurat CB matching..."), sep = ""))
     part_HLA <- HLA.matrix
-  }
+    ignore_seu <- TRUE
+  } else {ignore_seu <- FALSE}
   ## removing HLA alleles with low counts overall
   r <- hla_with_counts_above
   part_HLA <- part_HLA[which(rowSums(part_HLA)>=r), , drop = F]
@@ -394,7 +395,7 @@ HLA_clusters <- function(reads, k = 1, seu = NULL, CB_rev_com = FALSE, geno_meta
   message(cat(crayon::red(format(Sys.time(), "%H:%M:%S"), "- Predicting clusters finished"), sep = ""))
   g <- ggplot(umapout, aes(x=umap1, y=umap2, color=hla_clusters))+geom_point(size=pt_size)#+scale_color_manual(values=pals::glasbey())+theme_bw()
   detach("package:mclust", unload = TRUE) #to avoid inter-package object masking and conflicts
-  return(list(UMAP_coordinates = umapout, HLA_clusters_on_umap = g, genotype_on_umap = g0, consensus_efficiency_on_umap = g1, reads = reads, top80_PC = umat))
+  return(list(UMAP_coordinates = umapout, HLA_clusters_on_umap = g, genotype_on_umap = g0, consensus_efficiency_on_umap = g1, reads = reads, top80_PC = umat, ignore_seu = ignore_seu))
 }
 
 
