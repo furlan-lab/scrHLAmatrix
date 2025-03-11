@@ -6,7 +6,7 @@
 \usage{
 HLA_clusters(
   reads,
-  k = 2,
+  k = 1,
   seu = NULL,
   CB_rev_com = FALSE,
   geno_metadata_id = NULL,
@@ -32,7 +32,7 @@ HLA_clusters(
 \arguments{
 \item{reads}{is the scrHLAtag count file including columns for CB, UMI, and HLA alleles (\url{https://github.com/furlan-lab/scrHLAtag}).}
 
-\item{k}{can be \code{NULL} or a fixed number of cluster counts to partition the datapoints into, e.g. the number of entities or genotypes you \emph{think} there might be in your captured sample. If \code{NULL}, each clustering method will automatically determine \code{k} clusters on its own (will not work for \code{"hclust"} and \code{"kmeans"}, which need predefined \code{k}s).}
+\item{k}{can be \code{NULL} or a positive integer setting the number of cluster counts to partition the datapoints into, e.g. the number of entities or genotypes you \emph{think} there might be in your captured sample. If \code{NULL}, each clustering method will automatically determine \code{k} clusters on its own (will not work for \code{"hclust"} and \code{"kmeans"}, which need predefined \code{k}s).}
 
 \item{seu}{is the Seurat object associated with the scrHLAtag count file (\url{https://satijalab.org/seurat/index.html}).}
 

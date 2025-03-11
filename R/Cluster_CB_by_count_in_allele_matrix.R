@@ -64,6 +64,7 @@ HLA_clusters <- function(reads, k = 1, seu = NULL, CB_rev_com = FALSE, geno_meta
   } else {
     multi_thread <- 1
   }
+  reads_recov <- reads
   ## Remove low quality reads based on minimap2 tags
   if (QC_mm2) {
     message(cat("\nRemoving low quality reads based on minimap2 tags"))
@@ -72,7 +73,13 @@ HLA_clusters <- function(reads, k = 1, seu = NULL, CB_rev_com = FALSE, geno_meta
     reads <- pbmcapply::pbmclapply(reads, function(df){df[df$s1 > (s1_percent_pass_score/100)*max(df$s1) & df$AS > (AS_percent_pass_score/100)*max(df$AS) & df$NM <= NM_thresh & df$de <= de_thresh,]}, mc.cores = multi_thread)
     reads <- data.table::rbindlist(reads)
     row.names(reads)<-NULL
-  } 
+    reads$seu_barcode <- stringr::str_c(reads$samp, reads$id_cb_separator, reads$CB, reads$id_cb_suffix)
+    if (length(unique(reads$seu_barcode)) < length(unique(reads$gene))) {
+      message(cat("Too few Seurat Barcodes after aligner quality control. ",crayon::red("Retaining all reads for now..."), sep = ""))
+      reads <- reads_recov
+    }  
+  }
+  rm(reads_recov)
   ## Reverse Complement the CB
   if (CB_rev_com) {
     message(cat("\nConverting Cell Barcodes to their reverse complements"))
@@ -100,7 +107,7 @@ HLA_clusters <- function(reads, k = 1, seu = NULL, CB_rev_com = FALSE, geno_meta
   rm(mic)
   ## Matrix formation
   alleles <- unique(reads$gene) %>% sort()
-  reads$seu_barcode <- stringr::str_c(reads$samp, reads$id_cb_separator, reads$CB, reads$id_cb_suffix)
+  reads$seu_barcode <- stringr::str_c(reads$samp, reads$id_cb_separator, reads$CB, reads$id_cb_suffix) 
   message(cat("\nCreating an HLA Count Matrix"))
   reads <- split(data.table::setDT(reads), by = "seu_barcode")
   reads <- parallel::mclapply(reads, data.table::setDF, mc.cores = multi_thread)
@@ -128,7 +135,7 @@ HLA_clusters <- function(reads, k = 1, seu = NULL, CB_rev_com = FALSE, geno_meta
     if ("Seurat" %in% class(seu)) {
       if (match_CB_with_seu) {
         part_HLA<- HLA.matrix[,colnames(HLA.matrix) %in% Cells(seu)]
-        if (ncol(part_HLA) == 0) { stop("Seurat Barcodes did not match any of the CBs in the scrHLAtag counts object. Make sure `seu` and `reads` objects are related.", call. = FALSE) }
+        if (ncol(part_HLA) == 0) { stop("Seurat Barcodes did not match any of the CBs in the scrHLAtag counts object.\n  Make sure `seu` and `reads` objects are related,\n  If 10x 3' chemistry, try `CB_rev_com = TRUE`,\n  Try to rerun without any barcode filtering (e.g., try `QC_mm2 = FALSE`).", call. = FALSE) }
       } else {
         part_HLA<- HLA.matrix
       }
@@ -136,16 +143,22 @@ HLA_clusters <- function(reads, k = 1, seu = NULL, CB_rev_com = FALSE, geno_meta
       stop("Single-cell dataset container (in argument 'seu') must be of class 'Seurat'", call. = FALSE)
     }
   }
+  if (ncol(part_HLA) < nrow(part_HLA)) {
+    message(cat("Too few Seurat Barcodes matched the CBs in the scrHLAtag counts object. ",crayon::red("\nContinuing without Seurat CB matching..."), sep = ""))
+    part_HLA <- HLA.matrix
+  }
   ## removing HLA alleles with low counts overall
   r <- hla_with_counts_above
   part_HLA <- part_HLA[which(rowSums(part_HLA)>=r), , drop = F]
   ## removing cell barcodes (CBs) with low counts overall
-  n <- CBs_with_counts_above
-  if (dim(part_HLA[,which(colSums(part_HLA)>=n), drop = F])[2] < dim(part_HLA)[1]) {
-    part_HLA <- part_HLA[,order(-colSums(part_HLA))[1:dim(part_HLA)[1]], drop = F]
-  } else {
-    part_HLA <- part_HLA[,which(colSums(part_HLA)>=n), drop = F]
+  find_n <- function(part_HLA, n) {
+    while (n > 0 && dim(part_HLA[, which(colSums(part_HLA) >= n), drop = FALSE])[2] < dim(part_HLA)[1]) {
+      n <- n - 1
+    }
+    return(n)  # Return the last valid n before the above inequality becomes false
   }
+  n <- find_n(part_HLA = part_HLA, n = CBs_with_counts_above)
+  part_HLA <- part_HLA[,which(colSums(part_HLA)>=n), drop = F]
   message(cat("\nRunning PCA (from 'stats') and UMAP (from 'uwot')"))
   ## normalize by size factor
   part_HLA <- prop.table(part_HLA, margin = 2)
