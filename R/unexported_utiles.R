@@ -128,7 +128,7 @@ Top_HLA_list_byCB <- function(reads, seu = NULL, CB_rev_com = FALSE, hla_with_co
   last_round <- mclapply(1:length(reads), function(m) {
     sub_reads <- with(reads[[m]], split(reads[[m]], list(hla = hla)))
     last_one <- lapply(1:length(sub_reads), function(o) {
-      tmp <- length(unique(sub_reads[[o]]$gene))>3
+      tmp <- length(unique(sub_reads[[o]]$gene))>3*length(cl)
       return(tmp)
     })
     last_one <- !any(last_one)
@@ -207,10 +207,21 @@ Top_HLA_list_byCB <- function(reads, seu = NULL, CB_rev_com = FALSE, hla_with_co
               q25 = quantile(s1, probs = .25, na.rm =TRUE),
               median = median(s1, na.rm = TRUE),
               q75 = quantile(s1, probs = .75, na.rm =TRUE),
-              IQR = IQR(s1, na.rm = TRUE),
-              peak_dn = density(s1)$x[which.max(density(s1)$y)]
+              IQR = IQR(s1, na.rm = TRUE)
             )
-          best <- c(best, st$gene[which.max(st$mean)])
+          star <- st$gene[which.max(st$mean)]
+          other_alleles <- setdiff(unique(sub_ctsu$gene), star)
+          # Run pairwise AD tests between best and others to identify the ones that rank up next to the best, then capture them in the list
+          pairwise_results <- lapply(other_alleles, function(lvl) {
+            subset_data <- subset(sub_ctsu, gene %in% c(star, lvl))
+            test_result <- trunc(-log10(kSamples::ad.test(s1 ~ gene, data = subset_data)[["ad"]][1,3])*10^2)/10^2
+            data.frame(
+              comparison_versus = lvl,
+              mlog10Pval = test_result
+            )
+          })
+          pairwise_results <- do.call(rbind, pairwise_results)
+          best <- c(best, star, pairwise_results$comparison_versus[which(pairwise_results$mlog10Pval < 10)])
         }
         if (k$ad_AS > 10 & k$sum_ad > 30) {
           st <- group_by(sub_ctsu, gene) %>%
@@ -221,10 +232,21 @@ Top_HLA_list_byCB <- function(reads, seu = NULL, CB_rev_com = FALSE, hla_with_co
               q25 = quantile(AS, probs = .25, na.rm =TRUE),
               median = median(AS, na.rm = TRUE),
               q75 = quantile(AS, probs = .75, na.rm =TRUE),
-              IQR = IQR(AS, na.rm = TRUE),
-              peak_dn = density(AS)$x[which.max(density(AS)$y)]
+              IQR = IQR(AS, na.rm = TRUE)
             )
-          best <- c(best, st$gene[which.max(st$mean)])
+          star <- st$gene[which.max(st$mean)]
+          other_alleles <- setdiff(unique(sub_ctsu$gene), star)
+          # Run pairwise AD tests between best and others to identify the ones that rank up next to the best, then capture them in the list
+          pairwise_results <- lapply(other_alleles, function(lvl) {
+            subset_data <- subset(sub_ctsu, gene %in% c(star, lvl))
+            test_result <- trunc(-log10(kSamples::ad.test(AS ~ gene, data = subset_data)[["ad"]][1,3])*10^2)/10^2
+            data.frame(
+              comparison_versus = lvl,
+              mlog10Pval = test_result
+            )
+          })
+          pairwise_results <- do.call(rbind, pairwise_results)
+          best <- c(best, star, pairwise_results$comparison_versus[which(pairwise_results$mlog10Pval < 10)])
         }
         if (k$ad_NM > 10 & k$sum_ad > 30) {
           st <- group_by(sub_ctsu, gene) %>%
@@ -235,10 +257,21 @@ Top_HLA_list_byCB <- function(reads, seu = NULL, CB_rev_com = FALSE, hla_with_co
               q25 = quantile(NM, probs = .25, na.rm =TRUE),
               median = median(NM, na.rm = TRUE),
               q75 = quantile(NM, probs = .75, na.rm =TRUE),
-              IQR = IQR(NM, na.rm = TRUE),
-              peak_dn = density(NM)$x[which.max(density(NM)$y)]
+              IQR = IQR(NM, na.rm = TRUE)
             )
-          best <- c(best, st$gene[which.min(st$mean)])
+          star <- st$gene[which.min(st$mean)]
+          other_alleles <- setdiff(unique(sub_ctsu$gene), star)
+          # Run pairwise AD tests between best and others to identify the ones that rank up next to the best, then capture them in the list
+          pairwise_results <- lapply(other_alleles, function(lvl) {
+            subset_data <- subset(sub_ctsu, gene %in% c(star, lvl))
+            test_result <- trunc(-log10(kSamples::ad.test(NM ~ gene, data = subset_data)[["ad"]][1,3])*10^2)/10^2
+            data.frame(
+              comparison_versus = lvl,
+              mlog10Pval = test_result
+            )
+          })
+          pairwise_results <- do.call(rbind, pairwise_results)
+          best <- c(best, star, pairwise_results$comparison_versus[which(pairwise_results$mlog10Pval < 10)])
         }
         if (k$ad_de > 10 & k$sum_ad > 30) {
           st <- group_by(sub_ctsu, gene) %>%
@@ -249,18 +282,27 @@ Top_HLA_list_byCB <- function(reads, seu = NULL, CB_rev_com = FALSE, hla_with_co
               q25 = quantile(de, probs = .25, na.rm =TRUE),
               median = median(de, na.rm = TRUE),
               q75 = quantile(de, probs = .75, na.rm =TRUE),
-              IQR = IQR(de, na.rm = TRUE),
-              peak_dn = density(de)$x[which.max(density(de)$y)]
+              IQR = IQR(de, na.rm = TRUE)
             )
-          best <- c(best, st$gene[which.min(st$mean)])
+          star <- st$gene[which.min(st$mean)]
+          other_alleles <- setdiff(unique(sub_ctsu$gene), star)
+          # Run pairwise AD tests between best and others to identify the ones that rank up next to the best, then capture them in the list
+          pairwise_results <- lapply(other_alleles, function(lvl) {
+            subset_data <- subset(sub_ctsu, gene %in% c(star, lvl))
+            test_result <- trunc(-log10(kSamples::ad.test(de ~ gene, data = subset_data)[["ad"]][1,3])*10^2)/10^2
+            data.frame(
+              comparison_versus = lvl,
+              mlog10Pval = test_result
+            )
+          })
+          pairwise_results <- do.call(rbind, pairwise_results)
+          best <- c(best, star, pairwise_results$comparison_versus[which(pairwise_results$mlog10Pval < 10)])
         }
-        if (length(names(table(best))[which(table(best)==max(table(best)))]) == 1) {
-          best <- names(table(best))[which(table(best)==max(table(best)))]
-        } else {best <- NA} # if some metrics are best for an allele and equal number of other metrics are best for another allele, we cannot decide.
+        best <- names(table(best))[which(table(best) >=2 )] # each allele has to be best in at least 2 of the 4 metrics
         if (sum(k[,c(5:8)] > 10) < 2) {best <- NA} # the rule is that 2 of the log Pvals should be greater than 10
         if (!last_round[[m]]) {best <- NA} # if this is not the last round, no need to get best quality alleles just yet
-        k$best <- best
-        if (!is.na(best)) {bad <- c(bad, setdiff(unique(st$gene), best))} #if there is a best allele, capture the bad ones in a list
+        k$best <- paste(best, collapse = "_")
+        if (!is.null(best) && !anyNA(best)) {bad <- c(bad, setdiff(unique(st$gene), best))} #if there is a best allele, capture the bad ones in a list
         bad <- sort(bad)
         kw <- rbind(kw, k)
         kw <- kw[order(row.names(kw)), ] #`kw` is a dataframe that is not returned, only useful for debug
@@ -302,12 +344,14 @@ Top_HLA_list_byCB <- function(reads, seu = NULL, CB_rev_com = FALSE, hla_with_co
     r <- hla_with_counts_above
     part_HLA <- part_HLA[which(rowSums(part_HLA)>=r), , drop = F]
     ## removing cell barcodes (CBs) with low counts overall
-    n <- CBs_with_counts_above
-    if (dim(part_HLA[,which(colSums(part_HLA)>=n), drop = F])[2] < dim(part_HLA)[1]) {
-      part_HLA <- part_HLA[,order(-colSums(part_HLA))[1:dim(part_HLA)[1]], drop = F]
-    } else {
-      part_HLA <- part_HLA[,which(colSums(part_HLA)>=n), drop = F]
+    find_n <- function(part_HLA, n) {
+      while (n > 0 && dim(part_HLA[, which(colSums(part_HLA) >= n), drop = FALSE])[2] < dim(part_HLA)[1]) {
+        n <- n - 1
+      }
+      return(n)  # Return the last valid n before the inequality becomes false
     }
+    n <- find_n(part_HLA = part_HLA, n = CBs_with_counts_above)
+    part_HLA <- part_HLA[,which(colSums(part_HLA)>=n), drop = F]
     return(part_HLA)
   }, mc.cores = 1) # more efficient if running on 1 CPU
   rm(reads)
@@ -473,7 +517,7 @@ Top_HLA_list_byCB_preprocessed <- function(reads, seu = NULL, hla_with_counts_ab
   last_round <- mclapply(1:length(reads), function(m) {
     sub_reads <- with(reads[[m]], split(reads[[m]], list(hla = hla)))
     last_one <- lapply(1:length(sub_reads), function(o) {
-      tmp <- length(unique(sub_reads[[o]]$gene))>3
+      tmp <- length(unique(sub_reads[[o]]$gene))>3*length(cl)
       return(tmp)
     })
     last_one <- !any(last_one)
@@ -552,10 +596,21 @@ Top_HLA_list_byCB_preprocessed <- function(reads, seu = NULL, hla_with_counts_ab
               q25 = quantile(s1, probs = .25, na.rm =TRUE),
               median = median(s1, na.rm = TRUE),
               q75 = quantile(s1, probs = .75, na.rm =TRUE),
-              IQR = IQR(s1, na.rm = TRUE),
-              peak_dn = density(s1)$x[which.max(density(s1)$y)]
+              IQR = IQR(s1, na.rm = TRUE)
             )
-          best <- c(best, st$gene[which.max(st$mean)])
+          star <- st$gene[which.max(st$mean)]
+          other_alleles <- setdiff(unique(sub_ctsu$gene), star)
+          # Run pairwise AD tests between best and others to identify the ones that rank up next to the best, then capture them in the list
+          pairwise_results <- lapply(other_alleles, function(lvl) {
+            subset_data <- subset(sub_ctsu, gene %in% c(star, lvl))
+            test_result <- trunc(-log10(kSamples::ad.test(s1 ~ gene, data = subset_data)[["ad"]][1,3])*10^2)/10^2
+            data.frame(
+              comparison_versus = lvl,
+              mlog10Pval = test_result
+            )
+          })
+          pairwise_results <- do.call(rbind, pairwise_results)
+          best <- c(best, star, pairwise_results$comparison_versus[which(pairwise_results$mlog10Pval < 10)])
         }
         if (k$ad_AS > 10 & k$sum_ad > 30) {
           st <- group_by(sub_ctsu, gene) %>%
@@ -566,10 +621,21 @@ Top_HLA_list_byCB_preprocessed <- function(reads, seu = NULL, hla_with_counts_ab
               q25 = quantile(AS, probs = .25, na.rm =TRUE),
               median = median(AS, na.rm = TRUE),
               q75 = quantile(AS, probs = .75, na.rm =TRUE),
-              IQR = IQR(AS, na.rm = TRUE),
-              peak_dn = density(AS)$x[which.max(density(AS)$y)]
+              IQR = IQR(AS, na.rm = TRUE)
             )
-          best <- c(best, st$gene[which.max(st$mean)])
+          star <- st$gene[which.max(st$mean)]
+          other_alleles <- setdiff(unique(sub_ctsu$gene), star)
+          # Run pairwise AD tests between best and others to identify the ones that rank up next to the best, then capture them in the list
+          pairwise_results <- lapply(other_alleles, function(lvl) {
+            subset_data <- subset(sub_ctsu, gene %in% c(star, lvl))
+            test_result <- trunc(-log10(kSamples::ad.test(AS ~ gene, data = subset_data)[["ad"]][1,3])*10^2)/10^2
+            data.frame(
+              comparison_versus = lvl,
+              mlog10Pval = test_result
+            )
+          })
+          pairwise_results <- do.call(rbind, pairwise_results)
+          best <- c(best, star, pairwise_results$comparison_versus[which(pairwise_results$mlog10Pval < 10)])
         }
         if (k$ad_NM > 10 & k$sum_ad > 30) {
           st <- group_by(sub_ctsu, gene) %>%
@@ -580,10 +646,21 @@ Top_HLA_list_byCB_preprocessed <- function(reads, seu = NULL, hla_with_counts_ab
               q25 = quantile(NM, probs = .25, na.rm =TRUE),
               median = median(NM, na.rm = TRUE),
               q75 = quantile(NM, probs = .75, na.rm =TRUE),
-              IQR = IQR(NM, na.rm = TRUE),
-              peak_dn = density(NM)$x[which.max(density(NM)$y)]
+              IQR = IQR(NM, na.rm = TRUE)
             )
-          best <- c(best, st$gene[which.min(st$mean)])
+          star <- st$gene[which.min(st$mean)]
+          other_alleles <- setdiff(unique(sub_ctsu$gene), star)
+          # Run pairwise AD tests between best and others to identify the ones that rank up next to the best, then capture them in the list
+          pairwise_results <- lapply(other_alleles, function(lvl) {
+            subset_data <- subset(sub_ctsu, gene %in% c(star, lvl))
+            test_result <- trunc(-log10(kSamples::ad.test(NM ~ gene, data = subset_data)[["ad"]][1,3])*10^2)/10^2
+            data.frame(
+              comparison_versus = lvl,
+              mlog10Pval = test_result
+            )
+          })
+          pairwise_results <- do.call(rbind, pairwise_results)
+          best <- c(best, star, pairwise_results$comparison_versus[which(pairwise_results$mlog10Pval < 10)])
         }
         if (k$ad_de > 10 & k$sum_ad > 30) {
           st <- group_by(sub_ctsu, gene) %>%
@@ -594,18 +671,27 @@ Top_HLA_list_byCB_preprocessed <- function(reads, seu = NULL, hla_with_counts_ab
               q25 = quantile(de, probs = .25, na.rm =TRUE),
               median = median(de, na.rm = TRUE),
               q75 = quantile(de, probs = .75, na.rm =TRUE),
-              IQR = IQR(de, na.rm = TRUE),
-              peak_dn = density(de)$x[which.max(density(de)$y)]
+              IQR = IQR(de, na.rm = TRUE)
             )
-          best <- c(best, st$gene[which.min(st$mean)])
+          star <- st$gene[which.min(st$mean)]
+          other_alleles <- setdiff(unique(sub_ctsu$gene), star)
+          # Run pairwise AD tests between best and others to identify the ones that rank up next to the best, then capture them in the list
+          pairwise_results <- lapply(other_alleles, function(lvl) {
+            subset_data <- subset(sub_ctsu, gene %in% c(star, lvl))
+            test_result <- trunc(-log10(kSamples::ad.test(de ~ gene, data = subset_data)[["ad"]][1,3])*10^2)/10^2
+            data.frame(
+              comparison_versus = lvl,
+              mlog10Pval = test_result
+            )
+          })
+          pairwise_results <- do.call(rbind, pairwise_results)
+          best <- c(best, star, pairwise_results$comparison_versus[which(pairwise_results$mlog10Pval < 10)])
         }
-        if (length(names(table(best))[which(table(best)==max(table(best)))]) == 1) {
-          best <- names(table(best))[which(table(best)==max(table(best)))]
-        } else {best <- NA} # if some metrics are best for an allele and equal number of other metrics are best for another allele, we cannot decide.
+        best <- names(table(best))[which(table(best) >=2 )] # each allele has to be best in at least 2 of the 4 metrics
         if (sum(k[,c(5:8)] > 10) < 2) {best <- NA} # the rule is that 2 of the log Pvals should be greater than 10
         if (!last_round[[m]]) {best <- NA} # if this is not the last round, no need to get best quality alleles just yet
-        k$best <- best
-        if (!is.na(best)) {bad <- c(bad, setdiff(unique(st$gene), best))} #if there is a best allele, capture the bad ones in a list
+        k$best <- paste(best, collapse = "_")
+        if (!is.null(best) && !anyNA(best)) {bad <- c(bad, setdiff(unique(st$gene), best))} #if there is a best allele, capture the bad ones in a list
         bad <- sort(bad)
         kw <- rbind(kw, k)
         kw <- kw[order(row.names(kw)), ] #`kw` is a dataframe that is not returned, only useful for debug
@@ -648,11 +734,14 @@ Top_HLA_list_byCB_preprocessed <- function(reads, seu = NULL, hla_with_counts_ab
     part_HLA <- part_HLA[which(rowSums(part_HLA)>=r), , drop = F]
     ## removing cell barcodes (CBs) with low counts overall
     n <- CBs_with_counts_above
-    if (dim(part_HLA[,which(colSums(part_HLA)>=n), drop = F])[2] < dim(part_HLA)[1]) {
-      part_HLA <- part_HLA[,order(-colSums(part_HLA))[1:dim(part_HLA)[1]], drop = F]
-    } else {
-      part_HLA <- part_HLA[,which(colSums(part_HLA)>=n), drop = F]
+    find_n <- function(part_HLA, n) {
+      while (n > 0 && dim(part_HLA[, which(colSums(part_HLA) >= n), drop = FALSE])[2] < dim(part_HLA)[1]) {
+        n <- n - 1
+      }
+      return(n)  # Return the last valid n before the inequality becomes false
     }
+    n <- find_n(part_HLA = part_HLA, n = CBs_with_counts_above)
+    part_HLA <- part_HLA[,which(colSums(part_HLA)>=n), drop = F]
     return(part_HLA)
   }, mc.cores = 1) # more efficient if running on 1 CPU
   rm(reads)

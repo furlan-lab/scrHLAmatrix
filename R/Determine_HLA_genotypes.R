@@ -107,22 +107,6 @@ Top_HLA_list <- function(reads_1, reads_2 = NULL, k = 1, seu = NULL, CB_rev_com 
     reads_1 <- scrHLAmatrix::map_HLA_clusters(reads.list = HLA_umap_clusters[["reads"]], HLA_umap_clusters[[1]], CB_rev_com = F)
     cl <- unique(reads_1$hla_clusters)
     cl <- cl[!is.na(cl)]
-    # is this the last round?
-    reads <- lapply(cl, function(x) {
-      tmp <- reads_1[reads_1$hla_clusters %in% x,]
-      return(tmp)
-    })
-    if (parallelize) {multi_thread <- parallel::detectCores()} else {multi_thread <- 1}
-    last_round <- mclapply(1:length(reads), function(m) {
-      sub_reads <- with(reads[[m]], split(reads[[m]], list(hla = hla)))
-      last_one <- lapply(1:length(sub_reads), function(o) {
-        tmp <- length(unique(sub_reads[[o]]$gene))>3
-        return(tmp)
-      })
-      last_one <- !any(last_one)
-      return(last_one)
-    }, mc.cores = multi_thread)  
-    rm(reads)
     # get number of unique alleles
     unique_alleles <- lapply(cl, function(x) {
       tmp <- reads_1[reads_1$hla_clusters %in% x,]
@@ -133,13 +117,8 @@ Top_HLA_list <- function(reads_1, reads_2 = NULL, k = 1, seu = NULL, CB_rev_com 
       return(tmp)
     }) %>% unlist()
     if (all(unique_alleles <= length(cl)*100) & stringent_mode) {
-      if (all(last_round)) {
-        message(cat("\nReads count file shows ", length(cl)*100, " or fewer uniquely mapped HLA alleles per allogeneic entity;\nStringent mode active: ", crayon::green("extracting the FINAL list of HLA alleles using the Per Single-Cell algorithm"), sep = ""))
-        allowed_alleles_per_cell <- c(1, 2)
-        } else {
-        message(cat("\nReads count file shows ", length(cl)*100, " or fewer uniquely mapped HLA alleles per allogeneic entity;\nStringent mode active: ", crayon::green("extracting a refined list of top HLA alleles using the Per Single-Cell algorithm (not final yet!)"), sep = ""))
-        allowed_alleles_per_cell <- c(1, 2)
-        }
+      message(cat("\nReads count file shows ", length(cl)*100, " or fewer uniquely mapped HLA alleles per allogeneic entity;\nStringent mode active: stringently extracting top alleles using the Per Single-Cell Algorithm", sep = ""))
+      allowed_alleles_per_cell <- c(1, 2)
     } else {
       message(cat("\nReads count file shows ", bulk_to_perCB_threshold, " or fewer uniquely mapped HLA alleles; extracting top alleles using the Per Single-Cell Algorithm", sep = ""))
     }
@@ -179,5 +158,8 @@ Top_HLA_list <- function(reads_1, reads_2 = NULL, k = 1, seu = NULL, CB_rev_com 
   }
   e <- difftime(Sys.time(), s, units = "sec") %>% as.numeric() %>% abs()
   message(cat("\nDone!! (runtime: ", format(as.POSIXlt(e, origin = "1970-01-01", tz = "UTC"), "%H:%M:%S", tz = "UTC"), ")", sep = ""))
+  if (identical(sort(unique(reads_1$gene)), top_alleles_HLA)) {
+    message(cat(crayon::green("Candidate list of HLA alleles converged! No need for a new run with scrHLAtag, your alignment counts are final."), sep = ""))
+  }
   return(top_alleles_HLA)
 }
