@@ -74,7 +74,7 @@ HLA_load <- function(directories, dir_names = NULL, seu = NULL, scrHLAtag_outs =
       sepr1 <- ifelse(nchar(prefx1) > 0, substr(prefx1, nchar(prefx1), nchar(prefx1)), "")
       sufx1 <- stringr::str_split_fixed(sample, "\\*", 2)[,2]
       if (idx == 1L && !is.null(seu)) {
-        message(cat("Linking Seurat sample", crayon::bgWhite(" ", samp1, " "), "with directory named", 
+        message(cat("Linking Seurat sample", crayon::bgWhite(" ", samp1, " "), "with scrHLAtag out file(s) in the directory designated by", 
                     crayon::bgWhite(" ", names(directories)[which.min(stringdist::stringdist(samp1, names(directories), method = "lv"))], " ")))
       }
       d<-read.table(file.path(directories[which.min(stringdist::stringdist(samp1, names(directories), method = "lv"))], x), header = F, sep=" ", fill = T) 
