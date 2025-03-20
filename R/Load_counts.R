@@ -58,16 +58,25 @@ HLA_load <- function(directories, dir_names = NULL, seu = NULL, scrHLAtag_outs =
     if (length(unique(sapply(cbrv, nchar))) > 1) { message(cat(crayon::red("The Barcode DNA sequences in the Seurat object have different lengths. Does the object contains different capture chemistries?"), sep = "")) }
     if (length(prefx.sufxs) > length(directories)) { stop("More samples found in Seurat than scrHLAtag selected directories. Make sure to select all experiements linked to the Seurate object, or subset your Seurat to the corresponding samples in your scrHLAtag experiments", call. = FALSE) }
   } else {
-    if (length(directories) > 1) { stop("Only 1 directory can be specified when the Seurat object is not specified (i.e. 'seu = NULL')", call. = FALSE) }
-    prefx.sufxs <- "*" 
+    if (length(directories) > 1) { 
+      message(cat(crayon::red("Merging ", length(directories), " samples (from separate directories), but there is no Seurat object to verify merge naming consistency (i.e. `seu = NULL`)", sep = ""), sep = ""))
+      prefx.sufxs <- paste0(names(directories), "_*")
+    } else {
+      prefx.sufxs <- "*"
+    }
   }
   message(cat("Loading..."))
-  cts <- lapply(mol_info, function(x) {
-    dl<-lapply(prefx.sufxs, function(sample){
+  cts <- lapply(seq_along(mol_info), function(idx) {
+    x <- mol_info[idx]
+    dl<-lapply(prefx.sufxs, function(sample) {
       prefx1 <- stringr::str_split_fixed(sample, "\\*", 2)[,1]
       samp1 <- ifelse(nchar(prefx1) > 0, substr(prefx1, 1, nchar(prefx1) - 1), "")
       sepr1 <- ifelse(nchar(prefx1) > 0, substr(prefx1, nchar(prefx1), nchar(prefx1)), "")
       sufx1 <- stringr::str_split_fixed(sample, "\\*", 2)[,2]
+      if (idx == 1L && !is.null(seu)) {
+        message(cat("Linking Seurat sample", crayon::bgWhite(" ", samp1, " "), "with directory named", 
+                    crayon::bgWhite(" ", names(directories)[which.min(stringdist::stringdist(samp1, names(directories), method = "lv"))], " ")))
+      }
       d<-read.table(file.path(directories[which.min(stringdist::stringdist(samp1, names(directories), method = "lv"))], x), header = F, sep=" ", fill = T) 
       if (is.null(colnames)) {
         colnames(d)<-c("name","CB", "nb", "UMI", "gene", "query_len","start", "mapq", "cigar", "NM", "AS", "s1", "de", "seq")
