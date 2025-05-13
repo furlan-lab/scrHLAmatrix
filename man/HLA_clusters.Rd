@@ -7,12 +7,12 @@
 HLA_clusters(
   reads,
   k = 1,
-  seu = NULL,
+  cell_data_obj = NULL,
   CB_rev_com = FALSE,
   geno_metadata_id = NULL,
   hla_with_counts_above = 0,
   CBs_with_counts_above = 25,
-  match_CB_with_seu = TRUE,
+  match_CB_with_obj = TRUE,
   method = "consensus",
   n_PCs = 50,
   dbscan_minPts = 30,
@@ -34,17 +34,17 @@ HLA_clusters(
 
 \item{k}{can be \code{NULL} or a positive integer setting the number of cluster counts to partition the datapoints into, e.g. the number of entities or genotypes you \emph{think} there might be in your captured sample. If \code{NULL}, each clustering method will automatically determine \code{k} clusters on its own (will not work for \code{"hclust"} and \code{"kmeans"}, which need predefined \code{k}s).}
 
-\item{seu}{is the Seurat object associated with the scrHLAtag count file (\url{https://satijalab.org/seurat/index.html}).}
+\item{cell_data_obj}{is a cell dataset object associated with the scrHLAtag count file; entered if matching CBs in count file with ones in the object is desired. Currently the function is compatible with Seurat (\url{https://satijalab.org/seurat/index.html}).}
 
 \item{CB_rev_com}{logical, called \code{TRUE} if the need to obtain the reverse complement of Cell Barcodes (CBs) is desired; default is \code{FALSE}.}
 
-\item{geno_metadata_id}{a character, the column ID of the Seurat metadata designated to distinguish genotypes, if this information is available. \code{NULL} by default or when genotyping information is not available.}
+\item{geno_metadata_id}{a character, the column ID of the Single-cell Dataset Obj metadata designated to distinguish genotypes, if this information is available. \code{NULL} by default or when genotyping information is not available.}
 
 \item{hla_with_counts_above}{number of total reads accross CBs at or above which an HLA allele is retained in the matrix.}
 
 \item{CBs_with_counts_above}{number of total reads accross HLA alleles at or above which a CB is retained in the matrix. Note: \code{stats::princomp()} can only be used with at least as many units (CBs) as variables (HLAs), thus the function will make sure that number of CBs is equal or more than available HLA alleles in the matrix.}
 
-\item{match_CB_with_seu}{logical, called \code{TRUE} if filtering CBs in the scrHLAtag count file with matching ones in the Seurat object is desired.}
+\item{match_CB_with_obj}{is a logical, called TRUE if filtering CBs in the scrHLAtag count file with matching ones in the cell dataset object is desired.}
 
 \item{method}{the name(s) of the graph-based clustering method(s) to be used for partitioning cells based on their HLA count patterns. The choice is between one or a combination of a Community structure detection method: \code{"leiden"}, a Density-based method: \code{"dbscan"}, a Connectivity-based method: \code{"hclust"}, a Centroid-based method: \code{"kmeans"}, and a Distribution-based method: \code{"gmm"} (for Gaussian Mixture Model). The methods are run with their respective Default parameters. Some of those methods may predict \emph{true} allogeneic entities with better accuracy than others; as we cannot know a priori which is the best method, we propose the method: \code{"consensus"}, which groups cells in the same cluster if they agree on membership in a majority of methods, otherwise they are unclassified (\code{NA}s). Note: \code{"consensus"} is equivalent to \code{c("leiden", "hclust", "kmeans", "gmm", "dbscan", "consensus")}.}
 
@@ -87,7 +87,7 @@ dirs<- lapply(dirs, list.dirs, recursive = F) \%>\% unlist
 dirs<- lapply(dirs, dir, pattern = "unguided_hla_align_corrected", recursive = F, full.names = T) \%>\% unlist
 dirnames <- c("AML_101_BM", "AML_101_34", "TN_BM", "TN_34") # this is how the samples were organized in the directories
 ## Load the counts files
-cts <- HLA_load(directories = dirs, dir_names = dirnames, seu = your_Seurat_obj)
+cts <- HLA_load(directories = dirs, dir_names = dirnames, cell_data_obj = your_cell_dataset_obj)
 ## Process those count files
-HLA_umap <- HLA_clusters(reads = cts[["mRNA"]], k = 2, seu = your_Seurat_Obj, geno_metadata_id = "geno", hla_with_counts_above = 5, CBs_with_counts_above = 35)
+HLA_umap <- HLA_clusters(reads = cts[["mRNA"]], k = 2, cell_data_obj = your_cell_dataset_obj, geno_metadata_id = "geno", hla_with_counts_above = 5, CBs_with_counts_above = 35)
 }

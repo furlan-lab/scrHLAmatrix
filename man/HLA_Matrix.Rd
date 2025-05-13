@@ -2,11 +2,11 @@
 % Please edit documentation in R/scrHLAmatrix.R
 \name{HLA_Matrix}
 \alias{HLA_Matrix}
-\title{Deduping and Correcting scrHLAtag counts and Creating Seurat-compatible Matrices}
+\title{Deduping and Correcting scrHLAtag counts and Creating Count Matrices}
 \usage{
 HLA_Matrix(
   reads,
-  seu,
+  cell_data_obj,
   hla_recip = character(),
   hla_donor = character(),
   QC_mm2 = TRUE,
@@ -26,7 +26,7 @@ HLA_Matrix(
 \arguments{
 \item{reads}{is the scrHLAtag count file including columns for CB, UMI, and HLA alleles (\url{https://github.com/furlan-lab/scrHLAtag}).}
 
-\item{seu}{is the Seurat object associated with the scrHLAtag count file (\url{https://satijalab.org/seurat/index.html}).}
+\item{cell_data_obj}{is a cell dataset object associated with the scrHLAtag count file. Currently the function is compatible with Seurat (\url{https://satijalab.org/seurat/index.html}).}
 
 \item{hla_recip}{a character list of recipient-specific HLA alleles if known; default is an empty character vector.}
 
@@ -60,7 +60,7 @@ HLA_Matrix(
 an Assay type matrix
 }
 \description{
-Deduping and Correcting scrHLAtag counts and Creating Seurat-compatible Matrices
+Deduping and Correcting scrHLAtag counts and Creating Count Matrices
 }
 \examples{
 dirs_path <- "path/to/scrHLAtag/out/files"
@@ -69,7 +69,7 @@ dirs<- lapply(dirs, list.dirs, recursive = F) \%>\% unlist
 dirs<- lapply(dirs, dir, pattern = "unguided_hla_align_corrected", recursive = F, full.names = T) \%>\% unlist
 dirnames <- c("AML_101_BM", "AML_101_34", "TN_BM", "TN_34") # this is how the samples were organized in the directories
 ## Load the counts files
-cts <- HLA_load(directories = dirs, dir_names = dirnames, seu = your_Seurat_obj)
+cts <- HLA_load(directories = dirs, dir_names = dirnames, cell_data_obj = your_cell_dataset_obj)
 ## Process those count files
-HLAassay <- HLA_Matrix(reads = cts[["mRNA"]], seu = your_Seurat_obj, hla_recip = c("A*24:02:01", "DRB1*04:01:01", "DRB4*01:03:02"), hla_donor = c("A*33:03:01", "B*42:01:01"))
+HLAassay <- HLA_Matrix(reads = cts[["mRNA"]], cell_data_obj = your_cell_dataset_obj, hla_recip = c("A*24:02:01", "DRB1*04:01:01", "DRB4*01:03:02"), hla_donor = c("A*33:03:01", "B*42:01:01"))
 }

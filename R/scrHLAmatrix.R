@@ -1,7 +1,7 @@
-#' Deduping and Correcting scrHLAtag counts and Creating Seurat-compatible Matrices
+#' Deduping and Correcting scrHLAtag counts and Creating Count Matrices
 #' 
 #' @param reads  is the scrHLAtag count file including columns for CB, UMI, and HLA alleles (\url{https://github.com/furlan-lab/scrHLAtag}).
-#' @param seu  is the Seurat object associated with the scrHLAtag count file (\url{https://satijalab.org/seurat/index.html}).
+#' @param cell_data_obj  is a cell dataset object associated with the scrHLAtag count file. Currently the function is compatible with Seurat (\url{https://satijalab.org/seurat/index.html}).
 #' @param hla_recip  a character list of recipient-specific HLA alleles if known; default is an empty character vector.
 #' @param hla_donor  a character list of donor-specific HLA alleles if known; default is an empty character vector.
 #' @param QC_mm2  logical, called \code{TRUE} if removing low quality reads based on minimap2 tags is desired.
@@ -33,21 +33,23 @@
 #' dirs<- lapply(dirs, dir, pattern = "unguided_hla_align_corrected", recursive = F, full.names = T) %>% unlist
 #' dirnames <- c("AML_101_BM", "AML_101_34", "TN_BM", "TN_34") # this is how the samples were organized in the directories
 #' ## Load the counts files
-#' cts <- HLA_load(directories = dirs, dir_names = dirnames, seu = your_Seurat_obj)
+#' cts <- HLA_load(directories = dirs, dir_names = dirnames, cell_data_obj = your_cell_dataset_obj)
 #' ## Process those count files
-#' HLAassay <- HLA_Matrix(reads = cts[["mRNA"]], seu = your_Seurat_obj, hla_recip = c("A*24:02:01", "DRB1*04:01:01", "DRB4*01:03:02"), hla_donor = c("A*33:03:01", "B*42:01:01"))
+#' HLAassay <- HLA_Matrix(reads = cts[["mRNA"]], cell_data_obj = your_cell_dataset_obj, hla_recip = c("A*24:02:01", "DRB1*04:01:01", "DRB4*01:03:02"), hla_donor = c("A*33:03:01", "B*42:01:01"))
 #' @export
 
-HLA_Matrix <- function(reads, seu, hla_recip = character(), hla_donor = character(), QC_mm2 = TRUE, res_conflict_per_gene = TRUE, LD_correct = TRUE, drop_if_fewer_than = 20, remove_alleles = character(), s1_percent_pass_score = 80, AS_percent_pass_score = 80, NM_thresh = 15, de_thresh = 0.01, parallelize = FALSE, CB_rev_com = FALSE, return_stats = FALSE) {
+HLA_Matrix <- function(reads, cell_data_obj, hla_recip = character(), hla_donor = character(), QC_mm2 = TRUE, res_conflict_per_gene = TRUE, LD_correct = TRUE, drop_if_fewer_than = 20, remove_alleles = character(), s1_percent_pass_score = 80, AS_percent_pass_score = 80, NM_thresh = 15, de_thresh = 0.01, parallelize = FALSE, CB_rev_com = FALSE, return_stats = FALSE) {
   s <- Sys.time()
   #message(cat(format(s, "%F %H:%M:%S")))
+  seu <- cell_data_obj
+  cell_data_obj <- NULL
   n_reads <- nrow(reads)
   if (n_reads > 1e+06) {
     message(cat("\nLarge scrHLAtag count file detected (", n_reads, " rows counted); expect resource-demanding processing and long run times", sep = ""))
     message(cat(crayon::green("Note: "), "Multi-threading errors had been more frequently experienced while running large count files; it is recommended to maintain 'parallelize = FALSE'", sep = ""))
   }
   ## check Seurat object
-  if (!("Seurat" %in% class(seu))) { stop("Single-cell dataset container (in argument 'seu') must be of class 'Seurat'", call. = FALSE) }
+  if (!("Seurat" %in% class(seu))) { stop("Single-cell dataset container (in argument 'cell_data_obj') of class 'Seurat' are currently compatible", call. = FALSE) }
   ## parallelize
   if (parallelize) {
     multi_thread <- parallel::detectCores()
@@ -57,11 +59,11 @@ HLA_Matrix <- function(reads, seu, hla_recip = character(), hla_donor = characte
   }
   ## check relevant col names exist
   if (!all(c("CB", "UMI", "gene", "NM", "AS", "s1", "de", "samp", "id_cb_separator", "id_cb_suffix") %in% colnames(reads))){
-    stop("scrHLAtag output 'reads' dataframe must contain the columns 'CB', 'UMI', 'gene' (with HLA alleles), the minimap2 'NM', 'AS', 's1', and 'de' tags, and the CB prefix 'samp', the prefix-CB separator 'id_cb_separator', and the CB suffix 'id_cb_suffix' to match with the Seurat colnames.", call. = FALSE)
+    stop("scrHLAtag output 'reads' dataframe must contain the columns 'CB', 'UMI', 'gene' (with HLA alleles), the minimap2 'NM', 'AS', 's1', and 'de' tags, and the CB prefix 'samp', the prefix-CB separator 'id_cb_separator', and the CB suffix 'id_cb_suffix' to match with the Single-Cell Dataset colnames.", call. = FALSE)
   }
   ## jettison unused columns
   reads <- reads[, colnames(reads) %in% c("CB", "UMI", "gene", "NM", "AS", "s1", "de", "samp", "id_cb_separator", "id_cb_suffix"), drop = F]
-  ## add the dash into the HLA allele as it is the one accepted in the names of the Seurat assay features
+  ## add the dash into the HLA allele as it is the one accepted in the names of the Single-Cell Dataset assay features
   special <- "[_*|?.+$^]"
   if (any(grepl(special, reads$gene))) {
     reads$gene0 <- gsub(special, "-", reads$gene)
@@ -121,12 +123,12 @@ HLA_Matrix <- function(reads, seu, hla_recip = character(), hla_donor = characte
   message(cat("\nReads in count file: ", n_reads, 
               ", including ", reads_in_seu,
               " (", format(round(100*(reads_in_seu/n_reads), 2), nsmall = 1),
-              "%) belonging to Cells found in Seurat object", sep = ""))
+              "%) belonging to Cells found in Single-Cell Dataset object", sep = ""))
   message(cat("Unique Cell Barcodes (CB): ", l_ureads_cb, 
               ", including ", 
               ureads_in_seu, 
               " (", format(round(100*(ureads_in_seu/l_ureads_cb), 2), nsmall = 1), 
-              "%) matching the ", n_cells, " Cells in Seurat object (match rate ",
+              "%) matching the ", n_cells, " Cells in Single-Cell Dataset object (match rate ",
               format(round(100*(ureads_in_seu/n_cells), 2), nsmall = 1), "%)", sep = ""))
   if (return_stats) {
   stats_df <- rbind(stats_df,
@@ -181,12 +183,12 @@ HLA_Matrix <- function(reads, seu, hla_recip = character(), hla_donor = characte
       message(cat("  Reads remaining: ", n_reads, 
                   ", including ", reads_in_seu,
                   " (", format(round(100*(reads_in_seu/n_reads), 2), nsmall = 1),
-                  "%) belonging to Cells found in Seurat object", sep = ""))
+                  "%) belonging to Cells found in Single-Cell Dataset object", sep = ""))
       message(cat("  CBs remaining: ", l_ureads_cb, 
                   ", including ", 
                   ureads_in_seu, 
                   " (", format(round(100*(ureads_in_seu/l_ureads_cb), 2), nsmall = 1), 
-                  "%) matching the ", n_cells, " Cells in Seurat object (match rate ",
+                  "%) matching the ", n_cells, " Cells in Single-Cell Dataset object (match rate ",
                   format(round(100*(ureads_in_seu/n_cells), 2), nsmall = 1), "%)", sep = ""))
       stats_df <- rbind(stats_df,
                         data.frame(reads = n_reads, 
@@ -269,12 +271,12 @@ HLA_Matrix <- function(reads, seu, hla_recip = character(), hla_donor = characte
     message(cat("  Reads remaining: ", n_reads, 
                 ", including ", reads_in_seu,
                 " (", format(round(100*(reads_in_seu/n_reads), 2), nsmall = 1),
-                "%) belonging to Cells found in Seurat object", sep = ""))
+                "%) belonging to Cells found in Single-Cell Dataset object", sep = ""))
     message(cat("  CBs remaining: ", l_ureads_cb, 
                 ", including ", 
                 ureads_in_seu, 
                 " (", format(round(100*(ureads_in_seu/l_ureads_cb), 2), nsmall = 1), 
-                "%) matching the ", n_cells, " Cells in Seurat object (match rate ",
+                "%) matching the ", n_cells, " Cells in Single-Cell Dataset object (match rate ",
                 format(round(100*(ureads_in_seu/n_cells), 2), nsmall = 1), "%)", sep = ""))
     stats_df <- rbind(stats_df,
                       data.frame(reads = n_reads, 
@@ -304,12 +306,12 @@ HLA_Matrix <- function(reads, seu, hla_recip = character(), hla_donor = characte
     message(cat("  Reads remaining after Dedup: ", n_reads, 
                 ", including ", reads_in_seu,
                 " (", format(round(100*(reads_in_seu/n_reads), 2), nsmall = 1),
-                "%) belonging to Cells found in Seurat object", sep = ""))
+                "%) belonging to Cells found in Single-Cell Dataset object", sep = ""))
     message(cat("  CBs remaining: ", l_ureads_cb, 
                 ", including ", 
                 ureads_in_seu, 
                 " (", format(round(100*(ureads_in_seu/l_ureads_cb), 2), nsmall = 1), 
-                "%) matching the ", n_cells, " Cells in Seurat object (match rate ",
+                "%) matching the ", n_cells, " Cells in Single-Cell Dataset object (match rate ",
                 format(round(100*(ureads_in_seu/n_cells), 2), nsmall = 1), "%)", sep = ""))
     stats_df <- rbind(stats_df,
                       data.frame(reads = n_reads, 
@@ -320,7 +322,7 @@ HLA_Matrix <- function(reads, seu, hla_recip = character(), hla_donor = characte
                                  cb_seu_match_rate = ureads_in_seu/n_cells, 
                                  step = "3_dedup"))
   }
-  # remove obsolete cols and add Seurat barcode
+  # remove obsolete cols and add Single-Cell Dataset barcode
   reads$mol_swap <- NULL
   reads$class_swap <- NULL
   reads$hla_conflict <- NA
@@ -341,12 +343,12 @@ HLA_Matrix <- function(reads, seu, hla_recip = character(), hla_donor = characte
       message(cat("  Reads remaining: ", n_reads, 
                   ", including ", reads_in_seu,
                   " (", format(round(100*(reads_in_seu/n_reads), 2), nsmall = 1),
-                  "%) belonging to Cells found in Seurat object", sep = ""))
+                  "%) belonging to Cells found in Single-Cell Dataset object", sep = ""))
       message(cat("  CBs remaining: ", l_ureads_cb, 
                   ", including ", 
                   ureads_in_seu, 
                   " (", format(round(100*(ureads_in_seu/l_ureads_cb), 2), nsmall = 1), 
-                  "%) matching the ", n_cells, " Cells in Seurat object (match rate ",
+                  "%) matching the ", n_cells, " Cells in Single-Cell Dataset object (match rate ",
                   format(round(100*(ureads_in_seu/n_cells), 2), nsmall = 1), "%)", sep = ""))
       stats_df <- rbind(stats_df,
                         data.frame(reads = n_reads, 
@@ -360,7 +362,7 @@ HLA_Matrix <- function(reads, seu, hla_recip = character(), hla_donor = characte
   }
   ## Clean-up HLA conflicts per CB
   message(cat("\nDonor-v-Recipient Genotype Conflict: assuming a cell cannot have both recipient and donor-origin HLA allele"))
-  # split by Seurat barcode
+  # split by Single-Cell Dataset barcode
   reads <- split(data.table::setDT(reads), by = "seu_barcode")
   # detect HLA conflicts (i.e. donor-spec and recipient-spec HLA in the same barcode)
   pb <- pbmcapply::progressBar(min = 0, max = length(reads), style = "ETA", char = "=")
@@ -415,12 +417,12 @@ HLA_Matrix <- function(reads, seu, hla_recip = character(), hla_donor = characte
       message(cat("  Reads remaining: ", n_reads, 
                   ", including ", reads_in_seu,
                   " (", format(round(100*(reads_in_seu/n_reads), 2), nsmall = 1),
-                  "%) belonging to Cells found in Seurat object", sep = ""))
+                  "%) belonging to Cells found in Single-Cell Data object", sep = ""))
       message(cat("  CBs remaining: ", l_ureads_cb, 
                   ", including ", 
                   ureads_in_seu, 
                   " (", format(round(100*(ureads_in_seu/l_ureads_cb), 2), nsmall = 1), 
-                  "%) matching the ", n_cells, " Cells in Seurat object (match rate ",
+                  "%) matching the ", n_cells, " Cells in Single-Cell Data object (match rate ",
                   format(round(100*(ureads_in_seu/n_cells), 2), nsmall = 1), "%)", sep = ""))
       stats_df <- rbind(stats_df,
                         data.frame(reads = n_reads, 
@@ -480,12 +482,12 @@ HLA_Matrix <- function(reads, seu, hla_recip = character(), hla_donor = characte
       message(cat("  Reads remaining: ", n_reads, 
                   ", including ", reads_in_seu,
                   " (", format(round(100*(reads_in_seu/n_reads), 2), nsmall = 1),
-                  "%) belonging to Cells found in Seurat object", sep = ""))
+                  "%) belonging to Cells found in Single-Cell Data object", sep = ""))
       message(cat("  CBs remaining: ", l_ureads_cb, 
                   ", including ", 
                   ureads_in_seu, 
                   " (", format(round(100*(ureads_in_seu/l_ureads_cb), 2), nsmall = 1), 
-                  "%) matching the ", n_cells, " Cells in Seurat object (match rate ",
+                  "%) matching the ", n_cells, " Cells in Single-Cell Data object (match rate ",
                   format(round(100*(ureads_in_seu/n_cells), 2), nsmall = 1), "%)", sep = ""))
       stats_df <- rbind(stats_df,
                         data.frame(reads = n_reads, 
@@ -547,12 +549,12 @@ HLA_Matrix <- function(reads, seu, hla_recip = character(), hla_donor = characte
       message(cat("  Reads remaining: ", n_reads, 
                   ", including ", reads_in_seu,
                   " (", format(round(100*(reads_in_seu/n_reads), 2), nsmall = 1),
-                  "%) belonging to Cells found in Seurat object", sep = ""))
+                  "%) belonging to Cells found in Single-Cell Data object", sep = ""))
       message(cat("  CBs remaining: ", l_ureads_cb, 
                   ", including ", 
                   ureads_in_seu, 
                   " (", format(round(100*(ureads_in_seu/l_ureads_cb), 2), nsmall = 1), 
-                  "%) matching the ", n_cells, " Cells in Seurat object (match rate ",
+                  "%) matching the ", n_cells, " Cells in Single-Cell Data object (match rate ",
                   format(round(100*(ureads_in_seu/n_cells), 2), nsmall = 1), "%)", sep = ""))
       stats_df <- rbind(stats_df,
                         data.frame(reads = n_reads, 
@@ -568,7 +570,7 @@ HLA_Matrix <- function(reads, seu, hla_recip = character(), hla_donor = characte
   }
   ## Matrix formation
   # matrix
-  message(cat("\nCreating the HLA Count Matrix compatible with the Seurat object"))
+  message(cat("\nCreating the HLA Count Matrix"))
   alleles <- mclapply(1:length(reads), function(x) reads[[x]]$gene0, mc.cores = multi_thread) %>% unlist() %>% na.omit() %>% unique() %>% sort()
   HLA.matrix <- matrix(0, nrow = length(alleles), ncol = length(reads), dimnames = list(alleles, names(reads)))
   pb <- pbmcapply::progressBar(min = 0, max = length(reads), style = "ETA", char = "=")
@@ -590,17 +592,17 @@ HLA_Matrix <- function(reads, seu, hla_recip = character(), hla_donor = characte
   HLA.matrix[is.na(HLA.matrix)] <- 0
   HLA.matrix <- HLA.matrix[,which(colSums(HLA.matrix)>0)]
   HLA.matrix <- as.matrix(t(HLA.matrix))
-  HLA.matrix <- Matrix(HLA.matrix,sparse = T)
+  HLA.matrix <- Matrix::Matrix(HLA.matrix,sparse = T)
   drop_if_fewer <- drop_if_fewer_than
   HLA.matrix <- HLA.matrix[rownames(HLA.matrix) %in% names(apply(as.data.frame(HLA.matrix), 1, sum)[apply(as.data.frame(HLA.matrix), 1, sum) >= drop_if_fewer]), ]
-  HLA <- CreateAssayObject(counts = HLA.matrix)
+  # HLA <- CreateAssayObject(counts = HLA.matrix)
   #message(cat("\nDone!!  ", format(Sys.time(), "%F %H:%M:%S"), " (runtime: ", difftime(Sys.time(), s, units = "min") %>% as.numeric() %>% abs(), " min)", sep = ""))
   e <- difftime(Sys.time(), s, units = "sec") %>% as.numeric() %>% abs()
   message(cat("\nDone!! (runtime: ", format(as.POSIXlt(e, origin = "1970-01-01", tz = "UTC"), "%H:%M:%S", tz = "UTC"), ")", sep = ""))
   if (return_stats) {
-    return(list(matrix = HLA, per_step_stats = stats_df, umi_dupl_counts = umi_counts, umi_dupl_plot = g))
+    return(list(matrix = HLA.matrix, per_step_stats = stats_df, umi_dupl_counts = umi_counts, umi_dupl_plot = g))
   } else {
-    return(HLA)
+    return(HLA.matrix)
   }
 }
 

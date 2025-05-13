@@ -2,12 +2,12 @@
 #' 
 #' @param reads  is the scrHLAtag count file including columns for CB, UMI, and HLA alleles (\url{https://github.com/furlan-lab/scrHLAtag}).
 #' @param k  can be \code{NULL} or a positive integer setting the number of cluster counts to partition the datapoints into, e.g. the number of entities or genotypes you \emph{think} there might be in your captured sample. If \code{NULL}, each clustering method will automatically determine \code{k} clusters on its own (will not work for \code{"hclust"} and \code{"kmeans"}, which need predefined \code{k}s).
-#' @param seu  is the Seurat object associated with the scrHLAtag count file (\url{https://satijalab.org/seurat/index.html}).
+#' @param cell_data_obj  is a cell dataset object associated with the scrHLAtag count file; entered if matching CBs in count file with ones in the object is desired. Currently the function is compatible with Seurat (\url{https://satijalab.org/seurat/index.html}).
 #' @param CB_rev_com  logical, called \code{TRUE} if the need to obtain the reverse complement of Cell Barcodes (CBs) is desired; default is \code{FALSE}. 
-#' @param geno_metadata_id  a character, the column ID of the Seurat metadata designated to distinguish genotypes, if this information is available. \code{NULL} by default or when genotyping information is not available. 
+#' @param geno_metadata_id  a character, the column ID of the Single-cell Dataset Obj metadata designated to distinguish genotypes, if this information is available. \code{NULL} by default or when genotyping information is not available. 
 #' @param hla_with_counts_above  number of total reads accross CBs at or above which an HLA allele is retained in the matrix.
 #' @param CBs_with_counts_above  number of total reads accross HLA alleles at or above which a CB is retained in the matrix. Note: \code{stats::princomp()} can only be used with at least as many units (CBs) as variables (HLAs), thus the function will make sure that number of CBs is equal or more than available HLA alleles in the matrix.
-#' @param match_CB_with_seu  logical, called \code{TRUE} if filtering CBs in the scrHLAtag count file with matching ones in the Seurat object is desired. 
+#' @param match_CB_with_obj  is a logical, called TRUE if filtering CBs in the scrHLAtag count file with matching ones in the cell dataset object is desired. 
 #' @param method  the name(s) of the graph-based clustering method(s) to be used for partitioning cells based on their HLA count patterns. The choice is between one or a combination of a Community structure detection method: \code{"leiden"}, a Density-based method: \code{"dbscan"}, a Connectivity-based method: \code{"hclust"}, a Centroid-based method: \code{"kmeans"}, and a Distribution-based method: \code{"gmm"} (for Gaussian Mixture Model). The methods are run with their respective Default parameters. Some of those methods may predict \emph{true} allogeneic entities with better accuracy than others; as we cannot know a priori which is the best method, we propose the method: \code{"consensus"}, which groups cells in the same cluster if they agree on membership in a majority of methods, otherwise they are unclassified (\code{NA}s). Note: \code{"consensus"} is equivalent to \code{c("leiden", "hclust", "kmeans", "gmm", "dbscan", "consensus")}.
 #' @param n_PCs  the number of top principal components to retain in downstream clustering and umap analyses; default is \code{50} or the top 80 percent of PCs, whichever is smaller.
 #' @param dbscan_minPts  only works for the  \code{"dbscan"} method: number of minimum points required in the epsilon neighborhood radius (\code{eps}) of core points. While the other methods require 1 parameter (e.g., \code{k}), \code{"dbscan"} requires 2: \code{eps} and \code{minPts}. To acheive desired \code{k} clusters, a range of \code{eps} parameter is tested against a fixed \code{minPts}, which is provided here. Default at \code{30}, but can be adjusted higher or lower depending on how small and 'clumped' an allogeneic entity is suspected to be. 
@@ -39,13 +39,13 @@
 #' dirs<- lapply(dirs, dir, pattern = "unguided_hla_align_corrected", recursive = F, full.names = T) %>% unlist
 #' dirnames <- c("AML_101_BM", "AML_101_34", "TN_BM", "TN_34") # this is how the samples were organized in the directories
 #' ## Load the counts files
-#' cts <- HLA_load(directories = dirs, dir_names = dirnames, seu = your_Seurat_obj)
+#' cts <- HLA_load(directories = dirs, dir_names = dirnames, cell_data_obj = your_cell_dataset_obj)
 #' ## Process those count files
-#' HLA_umap <- HLA_clusters(reads = cts[["mRNA"]], k = 2, seu = your_Seurat_Obj, geno_metadata_id = "geno", hla_with_counts_above = 5, CBs_with_counts_above = 35)
+#' HLA_umap <- HLA_clusters(reads = cts[["mRNA"]], k = 2, cell_data_obj = your_cell_dataset_obj, geno_metadata_id = "geno", hla_with_counts_above = 5, CBs_with_counts_above = 35)
 #' @export
 
-HLA_clusters <- function(reads, k = 1, seu = NULL, CB_rev_com = FALSE, geno_metadata_id = NULL, 
-                         hla_with_counts_above = 0, CBs_with_counts_above = 25, match_CB_with_seu = TRUE, 
+HLA_clusters <- function(reads, k = 1, cell_data_obj = NULL, CB_rev_com = FALSE, geno_metadata_id = NULL, 
+                         hla_with_counts_above = 0, CBs_with_counts_above = 25, match_CB_with_obj = TRUE, 
                          method = "consensus", n_PCs = 50, dbscan_minPts = 30,
                          QC_mm2 = TRUE, s1_percent_pass_score = 80, AS_percent_pass_score = 80, NM_thresh = 15, de_thresh = 0.01, 
                          parallelize = FALSE, pt_size = 0.5, return_heavy = FALSE, seed = NULL, suppress_plots = FALSE, ...) {
@@ -57,6 +57,8 @@ HLA_clusters <- function(reads, k = 1, seu = NULL, CB_rev_com = FALSE, geno_meta
   if (is.null(k) & !any(method %in% c("leiden", "dbscan", "gmm"))) { stop("'k' cannot be 'NULL' while using methods 'hclust', 'kmeans', or 'consensus'.", call. = FALSE)}
   if (!"package:mclust" %in% search()) {suppressPackageStartupMessages({library(mclust)})}
   if (!is.null(seed)) set.seed(seed)
+  seu <- cell_data_obj
+  cell_data_obj <- NULL
   ## parallelize
   if (parallelize) {
     multi_thread <- parallel::detectCores()
@@ -75,7 +77,7 @@ HLA_clusters <- function(reads, k = 1, seu = NULL, CB_rev_com = FALSE, geno_meta
     row.names(reads)<-NULL
     reads$seu_barcode <- stringr::str_c(reads$samp, reads$id_cb_separator, reads$CB, reads$id_cb_suffix)
     if (length(unique(reads$seu_barcode)) < length(unique(reads$gene))) {
-      message(cat("Too few Seurat Barcodes after aligner quality control. ",crayon::red("Retaining all reads for now..."), sep = ""))
+      message(cat("Too few Barcodes after aligner quality control. ",crayon::red("Retaining all reads for now..."), sep = ""))
       reads <- reads_recov
     }  
   }
@@ -133,18 +135,18 @@ HLA_clusters <- function(reads, k = 1, seu = NULL, CB_rev_com = FALSE, geno_meta
     part_HLA<- HLA.matrix
   } else {
     if ("Seurat" %in% class(seu)) {
-      if (match_CB_with_seu) {
+      if (match_CB_with_obj) {
         part_HLA<- HLA.matrix[,colnames(HLA.matrix) %in% Cells(seu)]
-        if (ncol(part_HLA) == 0) { stop("Seurat Barcodes did not match any of the CBs in the scrHLAtag counts object.\n  Make sure `seu` and `reads` objects are related,\n  If 10x 3' chemistry, try `CB_rev_com = TRUE`,\n  Try to rerun without any barcode filtering (e.g., try `QC_mm2 = FALSE`).", call. = FALSE) }
+        if (ncol(part_HLA) == 0) { stop("Barcodes in Single-cell Dataset Obj did not match any of the CBs in the scrHLAtag counts object.\n  Make sure `cell_data_obj` and `reads` objects are related,\n  If 10x 3' chemistry, try `CB_rev_com = TRUE`,\n  Try to rerun without any barcode filtering (e.g., try `QC_mm2 = FALSE`).", call. = FALSE) }
       } else {
         part_HLA<- HLA.matrix
       }
     } else {
-      stop("Single-cell dataset container (in argument `seu`) must be of class 'Seurat'", call. = FALSE)
+      stop("Single-cell dataset container (in argument 'cell_data_obj') of class 'Seurat' are currently compatible", call. = FALSE)
     }
   }
   if (ncol(part_HLA) < nrow(part_HLA)) {
-    message(cat("Too few Seurat Barcodes matched the CBs in the scrHLAtag counts object. ",crayon::red("\nContinuing without Seurat CB matching..."), sep = ""))
+    message(cat("Too few Barcodes in Single-cell Dataset Obj matched the CBs in the scrHLAtag counts object. ",crayon::red("\nContinuing without Single-cell Dataset Obj CB matching..."), sep = ""))
     part_HLA <- HLA.matrix
     ignore_seu <- TRUE
   } else {ignore_seu <- FALSE}
@@ -404,7 +406,7 @@ HLA_clusters <- function(reads, k = 1, seu = NULL, CB_rev_com = FALSE, geno_meta
 #' @param reads.list  is a scrHLAtag count file (or a list of scrHLAtag count files) including columns for CB, UMI, and HLA alleles (\url{https://github.com/furlan-lab/scrHLAtag}).
 #' @param cluster_coordinates  is the UMAP coordinates dataframe with HLA clustering information (found by the \code{scrHLAmatrix::HLA_clusters()} function) from which clusters are extracted and mapped into the scrHLAtag count files by matching Cell Barcodes.
 #' @param CB_rev_com  logical, called \code{TRUE} if the need to obtain the reverse complement of Cell Barcodes (CBs) is desired; default is \code{FALSE}.
-#' @param additional_col_id  is a character; if mapping of any additional column ID of the Seurat metadata collected in the \code{cluster_coordinates} dataframe, to the scrHLAtag count files is desired. \code{NULL} by default.
+#' @param additional_col_id  is a character; if mapping of any additional column ID of the Single-cell Dataset Obj metadata collected in the \code{cluster_coordinates} dataframe, to the scrHLAtag count files is desired. \code{NULL} by default.
 #' @param parallelize  logical, called \code{TRUE} if using parallel processing (multi-threading) is desired; default is \code{FALSE}.
 #' @import stringr
 #' @return a large list containing scrHLAtag count file(s) including columns for CB, UMI, and HLA alleles, with the addition of HLA_clusters
@@ -415,7 +417,7 @@ HLA_clusters <- function(reads, k = 1, seu = NULL, CB_rev_com = FALSE, geno_meta
 #' dirs<- lapply(dirs, dir, pattern = "unguided_hla_align_corrected", recursive = F, full.names = T) %>% unlist
 #' dirnames <- c("AML_101_BM", "AML_101_34", "TN_BM", "TN_34") # this is how the samples were organized in the directories
 #' ## Load the counts files
-#' cts <- HLA_load(directories = dirs, dir_names = dirnames, seu = your_Seurat_obj)
+#' cts <- HLA_load(directories = dirs, dir_names = dirnames, cell_data_obj = your_cell_dataset_obj)
 #' ## Process those count files
 #' cts <- map_HLA_clusters(reads.list = cts, cluster_coordinates = UMAP_dataframe_from_HLA_clusters_function, additional_col_id = "geno")
 #' @export

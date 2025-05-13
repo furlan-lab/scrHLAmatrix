@@ -1,13 +1,14 @@
 #' Extracting the top HLA alleles from the scrHLAtag count files in a Single-Cell approach (based on the most counts per Cell Barcode)
 #' 
 #' @param reads  is the scrHLAtag count file including columns for CB, UMI, and HLA alleles (https://github.com/furlan-lab/scrHLAtag).
-#' @param seu  is the Seurat object associated with the scrHLAtag count file (https://satijalab.org/seurat/index.html), and entered here if matching CBs in count file with Seurat colnames is desired.
+#' @param cell_data_obj  is a cell dataset object associated with the scrHLAtag count file. Currently the function is compatible with Seurat (\url{https://satijalab.org/seurat/index.html}).
 #' @param CB_rev_com  is a logical, called TRUE if the need to obtained the reverse complement of Cell Barcodes (CBs) is desired; default is FALSE. 
 #' @param hla_with_counts_above  is the number of total reads accross CBs at or above which an HLA allele is retained in the matrix.
 #' @param CBs_with_counts_above  is the number of total reads accross HLA alleles at or above which a CB is retained in the matrix. Note: at present, the function will make sure that number of CBs is equal or more than available HLA alleles in the matrix.
-#' @param match_CB_with_seu  is a logical, called TRUE if filtering CBs in the scrHLAtag count file with matching ones in the Seurat object is desired. 
+#' @param match_CB_with_obj  is a logical, called TRUE if filtering CBs in the scrHLAtag count file with matching ones in the cell dataset object is desired. 
 #' @param frac  is the fraction (0 to 1) of total reads for a particular HLA gene, which incorporates the highest ranking alleles of that gene in terms of number of reads; default at 0.85 .
 #' @param allowed_alleles_per_cell  is a numeric (single or range) determining the minimum and maximum number of highest ranking allele genotypes per cell to keep if such number is beyond those limits when filtering by fraction 'frac'; default is c(1, 200), usefull in the early scrHLAtag iterations to give minimap2 lots of room to align; once you are ready to finalize the top HLA allele list, you can try c(1, 2) if you assume a cell can have a min of 1 allele (homozygous) and a max of 2 (heterozygous).
+#' @param flag_bad_alleles  is a logical, called TRUE if instead of removing alleles with imperfect alignment scores (when finalizing the top HLA allele list), those alleles are flagged and returned separately.
 #' @param field_resolution  is a numeric, to select the HLA nomenclature level of Field resolution, where 1, 2, or 3 will take into consideration the first, the first two, or the first three field(s) of HLA designation; default is 3.
 #' @param QC_mm2  is a logical, called TRUE if removing low quality reads based on minimap2 tags is desired.
 #' @param s1_percent_pass_score  is a percentage (\code{0} to \code{100}) cuttoff from the maximum score (best quality) of the minimap2 's1' tag, which a read needs to acheive to pass as acceptable; default at \code{80} and becomes less inclusive if value increases.
@@ -25,33 +26,11 @@
 #' @import dplyr
 #' @import kSamples
 #' @return a Vector of the top HLA alleles in the count files (in terms of reads per Cell Barcode).
-#' @examples
-#' samples <- c("AML_101_BM", "AML_101_34")
-#' mol_info <- c("molecule_info_gene.txt.gz", "molecule_info_mRNA.txt.gz")
-#' cts <- list()
-#' for (i in 1:length(mol_info)){
-#'   dl<-lapply(samples, function(sample){
-#'     d<-read.table(file.path("path/to/scrHLAtag/out/files", sample,
-#'                             mol_info[i]), header = F, sep=" ", fill = T) 
-#'     d$V1<-paste0(sample, "_", d$V1, "-1")
-#'     colnames(d)<-c("name","CB", "nb", "UMI", "gene", "query_len","start", "mapq", "cigar", "NM", "AS", "s1", "de", "seq")
-#'     d$samp <- sample
-#'     d
-#'   })
-#'   ctsu<-do.call(rbind,dl)
-#'   rm(dl)
-#'   cts[[str_sub(strsplit(mol_info[i], "\\.")[[1]][1], start= -4)]] <- ctsu
-#'   rm(ctsu)
-#' }
-#' top_alleles <- Top_HLA_list_byCB(reads = cts[["mRNA"]], seu = your_Seurat_Obj, hla_with_counts_above = 5, CBs_with_counts_above = 35, frac = 0.9, min_alleles_keep = 2)
-#' # 
-#' # Note: if for a particular HLA, the alleles with the most counts are in a tie 
-#' # between 3 or more alleles in a particular Cell Barcode, we cannot know which 
-#' # ones are the top two alleles, so that CB is not counted. This is similar if  
-#' # there were no counts for that allele (all zeros).
 #' @noRd
 
-Top_HLA_list_byCB <- function(reads, seu = NULL, CB_rev_com = FALSE, hla_with_counts_above = 5, CBs_with_counts_above = 15, match_CB_with_seu = TRUE, frac = 0.85, allowed_alleles_per_cell = c(1, 200), field_resolution = 3, QC_mm2 = TRUE, s1_percent_pass_score = 80, AS_percent_pass_score = 80, NM_thresh = 15, de_thresh = 0.01, parallelize = TRUE) {
+Top_HLA_list_byCB <- function(reads, cell_data_obj = NULL, CB_rev_com = FALSE, hla_with_counts_above = 5, CBs_with_counts_above = 15, match_CB_with_obj = TRUE, frac = 0.85, allowed_alleles_per_cell = c(1, 200), flag_bad_alleles = TRUE, field_resolution = 3, QC_mm2 = TRUE, s1_percent_pass_score = 80, AS_percent_pass_score = 80, NM_thresh = 15, de_thresh = 0.01, parallelize = TRUE) {
+  seu <- cell_data_obj
+  cell_data_obj <- NULL
   ## parallelize
   if (parallelize) {
     multi_thread <- parallel::detectCores()
@@ -140,15 +119,25 @@ Top_HLA_list_byCB <- function(reads, seu = NULL, CB_rev_com = FALSE, hla_with_co
     return(reads[[m]])
   }, mc.cores = multi_thread)
   # if this is the final top HLA list, try capture potentially bad alleles (based on mm2 metrics) in a list
-  if (!identical(allowed_alleles_per_cell, c(1, 2))) {
+  if (!(min(allowed_alleles_per_cell) == 1 && max(allowed_alleles_per_cell) <= 3)) {
     bad_alleles <- mclapply(1:length(reads), function(m) { # `m` is an unused arg
       tmp <- character()
       return(tmp)
     }, mc.cores = multi_thread)
+    names(bad_alleles) <- paste0("allo_cluster_", seq_along(bad_alleles))
   } else {
+    # in preparation for the upcoming Anderson Darling tests, skip the test if the tested vector is constant across the categories (otherwise it will return an error):
+    safe_ad_pval <- function(var, data) {
+      y <- data[[var]]
+      if (length(unique(y)) < 2) {
+        return(1)    # give it the max p-value = 1 which will give -log10(1) = 0
+      }
+      ad_res <- kSamples::ad.test(stats::as.formula(sprintf("%s ~ gene", var)), data = data)
+      return(ad_res$ad[1, 3])
+    }
     bad_alleles <- mclapply(1:length(reads), function(m) {
-      kw <- data.frame(matrix(ncol = 11, nrow = 0, dimnames = list(NULL, c("kw_s1", "kw_AS", "kw_NM", "kw_de", "ad_s1", "ad_AS", "ad_NM", "ad_de", "sum_kw", "sum_ad", "best")))) 
-      bad <- c()
+      kw <- data.frame(matrix(ncol = 6, nrow = 0, dimnames = list(NULL, c("ad_s1", "ad_AS", "ad_NM", "ad_de", "sum_ad", "best")))) 
+      bad <- character()
       for (j in 1:length(unique(reads[[m]]$hla_field1))) {
         sub_ctsu <- reads[[m]][reads[[m]]$hla_field1 == unique(reads[[m]]$hla_field1)[j],]
         max_s1 <- max(sub_ctsu$s1)
@@ -170,33 +159,23 @@ Top_HLA_list_byCB <- function(reads, seu = NULL, CB_rev_com = FALSE, hla_with_co
         sub_ctsu <- sc
         rm(sc)
         if (length(unique(sub_ctsu$gene))==1){
-          k <- data.frame(kw_s1 = 0,
-                          kw_AS = 0,
-                          kw_NM = 0,
-                          kw_de = 0,
-                          ad_s1 = 0,
+          k <- data.frame(ad_s1 = 0,
                           ad_AS = 0,
                           ad_NM = 0,
                           ad_de = 0,
-                          sum_kw= 0,
                           sum_ad= 0,
                           best=NA)
         } else {
-          k <- data.frame(kw_s1 = trunc(-log10(kruskal.test(s1 ~ gene, data = sub_ctsu)[["p.value"]])*10^2)/10^2,
-                          kw_AS = trunc(-log10(kruskal.test(AS ~ gene, data = sub_ctsu)[["p.value"]])*10^2)/10^2,
-                          kw_NM = trunc(-log10(kruskal.test(NM ~ gene, data = sub_ctsu)[["p.value"]])*10^2)/10^2,
-                          kw_de = trunc(-log10(kruskal.test(de ~ gene, data = sub_ctsu)[["p.value"]])*10^2)/10^2,
-                          ad_s1 = trunc(-log10(kSamples::ad.test(s1 ~ gene, data = sub_ctsu)[["ad"]][1,3])*10^2)/10^2,
-                          ad_AS = trunc(-log10(kSamples::ad.test(AS ~ gene, data = sub_ctsu)[["ad"]][1,3])*10^2)/10^2,
-                          ad_NM = trunc(-log10(kSamples::ad.test(NM ~ gene, data = sub_ctsu)[["ad"]][1,3])*10^2)/10^2,
-                          ad_de = trunc(-log10(kSamples::ad.test(de ~ gene, data = sub_ctsu)[["ad"]][1,3])*10^2)/10^2,
-                          sum_kw= 0,
+          k <- data.frame(ad_s1 = trunc(-log10(safe_ad_pval("s1",  sub_ctsu))*10^2)/10^2,
+                          ad_AS = trunc(-log10(safe_ad_pval("AS",  sub_ctsu))*10^2)/10^2,
+                          ad_NM = trunc(-log10(safe_ad_pval("NM",  sub_ctsu))*10^2)/10^2,
+                          ad_de = trunc(-log10(safe_ad_pval("de",  sub_ctsu))*10^2)/10^2,
                           sum_ad= 0,
                           best=NA)
         }
         row.names(k) <- unique(reads[[m]]$hla_field1)[j]
-        k$sum_kw <- rowSums(k[,1:4])
-        k$sum_ad <- rowSums(k[,5:8])
+        k[1:4][ is.na(k[1:4]) ] <- 0
+        k$sum_ad <- rowSums(k[,1:4])
         best <- c()
         if (k$ad_s1 > 10 & k$sum_ad > 30) {
           st <- group_by(sub_ctsu, gene) %>%
@@ -214,7 +193,7 @@ Top_HLA_list_byCB <- function(reads, seu = NULL, CB_rev_com = FALSE, hla_with_co
           # Run pairwise AD tests between best and others to identify the ones that rank up next to the best, then capture them in the list
           pairwise_results <- lapply(other_alleles, function(lvl) {
             subset_data <- subset(sub_ctsu, gene %in% c(star, lvl))
-            test_result <- trunc(-log10(kSamples::ad.test(s1 ~ gene, data = subset_data)[["ad"]][1,3])*10^2)/10^2
+            test_result <- trunc(-log10(safe_ad_pval("s1",  sub_ctsu))*10^2)/10^2
             data.frame(
               comparison_versus = lvl,
               mlog10Pval = test_result
@@ -239,7 +218,7 @@ Top_HLA_list_byCB <- function(reads, seu = NULL, CB_rev_com = FALSE, hla_with_co
           # Run pairwise AD tests between best and others to identify the ones that rank up next to the best, then capture them in the list
           pairwise_results <- lapply(other_alleles, function(lvl) {
             subset_data <- subset(sub_ctsu, gene %in% c(star, lvl))
-            test_result <- trunc(-log10(kSamples::ad.test(AS ~ gene, data = subset_data)[["ad"]][1,3])*10^2)/10^2
+            test_result <- trunc(-log10(safe_ad_pval("AS",  sub_ctsu))*10^2)/10^2
             data.frame(
               comparison_versus = lvl,
               mlog10Pval = test_result
@@ -264,7 +243,7 @@ Top_HLA_list_byCB <- function(reads, seu = NULL, CB_rev_com = FALSE, hla_with_co
           # Run pairwise AD tests between best and others to identify the ones that rank up next to the best, then capture them in the list
           pairwise_results <- lapply(other_alleles, function(lvl) {
             subset_data <- subset(sub_ctsu, gene %in% c(star, lvl))
-            test_result <- trunc(-log10(kSamples::ad.test(NM ~ gene, data = subset_data)[["ad"]][1,3])*10^2)/10^2
+            test_result <- trunc(-log10(safe_ad_pval("NM",  sub_ctsu))*10^2)/10^2
             data.frame(
               comparison_versus = lvl,
               mlog10Pval = test_result
@@ -289,7 +268,7 @@ Top_HLA_list_byCB <- function(reads, seu = NULL, CB_rev_com = FALSE, hla_with_co
           # Run pairwise AD tests between best and others to identify the ones that rank up next to the best, then capture them in the list
           pairwise_results <- lapply(other_alleles, function(lvl) {
             subset_data <- subset(sub_ctsu, gene %in% c(star, lvl))
-            test_result <- trunc(-log10(kSamples::ad.test(de ~ gene, data = subset_data)[["ad"]][1,3])*10^2)/10^2
+            test_result <- trunc(-log10(safe_ad_pval("de",  sub_ctsu))*10^2)/10^2
             data.frame(
               comparison_versus = lvl,
               mlog10Pval = test_result
@@ -299,7 +278,7 @@ Top_HLA_list_byCB <- function(reads, seu = NULL, CB_rev_com = FALSE, hla_with_co
           best <- c(best, star, pairwise_results$comparison_versus[which(pairwise_results$mlog10Pval < 10)])
         }
         best <- names(table(best))[which(table(best) >=2 )] # each allele has to be best in at least 2 of the 4 metrics
-        if (sum(k[,c(5:8)] > 10) < 2) {best <- NA} # the rule is that 2 of the log Pvals should be greater than 10
+        if (sum(k[,c(1:4)] > 10) < 2) {best <- NA} # the rule is that 2 of the log Pvals should be greater than 10
         if (!last_round[[m]]) {best <- NA} # if this is not the last round, no need to get best quality alleles just yet
         k$best <- paste(best, collapse = "_")
         if (!is.null(best) && !anyNA(best)) {bad <- c(bad, setdiff(unique(st$gene), best))} #if there is a best allele, capture the bad ones in a list
@@ -310,6 +289,7 @@ Top_HLA_list_byCB <- function(reads, seu = NULL, CB_rev_com = FALSE, hla_with_co
       }
       return(bad)
     }, mc.cores = multi_thread)
+    names(bad_alleles) <- paste0("allo_cluster_", seq_along(bad_alleles))
   } 
   # creating as many count matrices as there are elements (an element for each HLA umap "cluster") in the "reads" list
   matrices <- mclapply(1:length(reads), function(m) {
@@ -331,13 +311,13 @@ Top_HLA_list_byCB <- function(reads, seu = NULL, CB_rev_com = FALSE, hla_with_co
       part_HLA<- HLA.matrix
     } else {
       if ("Seurat" %in% class(seu)) {
-        if(match_CB_with_seu) {
+        if(match_CB_with_obj) {
           part_HLA<- HLA.matrix[,colnames(HLA.matrix) %in% Cells(seu)]
         } else {
           part_HLA<- HLA.matrix
         }
       } else {
-        stop("Single-cell dataset container must be of class 'Seurat'", call. = FALSE)
+        stop("Single-cell dataset container (in argument 'cell_data_obj') of class 'Seurat' are currently compatible", call. = FALSE)
       }
     }
     ## removing HLA alleles with low counts overall
@@ -440,25 +420,40 @@ Top_HLA_list_byCB <- function(reads, seu = NULL, CB_rev_com = FALSE, hla_with_co
     top_a <- unique(top_a)
     top_a <- top_a[top_a != "NA"]
     top_a <- top_a %>% sort()
-    top_a <- setdiff(top_a, bad_alleles[[m]])
+    if (flag_bad_alleles) {
+      remove_a <- character() #if flag is true, dont remove
+    } else {
+      remove_a <- bad_alleles[[m]]
+    }
+    top_a <- setdiff(top_a, remove_a)
     return(top_a)
   }, mc.cores = multi_thread)
   top_a_list <- do.call("c", top_a_list)
   top_a_list <- top_a_list %>% unique() %>% sort()
+  flagged_alleles <- "alleles imperfectly associated with reads that are worth deeper examination will be listed here in later iterations"
+  if (min(allowed_alleles_per_cell) == 1 && max(allowed_alleles_per_cell) <= 3 && any(lapply(bad_alleles, function(l) length(l)>0)) ) {
+    flagged_alleles <- bad_alleles
+    message(cat("Reads associated with these allele(s) may require a closer look at their sequence(s):"))
+    for(cluster in names(bad_alleles)) {
+      allele_boxes <- paste0(crayon::bgWhite(" ", bad_alleles[[cluster]], " "), collapse = " ") # wrap each allele in a white box
+      message(cat(paste0("in ", crayon::bgWhite(" ", cluster, " "), " >> ", allele_boxes)))
+    }
+  } 
   message(cat("\nDone!!"))
-  return(top_a_list)
+  return(list(top_alleles = top_a_list, flagged_alleles = flagged_alleles))
 }
 
 
 #' Extracting the top HLA alleles from a PREPROCESSED scrHLAtag count files in a Single-Cell approach (based on the most counts per Cell Barcode)
 #' 
 #' @param reads  is the scrHLAtag count file including columns for CB, UMI, and HLA alleles (https://github.com/furlan-lab/scrHLAtag).
-#' @param seu  is the Seurat object associated with the scrHLAtag count file (https://satijalab.org/seurat/index.html), and entered here if matching CBs in count file with Seurat colnames is desired.
+#' @param cell_data_obj  is a cell dataset object associated with the scrHLAtag count file. Currently the function is compatible with Seurat (\url{https://satijalab.org/seurat/index.html}).
 #' @param hla_with_counts_above  is the number of total reads accross CBs at or above which an HLA allele is retained in the matrix.
 #' @param CBs_with_counts_above  is the number of total reads accross HLA alleles at or above which a CB is retained in the matrix. Note: at present, the function will make sure that number of CBs is equal or more than available HLA alleles in the matrix.
-#' @param match_CB_with_seu  is a logical, called TRUE if filtering CBs in the scrHLAtag count file with matching ones in the Seurat object is desired. 
+#' @param match_CB_with_obj  is a logical, called TRUE if filtering CBs in the scrHLAtag count file with matching ones in the cell dataset object is desired. 
 #' @param frac  is the fraction (0 to 1) of total reads for a particular HLA gene, which incorporates the highest ranking alleles of that gene in terms of number of reads; default at 0.85 .
 #' @param allowed_alleles_per_cell  is a numeric (single or range) determining the minimum and maximum number of highest ranking allele genotypes per cell to keep if such number is beyond those limits when filtering by fraction 'frac'; default is c(1, 200), usefull in the early scrHLAtag iterations to give minimap2 lots of room to align; once you are ready to finalize the top HLA allele list, you can try c(1, 2) if you assume a cell can have a min of 1 allele (homozygous) and a max of 2 (heterozygous).
+#' @param flag_bad_alleles  is a logical, called TRUE if instead of removing alleles with imperfect alignment scores (when finalizing the top HLA allele list), those alleles are flagged and returned separately.
 #' @param field_resolution  is a numeric, to select the HLA nomenclature level of Field resolution, where 1, 2, or 3 will take into consideration the first, the first two, or the first three field(s) of HLA designation; default is 3.
 #' @param parallelize  is a logical, called TRUE if using parallel processing (multi-threading) is desired; default is TRUE.
 #' @import stringr
@@ -473,7 +468,9 @@ Top_HLA_list_byCB <- function(reads, seu = NULL, CB_rev_com = FALSE, hla_with_co
 #' @return a Vector of the top HLA alleles in the count files (in terms of reads per Cell Barcode).
 #' @noRd
 
-Top_HLA_list_byCB_preprocessed <- function(reads, seu = NULL, hla_with_counts_above = 5, CBs_with_counts_above = 15, match_CB_with_seu = TRUE, frac = 0.85, allowed_alleles_per_cell = c(1, 200), field_resolution = 3, parallelize = TRUE) {
+Top_HLA_list_byCB_preprocessed <- function(reads, cell_data_obj = NULL, hla_with_counts_above = 5, CBs_with_counts_above = 15, match_CB_with_obj = TRUE, frac = 0.85, allowed_alleles_per_cell = c(1, 200), flag_bad_alleles = TRUE, field_resolution = 3, parallelize = TRUE) {
+  seu <- cell_data_obj
+  cell_data_obj <- NULL
   ## parallelize
   if (parallelize) {
     multi_thread <- parallel::detectCores()
@@ -529,15 +526,25 @@ Top_HLA_list_byCB_preprocessed <- function(reads, seu = NULL, hla_with_counts_ab
     return(reads[[m]])
   }, mc.cores = multi_thread)
   # if this is the final top HLA list, try capture potentially bad alleles (based on mm2 metrics) in a list
-  if (!identical(allowed_alleles_per_cell, c(1, 2))) {
+  if (!(min(allowed_alleles_per_cell) == 1 && max(allowed_alleles_per_cell) <= 3)) {
     bad_alleles <- mclapply(1:length(reads), function(m) { # `m` is an unused arg
       tmp <- character()
       return(tmp)
     }, mc.cores = multi_thread)
+    names(bad_alleles) <- paste0("allo_cluster_", seq_along(bad_alleles))
   } else {
+    # in preparation for the upcoming Anderson Darling tests, skip the test if the tested vector is constant across the categories (otherwise it will return an error):
+    safe_ad_pval <- function(var, data) {
+      y <- data[[var]]
+      if (length(unique(y)) < 2) {
+        return(1)    # give it the max p-value = 1 which will give -log10(1) = 0
+      }
+      ad_res <- kSamples::ad.test(stats::as.formula(sprintf("%s ~ gene", var)), data = data)
+      return(ad_res$ad[1, 3])
+    }
     bad_alleles <- mclapply(1:length(reads), function(m) {
-      kw <- data.frame(matrix(ncol = 11, nrow = 0, dimnames = list(NULL, c("kw_s1", "kw_AS", "kw_NM", "kw_de", "ad_s1", "ad_AS", "ad_NM", "ad_de", "sum_kw", "sum_ad", "best")))) 
-      bad <- c()
+      kw <- data.frame(matrix(ncol = 6, nrow = 0, dimnames = list(NULL, c("ad_s1", "ad_AS", "ad_NM", "ad_de", "sum_ad", "best")))) 
+      bad <- character()
       for (j in 1:length(unique(reads[[m]]$hla_field1))) {
         sub_ctsu <- reads[[m]][reads[[m]]$hla_field1 == unique(reads[[m]]$hla_field1)[j],]
         max_s1 <- max(sub_ctsu$s1)
@@ -559,33 +566,23 @@ Top_HLA_list_byCB_preprocessed <- function(reads, seu = NULL, hla_with_counts_ab
         sub_ctsu <- sc
         rm(sc)
         if (length(unique(sub_ctsu$gene))==1){
-          k <- data.frame(kw_s1 = 0,
-                          kw_AS = 0,
-                          kw_NM = 0,
-                          kw_de = 0,
-                          ad_s1 = 0,
+          k <- data.frame(ad_s1 = 0,
                           ad_AS = 0,
                           ad_NM = 0,
                           ad_de = 0,
-                          sum_kw= 0,
                           sum_ad= 0,
                           best=NA)
         } else {
-          k <- data.frame(kw_s1 = trunc(-log10(kruskal.test(s1 ~ gene, data = sub_ctsu)[["p.value"]])*10^2)/10^2,
-                          kw_AS = trunc(-log10(kruskal.test(AS ~ gene, data = sub_ctsu)[["p.value"]])*10^2)/10^2,
-                          kw_NM = trunc(-log10(kruskal.test(NM ~ gene, data = sub_ctsu)[["p.value"]])*10^2)/10^2,
-                          kw_de = trunc(-log10(kruskal.test(de ~ gene, data = sub_ctsu)[["p.value"]])*10^2)/10^2,
-                          ad_s1 = trunc(-log10(kSamples::ad.test(s1 ~ gene, data = sub_ctsu)[["ad"]][1,3])*10^2)/10^2,
-                          ad_AS = trunc(-log10(kSamples::ad.test(AS ~ gene, data = sub_ctsu)[["ad"]][1,3])*10^2)/10^2,
-                          ad_NM = trunc(-log10(kSamples::ad.test(NM ~ gene, data = sub_ctsu)[["ad"]][1,3])*10^2)/10^2,
-                          ad_de = trunc(-log10(kSamples::ad.test(de ~ gene, data = sub_ctsu)[["ad"]][1,3])*10^2)/10^2,
-                          sum_kw= 0,
+          k <- data.frame(ad_s1 = trunc(-log10(safe_ad_pval("s1",  sub_ctsu))*10^2)/10^2,
+                          ad_AS = trunc(-log10(safe_ad_pval("AS",  sub_ctsu))*10^2)/10^2,
+                          ad_NM = trunc(-log10(safe_ad_pval("NM",  sub_ctsu))*10^2)/10^2,
+                          ad_de = trunc(-log10(safe_ad_pval("de",  sub_ctsu))*10^2)/10^2,
                           sum_ad= 0,
                           best=NA)
         }
         row.names(k) <- unique(reads[[m]]$hla_field1)[j]
-        k$sum_kw <- rowSums(k[,1:4])
-        k$sum_ad <- rowSums(k[,5:8])
+        k[1:4][ is.na(k[1:4]) ] <- 0
+        k$sum_ad <- rowSums(k[,1:4])
         best <- c()
         if (k$ad_s1 > 10 & k$sum_ad > 30) {
           st <- group_by(sub_ctsu, gene) %>%
@@ -603,7 +600,7 @@ Top_HLA_list_byCB_preprocessed <- function(reads, seu = NULL, hla_with_counts_ab
           # Run pairwise AD tests between best and others to identify the ones that rank up next to the best, then capture them in the list
           pairwise_results <- lapply(other_alleles, function(lvl) {
             subset_data <- subset(sub_ctsu, gene %in% c(star, lvl))
-            test_result <- trunc(-log10(kSamples::ad.test(s1 ~ gene, data = subset_data)[["ad"]][1,3])*10^2)/10^2
+            test_result <- trunc(-log10(safe_ad_pval("s1",  sub_ctsu))*10^2)/10^2
             data.frame(
               comparison_versus = lvl,
               mlog10Pval = test_result
@@ -628,7 +625,7 @@ Top_HLA_list_byCB_preprocessed <- function(reads, seu = NULL, hla_with_counts_ab
           # Run pairwise AD tests between best and others to identify the ones that rank up next to the best, then capture them in the list
           pairwise_results <- lapply(other_alleles, function(lvl) {
             subset_data <- subset(sub_ctsu, gene %in% c(star, lvl))
-            test_result <- trunc(-log10(kSamples::ad.test(AS ~ gene, data = subset_data)[["ad"]][1,3])*10^2)/10^2
+            test_result <- trunc(-log10(safe_ad_pval("AS",  sub_ctsu))*10^2)/10^2
             data.frame(
               comparison_versus = lvl,
               mlog10Pval = test_result
@@ -653,7 +650,7 @@ Top_HLA_list_byCB_preprocessed <- function(reads, seu = NULL, hla_with_counts_ab
           # Run pairwise AD tests between best and others to identify the ones that rank up next to the best, then capture them in the list
           pairwise_results <- lapply(other_alleles, function(lvl) {
             subset_data <- subset(sub_ctsu, gene %in% c(star, lvl))
-            test_result <- trunc(-log10(kSamples::ad.test(NM ~ gene, data = subset_data)[["ad"]][1,3])*10^2)/10^2
+            test_result <- trunc(-log10(safe_ad_pval("NM",  sub_ctsu))*10^2)/10^2
             data.frame(
               comparison_versus = lvl,
               mlog10Pval = test_result
@@ -678,7 +675,7 @@ Top_HLA_list_byCB_preprocessed <- function(reads, seu = NULL, hla_with_counts_ab
           # Run pairwise AD tests between best and others to identify the ones that rank up next to the best, then capture them in the list
           pairwise_results <- lapply(other_alleles, function(lvl) {
             subset_data <- subset(sub_ctsu, gene %in% c(star, lvl))
-            test_result <- trunc(-log10(kSamples::ad.test(de ~ gene, data = subset_data)[["ad"]][1,3])*10^2)/10^2
+            test_result <- trunc(-log10(safe_ad_pval("de",  sub_ctsu))*10^2)/10^2
             data.frame(
               comparison_versus = lvl,
               mlog10Pval = test_result
@@ -688,7 +685,7 @@ Top_HLA_list_byCB_preprocessed <- function(reads, seu = NULL, hla_with_counts_ab
           best <- c(best, star, pairwise_results$comparison_versus[which(pairwise_results$mlog10Pval < 10)])
         }
         best <- names(table(best))[which(table(best) >=2 )] # each allele has to be best in at least 2 of the 4 metrics
-        if (sum(k[,c(5:8)] > 10) < 2) {best <- NA} # the rule is that 2 of the log Pvals should be greater than 10
+        if (sum(k[,c(1:4)] > 10) < 2) {best <- NA} # the rule is that 2 of the log Pvals should be greater than 10
         if (!last_round[[m]]) {best <- NA} # if this is not the last round, no need to get best quality alleles just yet
         k$best <- paste(best, collapse = "_")
         if (!is.null(best) && !anyNA(best)) {bad <- c(bad, setdiff(unique(st$gene), best))} #if there is a best allele, capture the bad ones in a list
@@ -699,6 +696,7 @@ Top_HLA_list_byCB_preprocessed <- function(reads, seu = NULL, hla_with_counts_ab
       }
       return(bad)
     }, mc.cores = multi_thread)
+    names(bad_alleles) <- paste0("allo_cluster_", seq_along(bad_alleles))
   } 
   # creating as many count matrices as there are elements (an element for each HLA umap "cluster") in the "reads" list
   matrices <- mclapply(1:length(reads), function(m) {
@@ -720,13 +718,13 @@ Top_HLA_list_byCB_preprocessed <- function(reads, seu = NULL, hla_with_counts_ab
       part_HLA<- HLA.matrix
     } else {
       if ("Seurat" %in% class(seu)) {
-        if(match_CB_with_seu) {
+        if(match_CB_with_obj) {
           part_HLA<- HLA.matrix[,colnames(HLA.matrix) %in% Cells(seu)]
         } else {
           part_HLA<- HLA.matrix
         }
       } else {
-        stop("Single-cell dataset container must be of class 'Seurat'", call. = FALSE)
+        stop("Single-cell dataset container (in argument 'cell_data_obj') of class 'Seurat' are currently compatible", call. = FALSE)
       }
     }
     ## removing HLA alleles with low counts overall
@@ -830,13 +828,27 @@ Top_HLA_list_byCB_preprocessed <- function(reads, seu = NULL, hla_with_counts_ab
     top_a <- unique(top_a)
     top_a <- top_a[top_a != "NA"]
     top_a <- top_a %>% sort()
-    top_a <- setdiff(top_a, bad_alleles[[m]])
+    if (flag_bad_alleles) {
+      remove_a <- character() #if flag is true, dont remove
+    } else {
+      remove_a <- bad_alleles[[m]]
+    }
+    top_a <- setdiff(top_a, remove_a)
     return(top_a)
   }, mc.cores = multi_thread)
   top_a_list <- do.call("c", top_a_list)
   top_a_list <- top_a_list %>% unique() %>% sort()
-  #message(cat("\nDone!!"))
-  return(top_a_list)
+  flagged_alleles <- "alleles imperfectly associated with reads that are wort deeper examination will be listed here in later iterations"
+  if (min(allowed_alleles_per_cell) == 1 && max(allowed_alleles_per_cell) <= 3 && any(lapply(bad_alleles, function(l) length(l)>0)) ) {
+    flagged_alleles <- bad_alleles
+    message(cat("Reads associated with these allele(s) may require a closer look at their sequence(s):"))
+    for(cluster in names(bad_alleles)) {
+      allele_boxes <- paste0(crayon::bgWhite(" ", bad_alleles[[cluster]], " "), collapse = " ") # wrap each allele in a white box
+      message(cat(paste0("in ", crayon::bgWhite(" ", cluster, " "), " >> ", allele_boxes)))
+    }
+  } 
+  # message(cat("\nDone!!"))
+  return(list(top_alleles = top_a_list, flagged_alleles = flagged_alleles))
 }
 
 
@@ -858,25 +870,6 @@ Top_HLA_list_byCB_preprocessed <- function(reads, seu = NULL, hla_with_counts_ab
 #' @import ggplot2
 #' @import dplyr
 #' @return a Vector of the top HLA alleles in the count files (in terms of reads).
-#' @examples
-#' samples <- c("AML_101_BM", "AML_101_34")
-#' mol_info <- c("molecule_info_gene.txt.gz", "molecule_info_mRNA.txt.gz")
-#' cts <- list()
-#' for (i in 1:length(mol_info)){
-#'   dl<-lapply(samples, function(sample){
-#'     d<-read.table(file.path("path/to/scrHLAtag/out/files", sample,
-#'                             mol_info[i]), header = F, sep=" ", fill = T) 
-#'     d$V1<-paste0(sample, "_", d$V1, "-1")
-#'     colnames(d)<-c("name","CB", "nb", "UMI", "gene", "query_len","start", "mapq", "cigar", "NM", "AS", "s1", "de", "seq")
-#'     d$samp <- sample
-#'     d
-#'   })
-#'   ctsu<-do.call(rbind,dl)
-#'   rm(dl)
-#'   cts[[str_sub(strsplit(mol_info[i], "\\.")[[1]][1], start= -4)]] <- ctsu
-#'   rm(ctsu)
-#' }
-#' top_alleles <- Top_HLA_list_bulk(reads_1 = cts[["mRNA"]], reads_2 = cts[["gene"]], frac = 0.8, min_alleles_keep = 2, use_alt_align_ABC = TRUE)
 #' @noRd
 
 Top_HLA_list_bulk <- function(reads_1, reads_2 = NULL, frac = 0.85, min_alleles_keep = 2, min_reads_per_gene = 20, insert_pop_most_freq = TRUE, use_alt_align_ABC = FALSE){

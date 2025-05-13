@@ -42,7 +42,7 @@ dirs<- lapply(dirs, list.dirs, recursive = F) \%>\% unlist
 dirs<- lapply(dirs, dir, pattern = "unguided_hla_align_corrected", recursive = F, full.names = T) \%>\% unlist
 dirnames <- c("AML_101_BM", "AML_101_34", "TN_BM", "TN_34") # this is how the samples were organized in the directories
 ## Load the counts files
-cts <- HLA_load(directories = dirs, dir_names = dirnames, seu = your_Seurat_obj)
+cts <- HLA_load(directories = dirs, dir_names = dirnames, cell_data_obj = your_cell_dataset_obj)
 ## Process those count files
 Top_HLA_plot_bulk(reads_1 = cts[["mRNA"]], reads_2 = cts[["gene"]], use_alt_align_ABC = TRUE)
 }

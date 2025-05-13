@@ -1,8 +1,8 @@
 #' Loading the count file(s) as an output of scrHLAtag, including columns for CB, UMI, and HLA alleles (\url{https://github.com/furlan-lab/scrHLAtag}).
 #' 
 #' @param directories  a character list of one (or more) full-length directory(ies) where the the scrHLAtag count file(s) have been organized.
-#' @param dir_names  a character list of one (or more) sample name(s) that \emph{strictly correspond(s)} to the directory(ies) where the the scrHLAtag count file(s) have been organized. Can remain \code{NULL} only if the \code{directories} are already named vectors. For 2 or more samples/directories, try to get the names as closely as possible to the sample ID names spposedly present in the corresponding Seurat object (usually concatenated to Seurat barcodes when experiments are merged).
-#' @param seu  is the Seurat object associated with the scrHLAtag count file (\url{https://satijalab.org/seurat/index.html}).
+#' @param dir_names  a character list of one (or more) sample name(s) that \emph{strictly correspond(s)} to the directory(ies) where the the scrHLAtag count file(s) have been organized. Can remain \code{NULL} only if the \code{directories} are already named vectors. For 2 or more samples/directories, try to get the names as closely as possible to the sample ID names spposedly present in the corresponding Single-cell Dataset Obj (In the example of Seurat, concatenated to Seurat barcodes when experiments are merged).
+#' @param cell_data_obj  is a cell dataset object associated with the scrHLAtag count file. Currently the function is compatible with Seurat (\url{https://satijalab.org/seurat/index.html}).
 #' @param scrHLAtag_outs  a character list of the proper scrHLAtag count file(s) to be loaded. For example, for each sample, the desired count files should be the \code{"molecule_info_mRNA.txt.gz"} and the \code{"molecule_info_gene.txt.gz"} files.
 #' @param colnames  \code{NULL} or a character list of the colnames of the scrHLAtag count file(s), if they are different from default output (scrHLAtag, version 0.1.5).
 #' @import stringr
@@ -17,11 +17,13 @@
 #' dirs<- lapply(dirs, dir, pattern = "unguided_hla_align_corrected", recursive = F, full.names = T) %>% unlist
 #' dirnames <- c("AML_101_BM", "AML_101_34", "TN_BM", "TN_34") # this is how the samples were organized in the directories
 #' ## Load the counts files
-#' cts <- HLA_load(directories = dirs, dir_names = dirnames, seu = your_Seurat_obj)
+#' cts <- HLA_load(directories = dirs, dir_names = dirnames, cell_data_obj = your_cell_dataset_obj)
 #' @export
 
-HLA_load <- function(directories, dir_names = NULL, seu = NULL, scrHLAtag_outs = c("molecule_info_mRNA.txt.gz", "molecule_info_gene.txt.gz"), colnames = NULL) {
+HLA_load <- function(directories, dir_names = NULL, cell_data_obj = NULL, scrHLAtag_outs = c("molecule_info_mRNA.txt.gz", "molecule_info_gene.txt.gz"), colnames = NULL) {
   s <- Sys.time()
+  seu <- cell_data_obj
+  cell_data_obj <- NULL
   if (!requireNamespace("stringdist", quietly = TRUE)) { stop("Package 'stringdist' needed for this function to work. Please install it.", call. = FALSE) }
   mol_info <- scrHLAtag_outs
   if (is.null(names(directories))) {
@@ -34,8 +36,8 @@ HLA_load <- function(directories, dir_names = NULL, seu = NULL, scrHLAtag_outs =
     names(directories) <- dir_names
   }
   if (!is.null(seu)) {
-    ## extract sample names from the Seurat colnames 'Cells(seu)'
-    if (!("Seurat" %in% class(seu))) { stop("The function will extract sample ID(s) concatenated to Seurat barcodes. Object in 'seu' must be of class 'Seurat'", call. = FALSE) }
+    ## extract sample names from the Single-cell Dataset Obj colnames 
+    if (!("Seurat" %in% class(seu))) { stop("The function will extract sample ID(s) concatenated to Seurat barcodes. Currently, the function is compatible with Single-cell dataset container (in argument 'cell_data_obj') of class 'Seurat'", call. = FALSE) }
     v <- colnames(seu)
     prefx <- substr(v, 1, nchar(v) - sapply(base::gsub(".*[ATGC]+(.*)$", "\\1", v), nchar))
     prefx <- substr(prefx, 1, sapply(base::gregexpr("[^A-Za-z0-9]", prefx), function(pos) if (max(pos)>0) max(pos) else 0))
@@ -50,16 +52,16 @@ HLA_load <- function(directories, dir_names = NULL, seu = NULL, scrHLAtag_outs =
     prefxs <- unique(prefx)
     prefx.sufxs <- unique(prefx.sufx)
     if (length(smpls) < length(prefx.sufxs)) {
-      message(cat("Sample IDs found in Seurat:", crayon::bgWhite(" ", prefx.sufxs, " ")))
+      message(cat("Sample IDs found in Single-cell Dataset Obj:", crayon::bgWhite(" ", prefx.sufxs, " ")))
     } else {
-      message(cat("Sample IDs found in Seurat:", crayon::bgWhite(" ", smpls, " ")))
+      message(cat("Sample IDs found in Single-cell Dataset Obj:", crayon::bgWhite(" ", smpls, " ")))
     }
     # length(unique(sepr))
-    if (length(unique(sapply(cbrv, nchar))) > 1) { message(cat(crayon::red("The Barcode DNA sequences in the Seurat object have different lengths. Does the object contains different capture chemistries?"), sep = "")) }
-    if (length(prefx.sufxs) > length(directories)) { stop("More samples found in Seurat than scrHLAtag selected directories. Make sure to select all experiements linked to the Seurate object, or subset your Seurat to the corresponding samples in your scrHLAtag experiments", call. = FALSE) }
+    if (length(unique(sapply(cbrv, nchar))) > 1) { message(cat(crayon::red("The Barcode DNA sequences in the Single-cell Dataset Obj have different lengths. Does the object contains different capture chemistries?"), sep = "")) }
+    if (length(prefx.sufxs) > length(directories)) { stop("More samples found in Single-cell Dataset Obj than scrHLAtag selected directories. Make sure to select all experiements linked to the Single-cell Dataset Obj, or subset your Single-cell Dataset Obj to the corresponding samples in your scrHLAtag experiments", call. = FALSE) }
   } else {
     if (length(directories) > 1) { 
-      message(cat(crayon::red("Merging ", length(directories), " samples (from separate directories), but there is no Seurat object to verify merge naming consistency (i.e. `seu = NULL`)", sep = ""), sep = ""))
+      message(cat(crayon::red("Merging ", length(directories), " samples (from separate directories), but there is no Single-cell Dataset Obj to verify merge naming consistency (i.e. `seu = NULL`)", sep = ""), sep = ""))
       prefx.sufxs <- paste0(names(directories), "_*")
     } else {
       prefx.sufxs <- "*"
@@ -74,7 +76,7 @@ HLA_load <- function(directories, dir_names = NULL, seu = NULL, scrHLAtag_outs =
       sepr1 <- ifelse(nchar(prefx1) > 0, substr(prefx1, nchar(prefx1), nchar(prefx1)), "")
       sufx1 <- stringr::str_split_fixed(sample, "\\*", 2)[,2]
       if (idx == 1L && !is.null(seu)) {
-        message(cat("Linking Seurat sample", crayon::bgWhite(" ", samp1, " "), "with scrHLAtag out file(s) in the directory you tagged as", 
+        message(cat("Linking Single-cell Dataset Obj sample", crayon::bgWhite(" ", samp1, " "), "with scrHLAtag out file(s) in the directory you tagged as", 
                     crayon::bgWhite(" ", names(directories)[which.min(stringdist::stringdist(samp1, names(directories), method = "lv"))], " ")))
       }
       d<-read.table(file.path(directories[which.min(stringdist::stringdist(samp1, names(directories), method = "lv"))], x), header = F, sep=" ", fill = T) 

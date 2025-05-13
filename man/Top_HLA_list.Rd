@@ -8,11 +8,11 @@ Top_HLA_list(
   reads_1,
   reads_2 = NULL,
   k = 1,
-  seu = NULL,
+  cell_data_obj = NULL,
   CB_rev_com = FALSE,
   hla_with_counts_above = 0,
   CBs_with_counts_above = 25,
-  match_CB_with_seu = TRUE,
+  match_CB_with_obj = TRUE,
   clust_method = "consensus",
   n_PCs = 50,
   dbscan_minPts = 30,
@@ -22,8 +22,9 @@ Top_HLA_list(
   NM_thresh = 15,
   de_thresh = 0.01,
   top_cumulative_frac = 0.85,
-  bulk_to_perCB_threshold = 2500,
+  bulk_to_perCB_threshold = 3000,
   allowed_alleles_per_cell = c(1, 200),
+  flag_bad_alleles = TRUE,
   stringent_mode = TRUE,
   correct_alleles = TRUE,
   field_resolution = 3,
@@ -43,7 +44,7 @@ Top_HLA_list(
 
 \item{k}{can be \code{NULL} or a positive integer setting the number of cluster counts to partition the datapoints into, e.g. the number of entities or genotypes you \emph{think} there might be in your captured sample. If \code{NULL}, each clustering method will automatically determine \code{k} clusters on its own (will not work for \code{"hclust"} and \code{"kmeans"}, which need predefined \code{k}s).}
 
-\item{seu}{is the Seurat object associated with the scrHLAtag count file (\url{https://satijalab.org/seurat/index.html}), and entered here if matching CBs in count file with Seurat colnames is desired.}
+\item{cell_data_obj}{is a cell dataset object associated with the scrHLAtag count file; entered if matching CBs in count file with ones in the object is desired. Currently the function is compatible with Seurat (\url{https://satijalab.org/seurat/index.html}).}
 
 \item{CB_rev_com}{a logical, called \code{TRUE} if the need to obtain the reverse complement of Cell Barcodes (CBs) is desired; default is \code{FALSE}.}
 
@@ -51,7 +52,7 @@ Top_HLA_list(
 
 \item{CBs_with_counts_above}{number of total reads accross HLA alleles at or above which a CB is retained in the matrix. Note: at present, the function will make sure that number of CBs is equal or more than available HLA alleles in the matrix.}
 
-\item{match_CB_with_seu}{a logical, called \code{TRUE} if filtering CBs in the scrHLAtag count file with matching ones in the Seurat object is desired.}
+\item{match_CB_with_obj}{is a logical, called TRUE if filtering CBs in the scrHLAtag count file with matching ones in the cell dataset object is desired.}
 
 \item{clust_method}{the name of the graph-based clustering method to be used for partitioning cells based on their HLA count patterns. The choice is between a Community structure detection method: \code{"leiden"}, a Density-based method: \code{"dbscan"}, a Connectivity-based method: \code{"hclust"}, a Centroid-based method: \code{"kmeans"}, or a Distribution-based method: \code{"gmm"} (for Gaussian Mixture Model). The methods are run with their respective Default parameters. Some of those methods may predict \emph{true} allogeneic entities with better accuracy than others; as we cannot know a priori which is the best method, we propose the method: \code{"consensus"}, which groups cells in the same cluster if they agree on membership in > 65 percent of methods, otherwise they are unclassified (\code{NA}s).}
 
@@ -71,11 +72,13 @@ Top_HLA_list(
 
 \item{top_cumulative_frac}{fraction, \code{0} to \code{1}, of total counts for a particular HLA locus, where the highest-ranking alleles (or genotypes) cumulatively accounting for that fraction of the total, shall be retained in the candidate list of alleles; default at \code{0.85}.}
 
-\item{bulk_to_perCB_threshold}{threshold of number of uniquely mapped HLA alleles in the primary count file \code{reads_1} above which listing the top alleles uses the Pseudo-Bulk Algorithm and below which it uses the Per Single-Cell Algorithm. Default is \code{2500}.}
+\item{bulk_to_perCB_threshold}{threshold of number of uniquely mapped HLA alleles in the primary count file \code{reads_1} above which listing the top alleles uses the Pseudo-Bulk Algorithm and below which it uses the Per Single-Cell Algorithm. Default is \code{3000}.}
 
 \item{allowed_alleles_per_cell}{a numeric (single integer or range) determining the minimum and maximum number of highest ranking allele genotypes per cell to keep if such number is beyond those limits after filtering by fraction; default is \code{c(1, 200)}, usefull in the early scrHLAtag iterations to give minimap2 lots of room to align; once you are ready to finalize the top HLA allele list, you can try \code{c(1, 2)} if you assume a cell can have a min of 1 allele (homozygous) and a max of 2 (heterozygous).}
 
-\item{stringent_mode}{a logical, when called \code{TRUE}, the algorithm detects when the final iteration is near (unique alleles in read file is equal or less than 200 per allogeneic entity); thus, getting top alleles becomes more stringent, with \code{allowed_alleles_per_cell} switching to \code{c(1, 2)}. This argument, however, will be ignored if the \emph{Pseudo-Bulk} algorithm is running instead of the \emph{Per Single-Cell} algorithm.}
+\item{flag_bad_alleles}{logical, default \code{TRUE}. During final scrHLAtag-scrHLAmatrix iterations, nominated alleles with very good yet imperfect alignment scores tend to be excluded. Calling this argument \code{TRUE} will prevent their removal and merely flag them for further examination.}
+
+\item{stringent_mode}{a logical, when called \code{TRUE}, the algorithm detects when the final iteration is near (unique alleles in read file is equal or less than 100 per allogeneic entity); thus, getting top alleles becomes more stringent, with \code{allowed_alleles_per_cell} switching to \code{c(1, 2)}. This argument, however, will be ignored if \code{allowed_alleles_per_cell} is other than the Default originally and if the \emph{Pseudo-Bulk} algorithm is running instead of the \emph{Per Single-Cell} algorithm.}
 
 \item{correct_alleles}{a logical. Minimap2 of scrHLAtag will preferentially map reads that are in reality \emph{DPA1*02:02:02}, \emph{A*03:01:01}, \emph{B*13:02:01}, \emph{C*02:02:02}, or \emph{C*04:01:01}, to the presumed erroneous \emph{DPA1*02:38Q}, \emph{A*03:437Q}, \emph{B*13:123Q}, \emph{C*02:205Q}, or \emph{C*04:09N/C*04:61N}, respectively. When called \code{TRUE}, the algorithm will replace the unlikely allele(s) with their putative \emph{correct} version(s). Will work if \code{stringent_mode} is \code{TRUE}.}
 
@@ -108,13 +111,13 @@ dirs<- lapply(dirs, list.dirs, recursive = F) \%>\% unlist
 dirs<- lapply(dirs, dir, pattern = "unguided_hla_align_corrected", recursive = F, full.names = T) \%>\% unlist
 dirnames <- c("AML_101_BM", "AML_101_34", "TN_BM", "TN_34") # this is how the samples were organized in the directories
 ## Load the counts files
-cts <- HLA_load(directories = dirs, dir_names = dirnames, seu = your_Seurat_obj)
+cts <- HLA_load(directories = dirs, dir_names = dirnames, cell_data_obj = your_cell_dataset_obj)
 ## Process those count files
-top_alleles <- Top_HLA_list(reads_1 = cts[["mRNA"]], reads_2 = cts[["gene"]], seu = your_Seurat_Obj)
+top_alleles <- Top_HLA_list(reads_1 = cts[["mRNA"]], reads_2 = cts[["gene"]], cell_data_obj = your_cell_dataset_obj)
 # 
 # Note: the function is optimized to choose whether to find top HLA alleles
 # using a Pseudo-Bulk algorithm (large number of uniquely mapped alleles) or 
-# a Single-Cell algorithm (number of alleles is fewer than 2500).
+# a Single-Cell algorithm (number of alleles is fewer than 3000, by default).
 # 
 # Note: if for a particular HLA, the alleles with the most counts are in a tie 
 # between 3 or more alleles in a particular Cell Barcode, we cannot know which 

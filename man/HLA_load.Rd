@@ -7,7 +7,7 @@
 HLA_load(
   directories,
   dir_names = NULL,
-  seu = NULL,
+  cell_data_obj = NULL,
   scrHLAtag_outs = c("molecule_info_mRNA.txt.gz", "molecule_info_gene.txt.gz"),
   colnames = NULL
 )
@@ -15,9 +15,9 @@ HLA_load(
 \arguments{
 \item{directories}{a character list of one (or more) full-length directory(ies) where the the scrHLAtag count file(s) have been organized.}
 
-\item{dir_names}{a character list of one (or more) sample name(s) that \emph{strictly correspond(s)} to the directory(ies) where the the scrHLAtag count file(s) have been organized. Can remain \code{NULL} only if the \code{directories} are already named vectors. For 2 or more samples/directories, try to get the names as closely as possible to the sample ID names spposedly present in the corresponding Seurat object (usually concatenated to Seurat barcodes when experiments are merged).}
+\item{dir_names}{a character list of one (or more) sample name(s) that \emph{strictly correspond(s)} to the directory(ies) where the the scrHLAtag count file(s) have been organized. Can remain \code{NULL} only if the \code{directories} are already named vectors. For 2 or more samples/directories, try to get the names as closely as possible to the sample ID names spposedly present in the corresponding Single-cell Dataset Obj (In the example of Seurat, concatenated to Seurat barcodes when experiments are merged).}
 
-\item{seu}{is the Seurat object associated with the scrHLAtag count file (\url{https://satijalab.org/seurat/index.html}).}
+\item{cell_data_obj}{is a cell dataset object associated with the scrHLAtag count file. Currently the function is compatible with Seurat (\url{https://satijalab.org/seurat/index.html}).}
 
 \item{scrHLAtag_outs}{a character list of the proper scrHLAtag count file(s) to be loaded. For example, for each sample, the desired count files should be the \code{"molecule_info_mRNA.txt.gz"} and the \code{"molecule_info_gene.txt.gz"} files.}
 
@@ -36,5 +36,5 @@ dirs<- lapply(dirs, list.dirs, recursive = F) \%>\% unlist
 dirs<- lapply(dirs, dir, pattern = "unguided_hla_align_corrected", recursive = F, full.names = T) \%>\% unlist
 dirnames <- c("AML_101_BM", "AML_101_34", "TN_BM", "TN_34") # this is how the samples were organized in the directories
 ## Load the counts files
-cts <- HLA_load(directories = dirs, dir_names = dirnames, seu = your_Seurat_obj)
+cts <- HLA_load(directories = dirs, dir_names = dirnames, cell_data_obj = your_cell_dataset_obj)
 }

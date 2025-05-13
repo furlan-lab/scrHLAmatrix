@@ -19,7 +19,7 @@ map_HLA_clusters(
 
 \item{CB_rev_com}{logical, called \code{TRUE} if the need to obtain the reverse complement of Cell Barcodes (CBs) is desired; default is \code{FALSE}.}
 
-\item{additional_col_id}{is a character; if mapping of any additional column ID of the Seurat metadata collected in the \code{cluster_coordinates} dataframe, to the scrHLAtag count files is desired. \code{NULL} by default.}
+\item{additional_col_id}{is a character; if mapping of any additional column ID of the Single-cell Dataset Obj metadata collected in the \code{cluster_coordinates} dataframe, to the scrHLAtag count files is desired. \code{NULL} by default.}
 
 \item{parallelize}{logical, called \code{TRUE} if using parallel processing (multi-threading) is desired; default is \code{FALSE}.}
 }
@@ -36,7 +36,7 @@ dirs<- lapply(dirs, list.dirs, recursive = F) \%>\% unlist
 dirs<- lapply(dirs, dir, pattern = "unguided_hla_align_corrected", recursive = F, full.names = T) \%>\% unlist
 dirnames <- c("AML_101_BM", "AML_101_34", "TN_BM", "TN_34") # this is how the samples were organized in the directories
 ## Load the counts files
-cts <- HLA_load(directories = dirs, dir_names = dirnames, seu = your_Seurat_obj)
+cts <- HLA_load(directories = dirs, dir_names = dirnames, cell_data_obj = your_cell_dataset_obj)
 ## Process those count files
 cts <- map_HLA_clusters(reads.list = cts, cluster_coordinates = UMAP_dataframe_from_HLA_clusters_function, additional_col_id = "geno")
 }

@@ -3,18 +3,19 @@
 #' @param reads_1  is the primary scrHLAtag count file (1 of 2 files containing either the mRNA molecular info or the genomic (gene) molecular info). It includes columns for CB, UMI, and HLA alleles (\url{https://github.com/furlan-lab/scrHLAtag}).
 #' @param reads_2  is the secondary scrHLAtag count file (the alternative file vs. the one designated in '\code{reads_1}' argument). It includes columns for CB, UMI, and HLA alleles (\url{https://github.com/furlan-lab/scrHLAtag}). Default is \code{NULL}, in which case it will not be able to count alternative aligment.
 #' @param k  can be \code{NULL} or a positive integer setting the number of cluster counts to partition the datapoints into, e.g. the number of entities or genotypes you \emph{think} there might be in your captured sample. If \code{NULL}, each clustering method will automatically determine \code{k} clusters on its own (will not work for \code{"hclust"} and \code{"kmeans"}, which need predefined \code{k}s).
-#' @param seu  is the Seurat object associated with the scrHLAtag count file (\url{https://satijalab.org/seurat/index.html}), and entered here if matching CBs in count file with Seurat colnames is desired.
+#' @param cell_data_obj  is a cell dataset object associated with the scrHLAtag count file; entered if matching CBs in count file with ones in the object is desired. Currently the function is compatible with Seurat (\url{https://satijalab.org/seurat/index.html}).
 #' @param CB_rev_com  a logical, called \code{TRUE} if the need to obtain the reverse complement of Cell Barcodes (CBs) is desired; default is \code{FALSE}. 
 #' @param hla_with_counts_above  number of total reads accross CBs at or above which an HLA allele is retained in the matrix.
 #' @param CBs_with_counts_above  number of total reads accross HLA alleles at or above which a CB is retained in the matrix. Note: at present, the function will make sure that number of CBs is equal or more than available HLA alleles in the matrix.
-#' @param match_CB_with_seu  a logical, called \code{TRUE} if filtering CBs in the scrHLAtag count file with matching ones in the Seurat object is desired. 
+#' @param match_CB_with_obj  is a logical, called TRUE if filtering CBs in the scrHLAtag count file with matching ones in the cell dataset object is desired. 
 #' @param clust_method  the name of the graph-based clustering method to be used for partitioning cells based on their HLA count patterns. The choice is between a Community structure detection method: \code{"leiden"}, a Density-based method: \code{"dbscan"}, a Connectivity-based method: \code{"hclust"}, a Centroid-based method: \code{"kmeans"}, or a Distribution-based method: \code{"gmm"} (for Gaussian Mixture Model). The methods are run with their respective Default parameters. Some of those methods may predict \emph{true} allogeneic entities with better accuracy than others; as we cannot know a priori which is the best method, we propose the method: \code{"consensus"}, which groups cells in the same cluster if they agree on membership in > 65 percent of methods, otherwise they are unclassified (\code{NA}s).
 #' @param n_PCs  the number of top principal components to retain in downstream clustering and umap analyses; default is \code{50} or the top 80 percent of PCs, whichever is smaller.
 #' @param dbscan_minPts  only works for the  \code{"dbscan"} clust_method: number of minimum points required in the epsilon neighborhood radius (\code{eps}) of core points. While the other methods require 1 parameter (e.g., \code{k}), \code{"dbscan"} requires 2: \code{eps} and \code{minPts}. To acheive desired \code{k} clusters, a range of \code{eps} parameter is tested against a fixed \code{minPts}, which is provided here. Default at \code{30}, but can be adjusted higher or lower depending on how small and \emph{clumped} an allogeneic entity is suspected to be. 
 #' @param top_cumulative_frac  fraction, \code{0} to \code{1}, of total counts for a particular HLA locus, where the highest-ranking alleles (or genotypes) cumulatively accounting for that fraction of the total, shall be retained in the candidate list of alleles; default at \code{0.85}.
-#' @param bulk_to_perCB_threshold  threshold of number of uniquely mapped HLA alleles in the primary count file \code{reads_1} above which listing the top alleles uses the Pseudo-Bulk Algorithm and below which it uses the Per Single-Cell Algorithm. Default is \code{2500}.
+#' @param bulk_to_perCB_threshold  threshold of number of uniquely mapped HLA alleles in the primary count file \code{reads_1} above which listing the top alleles uses the Pseudo-Bulk Algorithm and below which it uses the Per Single-Cell Algorithm. Default is \code{3000}.
 #' @param allowed_alleles_per_cell  a numeric (single integer or range) determining the minimum and maximum number of highest ranking allele genotypes per cell to keep if such number is beyond those limits after filtering by fraction; default is \code{c(1, 200)}, usefull in the early scrHLAtag iterations to give minimap2 lots of room to align; once you are ready to finalize the top HLA allele list, you can try \code{c(1, 2)} if you assume a cell can have a min of 1 allele (homozygous) and a max of 2 (heterozygous).
-#' @param stringent_mode  a logical, when called \code{TRUE}, the algorithm detects when the final iteration is near (unique alleles in read file is equal or less than 200 per allogeneic entity); thus, getting top alleles becomes more stringent, with \code{allowed_alleles_per_cell} switching to \code{c(1, 2)}. This argument, however, will be ignored if the \emph{Pseudo-Bulk} algorithm is running instead of the \emph{Per Single-Cell} algorithm.
+#' @param flag_bad_alleles  logical, default \code{TRUE}. During final scrHLAtag-scrHLAmatrix iterations, nominated alleles with very good yet imperfect alignment scores tend to be excluded. Calling this argument \code{TRUE} will prevent their removal and merely flag them for further examination.
+#' @param stringent_mode  a logical, when called \code{TRUE}, the algorithm detects when the final iteration is near (unique alleles in read file is equal or less than 100 per allogeneic entity); thus, getting top alleles becomes more stringent, with \code{allowed_alleles_per_cell} switching to \code{c(1, 2)}. This argument, however, will be ignored if \code{allowed_alleles_per_cell} is other than the Default originally and if the \emph{Pseudo-Bulk} algorithm is running instead of the \emph{Per Single-Cell} algorithm.
 #' @param correct_alleles  a logical. Minimap2 of scrHLAtag will preferentially map reads that are in reality \emph{DPA1*02:02:02}, \emph{A*03:01:01}, \emph{B*13:02:01}, \emph{C*02:02:02}, or \emph{C*04:01:01}, to the presumed erroneous \emph{DPA1*02:38Q}, \emph{A*03:437Q}, \emph{B*13:123Q}, \emph{C*02:205Q}, or \emph{C*04:09N/C*04:61N}, respectively. When called \code{TRUE}, the algorithm will replace the unlikely allele(s) with their putative \emph{correct} version(s). Will work if \code{stringent_mode} is \code{TRUE}.
 #' @param field_resolution  integer fron \code{1} to \code{3}, to select the HLA nomenclature level of Field resolution, where \code{1}, \code{2}, or \code{3} will take into consideration the first, the first two, or the first three field(s) of HLA designation; default is \code{3}.
 #' @param QC_mm2  a logical, called \code{TRUE} if removing low quality reads based on minimap2 tags is desired.
@@ -45,13 +46,13 @@
 #' dirs<- lapply(dirs, dir, pattern = "unguided_hla_align_corrected", recursive = F, full.names = T) %>% unlist
 #' dirnames <- c("AML_101_BM", "AML_101_34", "TN_BM", "TN_34") # this is how the samples were organized in the directories
 #' ## Load the counts files
-#' cts <- HLA_load(directories = dirs, dir_names = dirnames, seu = your_Seurat_obj)
+#' cts <- HLA_load(directories = dirs, dir_names = dirnames, cell_data_obj = your_cell_dataset_obj)
 #' ## Process those count files
-#' top_alleles <- Top_HLA_list(reads_1 = cts[["mRNA"]], reads_2 = cts[["gene"]], seu = your_Seurat_Obj)
+#' top_alleles <- Top_HLA_list(reads_1 = cts[["mRNA"]], reads_2 = cts[["gene"]], cell_data_obj = your_cell_dataset_obj)
 #' # 
 #' # Note: the function is optimized to choose whether to find top HLA alleles
 #' # using a Pseudo-Bulk algorithm (large number of uniquely mapped alleles) or 
-#' # a Single-Cell algorithm (number of alleles is fewer than 2500).
+#' # a Single-Cell algorithm (number of alleles is fewer than 3000, by default).
 #' # 
 #' # Note: if for a particular HLA, the alleles with the most counts are in a tie 
 #' # between 3 or more alleles in a particular Cell Barcode, we cannot know which 
@@ -59,21 +60,21 @@
 #' # there were no counts for that allele (all zeros).
 #' @export
 
-Top_HLA_list <- function(reads_1, reads_2 = NULL, k = 1, seu = NULL, CB_rev_com = FALSE,
-                         hla_with_counts_above = 0, CBs_with_counts_above = 25, match_CB_with_seu = TRUE, 
+Top_HLA_list <- function(reads_1, reads_2 = NULL, k = 1, cell_data_obj = NULL, CB_rev_com = FALSE,
+                         hla_with_counts_above = 0, CBs_with_counts_above = 25, match_CB_with_obj = TRUE, 
                          clust_method = "consensus", n_PCs = 50, dbscan_minPts = 30,
                          QC_mm2 = TRUE, s1_percent_pass_score = 80, AS_percent_pass_score = 80, NM_thresh = 15, de_thresh = 0.01,
-                         top_cumulative_frac = 0.85, bulk_to_perCB_threshold = 2500,
-                         allowed_alleles_per_cell = c(1, 200), stringent_mode = TRUE, correct_alleles = TRUE,                         
+                         top_cumulative_frac = 0.85, bulk_to_perCB_threshold = 3000,
+                         allowed_alleles_per_cell = c(1, 200), flag_bad_alleles = TRUE, stringent_mode = TRUE, correct_alleles = TRUE,                         
                          field_resolution = 3, parallelize = TRUE, 
                          umap_spread = 5, umap_min_dist = 0.001, umap_repulsion = 0.001, seed = NULL, suppress_plots = TRUE, ...) {
   s <- Sys.time()
   # creating HLA umap clusters
   HLA_umap_clusters <- scrHLAmatrix::HLA_clusters(reads = reads_1, 
                                                   k = k, 
-                                                  seu = seu, 
+                                                  cell_data_obj = cell_data_obj, 
                                                   CB_rev_com = CB_rev_com,  # TRUE for 3prime 10x on pacbio
-                                                  match_CB_with_seu = match_CB_with_seu,
+                                                  match_CB_with_obj = match_CB_with_obj,
                                                   hla_with_counts_above = hla_with_counts_above, 
                                                   CBs_with_counts_above = CBs_with_counts_above,
                                                   QC_mm2 = QC_mm2, s1_percent_pass_score = s1_percent_pass_score, 
@@ -103,6 +104,7 @@ Top_HLA_list <- function(reads_1, reads_2 = NULL, k = 1, seu = NULL, CB_rev_com 
       top_alleles_HLA <- c(top_alleles_HLA, top_alle)
     }
     top_alleles_HLA <- top_alleles_HLA %>% unique() %>% sort()
+    top_alleles_HLA <- list(top_alleles = top_alleles_HLA, flagged_alleles = "alleles imperfectly associated with reads that are worth investigating will be listed here")
   } else {
     reads_1 <- scrHLAmatrix::map_HLA_clusters(reads.list = HLA_umap_clusters[["reads"]], HLA_umap_clusters[[1]], CB_rev_com = F)
     cl <- unique(reads_1$hla_clusters)
@@ -116,28 +118,29 @@ Top_HLA_list <- function(reads_1, reads_2 = NULL, k = 1, seu = NULL, CB_rev_com 
       tmp <- x$gene %>% unique() %>% length()
       return(tmp)
     }) %>% unlist()
-    if (all(unique_alleles <= length(cl)*100) & stringent_mode) {
+    if (all(unique_alleles <= length(cl)*100) && stringent_mode && identical(allowed_alleles_per_cell, c(1, 200))) {
       message(cat("\nReads count file shows ", length(cl)*100, " or fewer uniquely mapped HLA alleles per allogeneic entity;\nStringent mode active: stringently extracting top alleles using the Per Single-Cell Algorithm", sep = ""))
       allowed_alleles_per_cell <- c(1, 2)
     } else {
       message(cat("\nReads count file shows ", bulk_to_perCB_threshold, " or fewer uniquely mapped HLA alleles; extracting top alleles using the Per Single-Cell Algorithm", sep = ""))
     }
-    if (HLA_umap_clusters[["ignore_seu"]]) {seu <- NULL}
+    if (HLA_umap_clusters[["ignore_seu"]]) {cell_data_obj <- NULL}
     top_alleles_HLA <- scrHLAmatrix:::Top_HLA_list_byCB_preprocessed(reads = reads_1,
-                                                                     seu = seu,
-                                                                     match_CB_with_seu = match_CB_with_seu,
+                                                                     cell_data_obj = cell_data_obj,
+                                                                     match_CB_with_obj = match_CB_with_obj,
                                                                      hla_with_counts_above = hla_with_counts_above,
                                                                      CBs_with_counts_above = CBs_with_counts_above,
                                                                      frac = top_cumulative_frac,
                                                                      allowed_alleles_per_cell = allowed_alleles_per_cell,
+                                                                     flag_bad_alleles = flag_bad_alleles,
                                                                      field_resolution = field_resolution,
                                                                      parallelize = parallelize)
     if (all(unique_alleles <= length(cl)*100) & stringent_mode) {
-      problematic_alleles <- c("DPA1*02:38Q", "A*03:437Q", "B*13:123Q", "C*02:205Q", "C*04:09N", "C*04:61N")
-      names(problematic_alleles) <- c("DPA1*02:02:02", "A*03:01:01", "B*13:02:01", "C*02:02:02", "C*04:01:01", "C*04:01:01")
-      is_the_allele_correct <- problematic_alleles[which(problematic_alleles %in% top_alleles_HLA)]
+      problematic_alleles <- c("DPA1*02:38Q", "A*03:437Q", "B*13:123Q", "C*02:205Q", "C*04:09N", "C*04:61N", "C*04:09L")
+      names(problematic_alleles) <- c("DPA1*02:02:02", "A*03:01:01", "B*13:02:01", "C*02:02:02", "C*04:01:01", "C*04:01:01", "C*04:01:01")
+      is_the_allele_correct <- problematic_alleles[which(problematic_alleles %in% top_alleles_HLA[[1]])]
       names(is_the_allele_correct) <- names(problematic_alleles)[which(problematic_alleles %in% is_the_allele_correct)]
-      for (x in seq_along(top_alleles_HLA[which(top_alleles_HLA %in% is_the_allele_correct)])) {
+      for (x in seq_along(top_alleles_HLA[[1]][which(top_alleles_HLA[[1]] %in% is_the_allele_correct)])) {
         message(cat(crayon::red("\nWarning: "), 
                     crayon::bgWhite(" ", is_the_allele_correct[x], " "),
                     crayon::red(" detected in final list. \nMake sure the correct allele is not "),
@@ -150,15 +153,15 @@ Top_HLA_list <- function(reads_1, reads_2 = NULL, k = 1, seu = NULL, CB_rev_com 
       }
       if (correct_alleles & length(is_the_allele_correct) > 0) {
         message(cat("\nReplacing problematic allele(s) with their alternative version(s). \n  Note: 'correct_alleles = FALSE' to turn off this feature."))
-        top_alleles_HLA <- sapply(top_alleles_HLA, function(x) if (x %in% is_the_allele_correct) names(is_the_allele_correct)[is_the_allele_correct == x] else x)
-        names(top_alleles_HLA) <- NULL
-        top_alleles_HLA <- top_alleles_HLA %>% sort()
+        top_alleles_HLA[[1]] <- sapply(top_alleles_HLA[[1]], function(x) if (x %in% is_the_allele_correct) names(is_the_allele_correct)[is_the_allele_correct == x] else x)
+        names(top_alleles_HLA[[1]]) <- NULL
+        top_alleles_HLA[[1]] <- top_alleles_HLA[[1]] %>% sort()
       }
     } 
   }
   e <- difftime(Sys.time(), s, units = "sec") %>% as.numeric() %>% abs()
   message(cat("\nDone!! (runtime: ", format(as.POSIXlt(e, origin = "1970-01-01", tz = "UTC"), "%H:%M:%S", tz = "UTC"), ")", sep = ""))
-  if (identical(sort(unique(reads_1$gene)), top_alleles_HLA)) {
+  if (identical(sort(unique(reads_1$gene)), top_alleles_HLA[[1]])) {
     message(cat(crayon::green("Candidate list of HLA alleles converged! No need for a new run with scrHLAtag, your alignment counts are final."), sep = ""))
   }
   return(top_alleles_HLA)

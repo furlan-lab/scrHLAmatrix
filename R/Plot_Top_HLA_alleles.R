@@ -1,11 +1,11 @@
 #' Getting the top two alleles (for each HLA gene) with the most counts per Cell Barcode
 #' 
 #' @param reads  is the scrHLAtag count file including columns for CB, UMI, and HLA alleles (\url{https://github.com/furlan-lab/scrHLAtag}).
-#' @param seu  is the Seurat object associated with the scrHLAtag count file (\url{https://satijalab.org/seurat/index.html}), and entered here if matching CBs in count file with Seurat colnames is desired.
+#' @param cell_data_obj  is a cell dataset object associated with the scrHLAtag count file; entered if matching CBs in count file with ones in the object is desired. Currently the function is compatible with Seurat (\url{https://satijalab.org/seurat/index.html}).
 #' @param CB_rev_com  logical, called \code{TRUE} if the need to obtain the reverse complement of Cell Barcodes (CBs) is desired; default is \code{FALSE}. 
 #' @param hla_with_counts_above  the number of total reads accross CBs at or above which an HLA allele is retained in the matrix.
 #' @param CBs_with_counts_above  the number of total reads accross HLA alleles at or above which a CB is retained in the matrix. Note: at present, the function will make sure that number of CBs is equal or more than available HLA alleles in the matrix.
-#' @param match_CB_with_seu  logical, called \code{TRUE} if filtering CBs in the scrHLAtag count file with matching ones in the Seurat object is desired. 
+#' @param match_CB_with_obj  is a logical, called TRUE if filtering CBs in the scrHLAtag count file with matching ones in the cell dataset object is desired. 
 #' @param cluster_index  a numeric or integer, representing the index of the HLA cluster present in the counts data (as previously analyzed by \code{HLA_clusters()} and mapped back to the data by \code{map_HLA_clusters()}). It allows to subset the visualization based on the selected HLA cluster. \code{NULL} is the default in which case the counts data will not be subsetted.
 #' @param top_hla  the number of top HLA alleles (i.e. with the highest number of reads) per HLA gene to display in the plot; default is \code{10}.
 #' @param field_resolution  integer fron \code{1} to \code{3}, to select the HLA nomenclature level of Field resolution, where \code{1}, \code{2}, or \code{3} will take into consideration the first, the first two, or the first three field(s) of HLA designation; default is \code{3}.
@@ -35,9 +35,9 @@
 #' dirs<- lapply(dirs, dir, pattern = "unguided_hla_align_corrected", recursive = F, full.names = T) %>% unlist
 #' dirnames <- c("AML_101_BM", "AML_101_34", "TN_BM", "TN_34") # this is how the samples were organized in the directories
 #' ## Load the counts files
-#' cts <- HLA_load(directories = dirs, dir_names = dirnames, seu = your_Seurat_obj)
+#' cts <- HLA_load(directories = dirs, dir_names = dirnames, cell_data_obj = your_cell_dataset_obj)
 #' ## Process those count files
-#' top_per_cb_plot <- Top_HLA_plot_byCB(reads = cts[["mRNA"]], seu = your_Seurat_Obj, hla_with_counts_above = 5, CBs_with_counts_above = 35)
+#' top_per_cb_plot <- Top_HLA_plot_byCB(reads = cts[["mRNA"]], cell_data_obj = your_cell_dataset_obj, hla_with_counts_above = 5, CBs_with_counts_above = 35)
 #' top_per_cb_plot %>% gridExtra::grid.arrange()
 #' # 
 #' # Note: if for a particular HLA, the alleles with the most counts are in a tie 
@@ -46,7 +46,9 @@
 #' # there were no counts for that allele (all zeros).
 #' @export
 
-Top_HLA_plot_byCB <- function(reads, seu = NULL, CB_rev_com = FALSE, hla_with_counts_above = 5, CBs_with_counts_above = 15, match_CB_with_seu = TRUE, cluster_index = NULL, top_hla = 10, field_resolution = 3, QC_mm2 = TRUE, s1_percent_pass_score = 80, AS_percent_pass_score = 80, NM_thresh = 15, de_thresh = 0.01, default_theme = TRUE, return_genotype_data = FALSE, parallelize = TRUE) {
+Top_HLA_plot_byCB <- function(reads, cell_data_obj = NULL, CB_rev_com = FALSE, hla_with_counts_above = 5, CBs_with_counts_above = 15, match_CB_with_obj = TRUE, cluster_index = NULL, top_hla = 10, field_resolution = 3, QC_mm2 = TRUE, s1_percent_pass_score = 80, AS_percent_pass_score = 80, NM_thresh = 15, de_thresh = 0.01, default_theme = TRUE, return_genotype_data = FALSE, parallelize = TRUE) {
+  seu <- cell_data_obj
+  cell_data_obj <- NULL
   ## parallelize
   if (parallelize) {
     multi_thread <- parallel::detectCores()
@@ -141,7 +143,7 @@ Top_HLA_plot_byCB <- function(reads, seu = NULL, CB_rev_com = FALSE, hla_with_co
     part_HLA<- HLA.matrix
   } else {
     if ("Seurat" %in% class(seu)) {
-      if(match_CB_with_seu) {
+      if(match_CB_with_obj) {
         part_HLA<- HLA.matrix[,colnames(HLA.matrix) %in% Cells(seu)]
       } else {
         part_HLA<- HLA.matrix
@@ -154,12 +156,14 @@ Top_HLA_plot_byCB <- function(reads, seu = NULL, CB_rev_com = FALSE, hla_with_co
   r <- hla_with_counts_above
   part_HLA <- part_HLA[which(rowSums(part_HLA)>=r), , drop = F]
   ## removing cell barcodes (CBs) with low counts overall
-  n <- CBs_with_counts_above
-  if (dim(part_HLA[,which(colSums(part_HLA)>=n), drop = F])[2] < dim(part_HLA)[1]) {
-    part_HLA <- part_HLA[,order(-colSums(part_HLA))[1:dim(part_HLA)[1]], drop = F]
-  } else {
-    part_HLA <- part_HLA[,which(colSums(part_HLA)>=n), drop = F]
+  find_n <- function(part_HLA, n) {
+    while (n > 0 && dim(part_HLA[, which(colSums(part_HLA) >= n), drop = FALSE])[2] < dim(part_HLA)[1]) {
+      n <- n - 1
+    }
+    return(n)  # Return the last valid n before the inequality becomes false
   }
+  n <- find_n(part_HLA = part_HLA, n = CBs_with_counts_above)
+  part_HLA <- part_HLA[,which(colSums(part_HLA)>=n), drop = F]
   #-------------------------------------------------------------------------------
   message(cat("\nCounting Top Two alleles per HLA gene per Cell Barcode"))
   part_HLA <- part_HLA %>% as.data.frame()
@@ -306,7 +310,7 @@ Top_HLA_plot_byCB <- function(reads, seu = NULL, CB_rev_com = FALSE, hla_with_co
 #' dirs<- lapply(dirs, dir, pattern = "unguided_hla_align_corrected", recursive = F, full.names = T) %>% unlist
 #' dirnames <- c("AML_101_BM", "AML_101_34", "TN_BM", "TN_34") # this is how the samples were organized in the directories
 #' ## Load the counts files
-#' cts <- HLA_load(directories = dirs, dir_names = dirnames, seu = your_Seurat_obj)
+#' cts <- HLA_load(directories = dirs, dir_names = dirnames, cell_data_obj = your_cell_dataset_obj)
 #' ## Process those count files
 #' Top_HLA_plot_bulk(reads_1 = cts[["mRNA"]], reads_2 = cts[["gene"]], use_alt_align_ABC = TRUE)
 #' @export
