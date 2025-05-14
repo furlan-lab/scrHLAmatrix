@@ -45,7 +45,7 @@ HLA_Matrix <- function(reads, cell_data_obj, hla_recip = character(), hla_donor 
   cell_data_obj <- NULL
   n_reads <- nrow(reads)
   if (n_reads > 1e+06) {
-    message(cat("\nLarge scrHLAtag count file detected (", n_reads, " rows counted); expect resource-demanding processing and long run times", sep = ""))
+    message(cat("\nLarge scrHLAtag count file detected (", n_reads, " rows counted); processing may take several minutes", sep = ""))
     message(cat(crayon::green("Note: "), "Multi-threading errors had been more frequently experienced while running large count files; it is recommended to maintain 'parallelize = FALSE'", sep = ""))
   }
   ## check Seurat object
