@@ -51,17 +51,13 @@ HLA_load <- function(directories, dir_names = NULL, cell_data_obj = NULL, scrHLA
     smpls <- unique(smpl)
     prefxs <- unique(prefx)
     prefx.sufxs <- unique(prefx.sufx)
-    if (length(smpls) < length(prefx.sufxs)) {
-      message(cat("Sample IDs found in Single-cell Dataset Obj:", crayon::bgWhite(" ", prefx.sufxs, " ")))
-    } else {
-      message(cat("Sample IDs found in Single-cell Dataset Obj:", crayon::bgWhite(" ", smpls, " ")))
-    }
+    message(cat("Sample formatting of Cell Barcodes (asterisk) found in Single-cell Dataset Obj:", crayon::bgWhite(" ", prefx.sufxs, " ")))
     # length(unique(sepr))
     if (length(unique(sapply(cbrv, nchar))) > 1) { message(cat(crayon::red("The Barcode DNA sequences in the Single-cell Dataset Obj have different lengths. Does the object contains different capture chemistries?"), sep = "")) }
     if (length(prefx.sufxs) > length(directories)) { stop("More samples found in Single-cell Dataset Obj than scrHLAtag selected directories. Make sure to select all experiements linked to the Single-cell Dataset Obj, or subset your Single-cell Dataset Obj to the corresponding samples in your scrHLAtag experiments", call. = FALSE) }
   } else {
     if (length(directories) > 1) { 
-      message(cat(crayon::red("Merging ", length(directories), " samples (from separate directories), but there is no Single-cell Dataset Obj to verify merge naming consistency (i.e. `seu = NULL`)", sep = ""), sep = ""))
+      message(cat(crayon::red("Merging ", length(directories), " samples (from separate directories), but there is no Single-cell Dataset Obj to verify merge naming consistency (i.e. `cell_data_obj = NULL`)", sep = ""), sep = ""))
       prefx.sufxs <- paste0(names(directories), "_*")
     } else {
       prefx.sufxs <- "*"
@@ -76,10 +72,10 @@ HLA_load <- function(directories, dir_names = NULL, cell_data_obj = NULL, scrHLA
       sepr1 <- ifelse(nchar(prefx1) > 0, substr(prefx1, nchar(prefx1), nchar(prefx1)), "")
       sufx1 <- stringr::str_split_fixed(sample, "\\*", 2)[,2]
       if (idx == 1L && !is.null(seu)) {
-        message(cat("Linking Single-cell Dataset Obj sample", crayon::bgWhite(" ", samp1, " "), "with scrHLAtag out file(s) in the directory you tagged as", 
-                    crayon::bgWhite(" ", names(directories)[which.min(stringdist::stringdist(samp1, names(directories), method = "lv"))], " ")))
+        message(cat("Linking Single-cell Dataset Obj sample", crayon::bgWhite(" ", sample, " "), "with scrHLAtag out file(s) in the directory you tagged as", 
+                    crayon::bgWhite(" ", names(directories)[which.min(stringdist::stringdist(sample, names(directories), method = "lv"))], " ")))
       }
-      d<-read.table(file.path(directories[which.min(stringdist::stringdist(samp1, names(directories), method = "lv"))], x), header = F, sep=" ", fill = T) 
+      d<-read.table(file.path(directories[which.min(stringdist::stringdist(sample, names(directories), method = "lv"))], x), header = F, sep=" ", fill = T) 
       if (is.null(colnames)) {
         colnames(d)<-c("name","CB", "nb", "UMI", "gene", "query_len","start", "mapq", "cigar", "NM", "AS", "s1", "de", "seq")
       } else {

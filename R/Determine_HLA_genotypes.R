@@ -119,7 +119,7 @@ Top_HLA_list <- function(reads_1, reads_2 = NULL, k = 1, cell_data_obj = NULL, C
       return(tmp)
     }) %>% unlist()
     if (all(unique_alleles <= length(cl)*100) && stringent_mode && identical(allowed_alleles_per_cell, c(1, 200))) {
-      message(cat("\nReads count file shows ", length(cl)*100, " or fewer uniquely mapped HLA alleles per allogeneic entity;\nStringent mode active: stringently extracting top alleles using the Per Single-Cell Algorithm", sep = ""))
+      message(cat("\nReads count file shows ", length(cl)*100, " or fewer uniquely mapped HLA alleles (≤100 per allogeneic entity);\nStringent mode active: stringently extracting top alleles using the Per Single-Cell Algorithm", sep = ""))
       allowed_alleles_per_cell <- c(1, 2)
     } else {
       message(cat("\nReads count file shows ", bulk_to_perCB_threshold, " or fewer uniquely mapped HLA alleles; extracting top alleles using the Per Single-Cell Algorithm", sep = ""))
@@ -134,6 +134,8 @@ Top_HLA_list <- function(reads_1, reads_2 = NULL, k = 1, cell_data_obj = NULL, C
                                                                      allowed_alleles_per_cell = allowed_alleles_per_cell,
                                                                      flag_bad_alleles = flag_bad_alleles,
                                                                      field_resolution = field_resolution,
+                                                                     s1_percent_pass_score = s1_percent_pass_score, AS_percent_pass_score = AS_percent_pass_score, 
+                                                                     NM_thresh = NM_thresh, de_thresh = de_thresh,
                                                                      parallelize = parallelize)
     if (all(unique_alleles <= length(cl)*100) & stringent_mode) {
       problematic_alleles <- c("DPA1*02:38Q", "A*03:437Q", "B*13:123Q", "C*02:205Q", "C*04:09N", "C*04:61N", "C*04:09L")

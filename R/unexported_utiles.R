@@ -90,7 +90,6 @@ Top_HLA_list_byCB <- function(reads, cell_data_obj = NULL, CB_rev_com = FALSE, h
     message(cat(crayon::red("Note: HLA field resolution must be 1, 2, or 3 to take into consideration the first, the first two, or the first three field(s) of HLA designation.\nKeeping field resolution at 3 by default.")))
   }
   ## Matrix formation
-  message(cat("\nCreating HLA Count Matrix(ces)"))
   if ("hla_clusters" %in% colnames(reads)) {
     cl <- unique(reads$hla_clusters)
     cl <- cl[!is.na(cl)]
@@ -110,7 +109,7 @@ Top_HLA_list_byCB <- function(reads, cell_data_obj = NULL, CB_rev_com = FALSE, h
       tmp <- length(unique(sub_reads[[o]]$gene))>3*length(cl)
       return(tmp)
     })
-    last_one <- !any(last_one)
+    last_one <- !any(unlist(last_one))
     return(last_one)
   }, mc.cores = multi_thread)  
   # identifying potentially bad alleles
@@ -125,7 +124,13 @@ Top_HLA_list_byCB <- function(reads, cell_data_obj = NULL, CB_rev_com = FALSE, h
       return(tmp)
     }, mc.cores = multi_thread)
     names(bad_alleles) <- paste0("allo_cluster_", seq_along(bad_alleles))
+    mm2_p <- mclapply(1:length(reads), function(m) { # `m` is an unused arg
+      tmp <- "Too many alleles per gene. Plots will be generated in later scrHLAtag iterations"
+      return(tmp)
+    }, mc.cores = multi_thread)
+    names(mm2_p) <- paste0("allo_cluster_", seq_along(mm2_p))
   } else {
+    message(cat("\nFlagging alleles with unusual/imperfect alignments"))
     # in preparation for the upcoming Anderson Darling tests, skip the test if the tested vector is constant across the categories (otherwise it will return an error):
     safe_ad_pval <- function(var, data) {
       y <- data[[var]]
@@ -135,11 +140,18 @@ Top_HLA_list_byCB <- function(reads, cell_data_obj = NULL, CB_rev_com = FALSE, h
       ad_res <- kSamples::ad.test(stats::as.formula(sprintf("%s ~ gene", var)), data = data)
       return(ad_res$ad[1, 3])
     }
+    median.quartile <- function(x){
+      out <- quantile(x, probs = c(0.25,0.5,0.75))
+      names(out) <- c("ymin","y","ymax")
+      return(out)
+    }
+    message(cat(crayon::red(format(Sys.time(), "%H:%M:%S"), "- Anderson Darling on minimap2 metrics to flag unusual alleles"), sep = ""))
     bad_alleles <- mclapply(1:length(reads), function(m) {
       kw <- data.frame(matrix(ncol = 6, nrow = 0, dimnames = list(NULL, c("ad_s1", "ad_AS", "ad_NM", "ad_de", "sum_ad", "best")))) 
       bad <- character()
       for (j in 1:length(unique(reads[[m]]$hla_field1))) {
         sub_ctsu <- reads[[m]][reads[[m]]$hla_field1 == unique(reads[[m]]$hla_field1)[j],]
+        sub_ctsu <- sub_ctsu %>% mutate(across(all_of(c("de", "s1", "AS", "NM")), ~ suppressWarnings(as.numeric(.)), .names = "{.col}"))
         max_s1 <- max(sub_ctsu$s1)
         max_AS <- max(sub_ctsu$AS)
         sc <- data.frame(matrix(ncol = length(colnames(sub_ctsu)), nrow = 0, dimnames = list(NULL, colnames(sub_ctsu)))) 
@@ -290,7 +302,77 @@ Top_HLA_list_byCB <- function(reads, cell_data_obj = NULL, CB_rev_com = FALSE, h
       return(bad)
     }, mc.cores = multi_thread)
     names(bad_alleles) <- paste0("allo_cluster_", seq_along(bad_alleles))
+    message(cat(crayon::red(format(Sys.time(), "%H:%M:%S"), "- Plotting minimap2 metrics per HLA gene"), sep = ""))
+    mm2_p <- mclapply(1:length(reads), function(m) { 
+      mm2_plots <- list()
+      ordered_genes <- sort(unique(reads[[m]]$hla))
+      for (j in 1:length(ordered_genes)) {
+        sub_ctsu <- reads[[m]][reads[[m]]$hla == ordered_genes[j],]
+        sub_ctsu <- sub_ctsu %>% mutate(across(all_of(c("de", "s1", "AS", "NM")), ~ suppressWarnings(as.numeric(.)), .names = "{.col}"))
+        max_s1 <- max(sub_ctsu$s1)
+        max_AS <- max(sub_ctsu$AS)
+        sc <- data.frame(matrix(ncol = length(colnames(sub_ctsu)), nrow = 0, dimnames = list(NULL, colnames(sub_ctsu)))) 
+        for (i in 1:length(unique(sub_ctsu$gene))){
+          if (nrow(sub_ctsu[sub_ctsu$gene == unique(sub_ctsu$gene)[i],]) > 1000) {
+            sct <- sub_ctsu[sub_ctsu$gene == unique(sub_ctsu$gene)[i],][sample(nrow(sub_ctsu[sub_ctsu$gene == unique(sub_ctsu$gene)[i],]), 1000),]
+            sct$s1 <- sct$s1*(max_s1/max(sct$s1)) #normalizing the s1 values among the gene alleles
+            sct$AS <- sct$AS*(max_AS/max(sct$AS)) #normalizing the AS values among the gene alleles
+          } else {
+            sct <- sub_ctsu[sub_ctsu$gene == unique(sub_ctsu$gene)[i],]
+            sct$s1 <- sct$s1*(max_s1/max(sct$s1)) #normalizing the s1 values among the gene alleles
+            sct$AS <- sct$AS*(max_AS/max(sct$AS)) #normalizing the AS values among the gene alleles
+          }
+          sc <- rbind(sc, sct)
+          rm(sct)
+        }
+        sub_ctsu <- sc
+        rm(sc)
+        plot <- 
+          ggplot(sub_ctsu, aes(x= gene, y=s1, fill=gene))+ 
+          geom_violin(trim = T)+
+          geom_hline(yintercept = (s1_percent_pass_score/100)*max(sub_ctsu$s1), linetype= "dashed", color= "purple", linewidth= 0.5, alpha= 0.5)+ 
+          stat_summary(fun.data = median.quartile, fill="white", geom = "crossbar", width=0.075, alpha=0.5)+
+          theme(
+            axis.text.x = element_text(angle = 45, vjust = 1, hjust=1),
+            legend.position = "none",
+            axis.title.x = element_blank()
+          )+
+          ggplot(sub_ctsu, aes(x= gene, y=AS, fill=gene))+ 
+          geom_violin(trim = T)+
+          geom_hline(yintercept = (AS_percent_pass_score/100)*max(sub_ctsu$AS), linetype= "dashed", color= "purple", linewidth= 0.5, alpha= 0.5)+ 
+          stat_summary(fun.data = median.quartile, fill="white", geom = "crossbar", width=0.075, alpha=0.5)+
+          theme(
+            axis.text.x = element_text(angle = 45, vjust = 1, hjust=1),
+            legend.position = "none",
+            axis.title.x = element_blank()
+          )+
+          ggplot(sub_ctsu, aes(x= gene, y=NM, fill=gene))+ 
+          geom_violin(trim = T)+
+          geom_hline(yintercept = NM_thresh, linetype= "dashed", color= "purple", linewidth= 0.5, alpha= 0.5)+ 
+          stat_summary(fun.data = median.quartile, fill="white", geom = "crossbar", width=0.075, alpha=0.5)+
+          theme(
+            axis.text.x = element_text(angle = 45, vjust = 1, hjust=1),
+            legend.position = "none",
+            axis.title.x = element_blank()
+          )+
+          ggplot(sub_ctsu, aes(x= gene, y=de, fill=gene))+ 
+          geom_violin(trim = T)+
+          geom_hline(yintercept = de_thresh, linetype= "dashed", color= "purple", linewidth= 0.5, alpha= 0.5)+ 
+          stat_summary(fun.data = median.quartile, fill="white", geom = "crossbar", width=0.075, alpha=0.5)+
+          theme(
+            axis.text.x = element_text(angle = 45, vjust = 1, hjust=1),
+            legend.position = "none",
+            axis.title.x = element_blank()
+          )
+        idx <- length(mm2_plots) + 1
+        mm2_plots[[idx]] <- plot
+        names(mm2_plots)[idx] <- ordered_genes[j]
+      }
+      return(mm2_plots)
+    }, mc.cores = multi_thread)
+    names(mm2_p) <- paste0("allo_cluster_", seq_along(mm2_p))
   } 
+  message(cat("\nCreating HLA Count Matrix(ces)"))
   # creating as many count matrices as there are elements (an element for each HLA umap "cluster") in the "reads" list
   matrices <- mclapply(1:length(reads), function(m) {
     alleles <- unique(reads[[m]]$gene) %>% sort()
@@ -430,8 +512,8 @@ Top_HLA_list_byCB <- function(reads, cell_data_obj = NULL, CB_rev_com = FALSE, h
   }, mc.cores = multi_thread)
   top_a_list <- do.call("c", top_a_list)
   top_a_list <- top_a_list %>% unique() %>% sort()
-  flagged_alleles <- "alleles imperfectly associated with reads that are worth deeper examination will be listed here in later iterations"
-  if (min(allowed_alleles_per_cell) == 1 && max(allowed_alleles_per_cell) <= 3 && any(lapply(bad_alleles, function(l) length(l)>0)) ) {
+  flagged_alleles <- "Later iterations will list here alleles with imperfect mapping to reads, for your review"
+  if (min(allowed_alleles_per_cell) == 1 && max(allowed_alleles_per_cell) <= 3 && any(lapply(bad_alleles, function(l) length(l))>0) ) {
     flagged_alleles <- bad_alleles
     message(cat("Reads associated with these allele(s) may require a closer look at their sequence(s):"))
     for(cluster in names(bad_alleles)) {
@@ -440,7 +522,7 @@ Top_HLA_list_byCB <- function(reads, cell_data_obj = NULL, CB_rev_com = FALSE, h
     }
   } 
   message(cat("\nDone!!"))
-  return(list(top_alleles = top_a_list, flagged_alleles = flagged_alleles))
+  return(list(top_alleles = top_a_list, flagged_alleles = flagged_alleles, mm2_plots_bygene = mm2_p))
 }
 
 
@@ -468,7 +550,7 @@ Top_HLA_list_byCB <- function(reads, cell_data_obj = NULL, CB_rev_com = FALSE, h
 #' @return a Vector of the top HLA alleles in the count files (in terms of reads per Cell Barcode).
 #' @noRd
 
-Top_HLA_list_byCB_preprocessed <- function(reads, cell_data_obj = NULL, hla_with_counts_above = 5, CBs_with_counts_above = 15, match_CB_with_obj = TRUE, frac = 0.85, allowed_alleles_per_cell = c(1, 200), flag_bad_alleles = TRUE, field_resolution = 3, parallelize = TRUE) {
+Top_HLA_list_byCB_preprocessed <- function(reads, cell_data_obj = NULL, hla_with_counts_above = 5, CBs_with_counts_above = 15, match_CB_with_obj = TRUE, frac = 0.85, allowed_alleles_per_cell = c(1, 200), flag_bad_alleles = TRUE, field_resolution = 3, s1_percent_pass_score = 80, AS_percent_pass_score = 80, NM_thresh = 15, de_thresh = 0.01, parallelize = TRUE) {
   seu <- cell_data_obj
   cell_data_obj <- NULL
   ## parallelize
@@ -497,7 +579,6 @@ Top_HLA_list_byCB_preprocessed <- function(reads, cell_data_obj = NULL, hla_with
     message(cat(crayon::red("Note: HLA field resolution must be 1, 2, or 3 to take into consideration the first, the first two, or the first three field(s) of HLA designation.\nKeeping field resolution at 3 by default.")))
   }
   ## Matrix formation
-  message(cat("\nCreating HLA Count Matrix(ces)"))
   if ("hla_clusters" %in% colnames(reads)) {
     cl <- unique(reads$hla_clusters)
     cl <- cl[!is.na(cl)]
@@ -517,7 +598,7 @@ Top_HLA_list_byCB_preprocessed <- function(reads, cell_data_obj = NULL, hla_with
       tmp <- length(unique(sub_reads[[o]]$gene))>3*length(cl)
       return(tmp)
     })
-    last_one <- !any(last_one)
+    last_one <- !any(unlist(last_one))
     return(last_one)
   }, mc.cores = multi_thread)  
   # identifying potentially bad alleles
@@ -532,7 +613,13 @@ Top_HLA_list_byCB_preprocessed <- function(reads, cell_data_obj = NULL, hla_with
       return(tmp)
     }, mc.cores = multi_thread)
     names(bad_alleles) <- paste0("allo_cluster_", seq_along(bad_alleles))
+    mm2_p <- mclapply(1:length(reads), function(m) { # `m` is an unused arg
+      tmp <- "Too many alleles per gene. Plots will be generated in later scrHLAtag iterations"
+      return(tmp)
+    }, mc.cores = multi_thread)
+    names(mm2_p) <- paste0("allo_cluster_", seq_along(mm2_p))
   } else {
+    message(cat("\nFlagging alleles with unusual/imperfect alignments"))
     # in preparation for the upcoming Anderson Darling tests, skip the test if the tested vector is constant across the categories (otherwise it will return an error):
     safe_ad_pval <- function(var, data) {
       y <- data[[var]]
@@ -542,11 +629,18 @@ Top_HLA_list_byCB_preprocessed <- function(reads, cell_data_obj = NULL, hla_with
       ad_res <- kSamples::ad.test(stats::as.formula(sprintf("%s ~ gene", var)), data = data)
       return(ad_res$ad[1, 3])
     }
+    median.quartile <- function(x){
+      out <- quantile(x, probs = c(0.25,0.5,0.75))
+      names(out) <- c("ymin","y","ymax")
+      return(out)
+    }
+    message(cat(crayon::red(format(Sys.time(), "%H:%M:%S"), "- Anderson Darling on minimap2 metrics to flag unusual alleles"), sep = ""))
     bad_alleles <- mclapply(1:length(reads), function(m) {
       kw <- data.frame(matrix(ncol = 6, nrow = 0, dimnames = list(NULL, c("ad_s1", "ad_AS", "ad_NM", "ad_de", "sum_ad", "best")))) 
       bad <- character()
       for (j in 1:length(unique(reads[[m]]$hla_field1))) {
         sub_ctsu <- reads[[m]][reads[[m]]$hla_field1 == unique(reads[[m]]$hla_field1)[j],]
+        sub_ctsu <- sub_ctsu %>% mutate(across(all_of(c("de", "s1", "AS", "NM")), ~ suppressWarnings(as.numeric(.)), .names = "{.col}"))
         max_s1 <- max(sub_ctsu$s1)
         max_AS <- max(sub_ctsu$AS)
         sc <- data.frame(matrix(ncol = length(colnames(sub_ctsu)), nrow = 0, dimnames = list(NULL, colnames(sub_ctsu)))) 
@@ -697,7 +791,77 @@ Top_HLA_list_byCB_preprocessed <- function(reads, cell_data_obj = NULL, hla_with
       return(bad)
     }, mc.cores = multi_thread)
     names(bad_alleles) <- paste0("allo_cluster_", seq_along(bad_alleles))
+    message(cat(crayon::red(format(Sys.time(), "%H:%M:%S"), "- Plotting minimap2 metrics per HLA gene"), sep = ""))
+    mm2_p <- mclapply(1:length(reads), function(m) { 
+      mm2_plots <- list()
+      ordered_genes <- sort(unique(reads[[m]]$hla))
+      for (j in 1:length(ordered_genes)) {
+        sub_ctsu <- reads[[m]][reads[[m]]$hla == ordered_genes[j],]
+        sub_ctsu <- sub_ctsu %>% mutate(across(all_of(c("de", "s1", "AS", "NM")), ~ suppressWarnings(as.numeric(.)), .names = "{.col}"))
+        max_s1 <- max(sub_ctsu$s1)
+        max_AS <- max(sub_ctsu$AS)
+        sc <- data.frame(matrix(ncol = length(colnames(sub_ctsu)), nrow = 0, dimnames = list(NULL, colnames(sub_ctsu)))) 
+        for (i in 1:length(unique(sub_ctsu$gene))){
+          if (nrow(sub_ctsu[sub_ctsu$gene == unique(sub_ctsu$gene)[i],]) > 1000) {
+            sct <- sub_ctsu[sub_ctsu$gene == unique(sub_ctsu$gene)[i],][sample(nrow(sub_ctsu[sub_ctsu$gene == unique(sub_ctsu$gene)[i],]), 1000),]
+            sct$s1 <- sct$s1*(max_s1/max(sct$s1)) #normalizing the s1 values among the gene alleles
+            sct$AS <- sct$AS*(max_AS/max(sct$AS)) #normalizing the AS values among the gene alleles
+          } else {
+            sct <- sub_ctsu[sub_ctsu$gene == unique(sub_ctsu$gene)[i],]
+            sct$s1 <- sct$s1*(max_s1/max(sct$s1)) #normalizing the s1 values among the gene alleles
+            sct$AS <- sct$AS*(max_AS/max(sct$AS)) #normalizing the AS values among the gene alleles
+          }
+          sc <- rbind(sc, sct)
+          rm(sct)
+        }
+        sub_ctsu <- sc
+        rm(sc)
+        plot <- 
+          ggplot(sub_ctsu, aes(x= gene, y=s1, fill=gene))+ 
+          geom_violin(trim = T)+
+          geom_hline(yintercept = (s1_percent_pass_score/100)*max(sub_ctsu$s1), linetype= "dashed", color= "purple", linewidth= 0.5, alpha= 0.5)+ 
+          stat_summary(fun.data = median.quartile, fill="white", geom = "crossbar", width=0.075, alpha=0.5)+
+          theme(
+            axis.text.x = element_text(angle = 45, vjust = 1, hjust=1),
+            legend.position = "none",
+            axis.title.x = element_blank()
+          )+
+          ggplot(sub_ctsu, aes(x= gene, y=AS, fill=gene))+ 
+          geom_violin(trim = T)+
+          geom_hline(yintercept = (AS_percent_pass_score/100)*max(sub_ctsu$AS), linetype= "dashed", color= "purple", linewidth= 0.5, alpha= 0.5)+ 
+          stat_summary(fun.data = median.quartile, fill="white", geom = "crossbar", width=0.075, alpha=0.5)+
+          theme(
+            axis.text.x = element_text(angle = 45, vjust = 1, hjust=1),
+            legend.position = "none",
+            axis.title.x = element_blank()
+          )+
+          ggplot(sub_ctsu, aes(x= gene, y=NM, fill=gene))+ 
+          geom_violin(trim = T)+
+          geom_hline(yintercept = NM_thresh, linetype= "dashed", color= "purple", linewidth= 0.5, alpha= 0.5)+ 
+          stat_summary(fun.data = median.quartile, fill="white", geom = "crossbar", width=0.075, alpha=0.5)+
+          theme(
+            axis.text.x = element_text(angle = 45, vjust = 1, hjust=1),
+            legend.position = "none",
+            axis.title.x = element_blank()
+          )+
+          ggplot(sub_ctsu, aes(x= gene, y=de, fill=gene))+ 
+          geom_violin(trim = T)+
+          geom_hline(yintercept = de_thresh, linetype= "dashed", color= "purple", linewidth= 0.5, alpha= 0.5)+ 
+          stat_summary(fun.data = median.quartile, fill="white", geom = "crossbar", width=0.075, alpha=0.5)+
+          theme(
+            axis.text.x = element_text(angle = 45, vjust = 1, hjust=1),
+            legend.position = "none",
+            axis.title.x = element_blank()
+          )
+        idx <- length(mm2_plots) + 1
+        mm2_plots[[idx]] <- plot
+        names(mm2_plots)[idx] <- ordered_genes[j]
+      }
+      return(mm2_plots)
+    }, mc.cores = multi_thread)
+    names(mm2_p) <- paste0("allo_cluster_", seq_along(mm2_p))
   } 
+  message(cat("\nCreating HLA Count Matrix(ces)"))
   # creating as many count matrices as there are elements (an element for each HLA umap "cluster") in the "reads" list
   matrices <- mclapply(1:length(reads), function(m) {
     alleles <- unique(reads[[m]]$gene) %>% sort()
@@ -838,8 +1002,8 @@ Top_HLA_list_byCB_preprocessed <- function(reads, cell_data_obj = NULL, hla_with
   }, mc.cores = multi_thread)
   top_a_list <- do.call("c", top_a_list)
   top_a_list <- top_a_list %>% unique() %>% sort()
-  flagged_alleles <- "alleles imperfectly associated with reads that are wort deeper examination will be listed here in later iterations"
-  if (min(allowed_alleles_per_cell) == 1 && max(allowed_alleles_per_cell) <= 3 && any(lapply(bad_alleles, function(l) length(l)>0)) ) {
+  flagged_alleles <- "Later iterations will list here alleles with imperfect mapping to reads, for your review"
+  if (min(allowed_alleles_per_cell) == 1 && max(allowed_alleles_per_cell) <= 3 && any(lapply(bad_alleles, function(l) length(l))>0) ) {
     flagged_alleles <- bad_alleles
     message(cat("Reads associated with these allele(s) may require a closer look at their sequence(s):"))
     for(cluster in names(bad_alleles)) {
@@ -848,7 +1012,7 @@ Top_HLA_list_byCB_preprocessed <- function(reads, cell_data_obj = NULL, hla_with
     }
   } 
   # message(cat("\nDone!!"))
-  return(list(top_alleles = top_a_list, flagged_alleles = flagged_alleles))
+  return(list(top_alleles = top_a_list, flagged_alleles = flagged_alleles, mm2_plots_bygene = mm2_p))
 }
 
 

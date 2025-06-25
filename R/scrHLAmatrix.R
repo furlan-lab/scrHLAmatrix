@@ -211,7 +211,7 @@ HLA_Matrix <- function(reads, cell_data_obj, hla_recip = character(), hla_donor 
   reads$class_swap <- NA
   reads$class_swap <- as.factor(reads$class_swap)  
   # split
-  message(cat("\nEstimating Molecular Swap (excluding unduplicated UMIs where molecular swap cannot be estimated)"))   
+  message(cat("\nEstimating Molecular Swap (excluding unduplicated UMIs for which molecular swap cannot be estimated)"))   
   reads <- split(data.table::setDT(reads), by = "cbumi") 
   pb <- pbmcapply::progressBar(min = 0, max = length(reads), style = "ETA", char = "=")
   for(j in 1:length(reads)){
