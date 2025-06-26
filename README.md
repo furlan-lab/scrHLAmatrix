@@ -47,7 +47,7 @@ top_alleles <- Top_HLA_list(reads_1 = cts[["mRNA"]], reads_2 = cts[["gene"]], ce
 ```
 Write new 'alleles' file that you can provide back to scrHLAtag:
 ```
-write(top_alleles, file.path("path/to/save/candidate/hla/csv/file", "top_alleles.csv")))
+write(top_alleles[["top_alleles"]], file.path("path/to/save/candidate/hla/csv/file", "top_alleles.csv")))
 ```
 **That's it!..** time for another scrHLAtag iteration, and repeat for typically ~4-5 iterations, until the `Top_HLA_list()` function tells you it converged and that it was the final iteration.
 
@@ -62,11 +62,12 @@ dirnames <- c("samp1", "samp2") # this is how the samples were organized in the 
 cts <- HLA_load(directories = dirs_path, dir_names = dirnames, cell_data_obj = your_cell_dataset_obj) 
 
 ##create assay
-hla <- HLA_Matrix(reads = cts[["mRNA"]], cell_data_obj = your_cell_dataset_obj, 
+hla <- HLA_Matrix(reads = cts[["mRNA"]], 
+                  cell_data_obj = your_cell_dataset_obj, 
                   CB_rev_com = FALSE,    # TRUE for 3prime 10x on pacbio
                   return_stats = FALSE,
                   parallelize = FALSE)
-your_cell_dataset_obj[["HLA"]] <- hla
+your_cell_dataset_obj@assays$HLA <- CreateAssayObject(counts = hla)
 ```
 
 For more detailed documentation on the various functions and data, look into:
